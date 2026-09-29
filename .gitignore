@@ -20,3 +20,8 @@ vendor/
 # Large WordPress folders
 /wp*/
 uploads/
+
+profile.php.zip
+/erpgo/
+/infyhms/
+/config/aqari-pro-backup/

@@ -1,3 +1,0 @@
-User-agent: *
-Allow: /
-Sitemap: https://erpgo.loop-pr.com/sitemap.xml
