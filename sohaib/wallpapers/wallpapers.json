@@ -1,0 +1,50 @@
+[
+   {
+		"name": "Wallpaper 1",
+		"author": "leonardo",
+		"url": "file:///android_asset/frames/wallpaper-1.jpg",
+		"copyright": "Free (do whatever you want)",
+		"collections": "featured,landscapes,people,city",
+		"featured": true
+	},
+	 {
+		"name": "Wallpaper 2",
+		"author": "leonardo",
+		"url": "file:///android_asset/frames/wallpaper-2.jpg",
+		"copyright": "Free (do whatever you want)",
+		"collections": "featured,landscapes,people,city",
+		"featured": true
+	},
+	 {
+		"name": "Wallpaper 3",
+		"author": "leonardo",
+		"url": "file:///android_asset/frames/wallpaper-3.jpg",
+		"copyright": "Free (do whatever you want)",
+		"collections": "featured,landscapes,people,city",
+		"featured": true
+	},
+	 {
+		"name": "Wallpaper 4",
+		"author": "leonardo",
+		"url": "file:///android_asset/frames/wallpaper-4.jpg",
+		"copyright": "Free (do whatever you want)",
+		"collections": "featured,landscapes,people,city",
+		"featured": true
+	},
+	 {
+		"name": "Wallpaper 5",
+		"author": "leonardo",
+		"url": "file:///android_asset/frames/wallpaper-5.jpg",
+		"copyright": "Free (do whatever you want)",
+		"collections": "featured,landscapes,people,city",
+		"featured": true
+	},
+	 {
+		"name": "Wallpaper 6",
+		"author": "leonardo",
+		"url": "file:///android_asset/frames/wallpaper-6.jpg",
+		"copyright": "Free (do whatever you want)",
+		"collections": "featured,landscapes,people,city",
+		"featured": true
+	}
+]

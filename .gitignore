@@ -16,3 +16,7 @@ vendor/
 
 .idea/
 .vscode/
+
+# Large WordPress folders
+/wp*/
+uploads/
