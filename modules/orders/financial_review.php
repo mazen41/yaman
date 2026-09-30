@@ -115,7 +115,7 @@ $bank_account_filter = $_GET['bank_account'] ?? '';
 try {
     $orders_query = "SELECT DISTINCT o.id, CAST('order' AS CHAR(50)) COLLATE utf8mb4_unicode_ci as transaction_type, CAST(o.order_number AS CHAR(255)) COLLATE utf8mb4_unicode_ci as transaction_number, CAST(o.invoice_number AS CHAR(255)) COLLATE utf8mb4_unicode_ci as reference_number, o.customer_id, CAST(o.final_amount AS DECIMAL(10,2)) as amount, CAST(o.status AS CHAR(50)) COLLATE utf8mb4_unicode_ci as status, CAST(COALESCE(o.payment_method, 'غير محدد') AS CHAR(100)) COLLATE utf8mb4_unicode_ci as payment_method, CAST(COALESCE(o.review_status, 'pending') AS CHAR(50)) COLLATE utf8mb4_unicode_ci as review_status, o.reviewed_at, o.reviewed_by, CAST(COALESCE(o.review_note, '') AS CHAR(1000)) COLLATE utf8mb4_unicode_ci as review_note, o.created_at, o.updated_at, CAST(COALESCE(c.name, '') AS CHAR(255)) COLLATE utf8mb4_unicode_ci as customer_name, CAST(COALESCE(c.mobile_number, '') AS CHAR(50)) COLLATE utf8mb4_unicode_ci as mobile_number, CAST(COALESCE(u.username, '') AS CHAR(100)) COLLATE utf8mb4_unicode_ci as reviewed_by_name, CAST(NULL AS CHAR(255)) as bank_name FROM customer_orders o LEFT JOIN customers c ON o.customer_id = c.id LEFT JOIN users u ON o.reviewed_by = u.id";
     
-    $baskets_query = "SELECT DISTINCT pb.id, CAST('basket' AS CHAR(50)) COLLATE utf8mb4_unicode_ci as transaction_type, CAST(pb.basket_code AS CHAR(255)) COLLATE utf8mb4_unicode_ci as transaction_number, CAST(NULL AS CHAR(255)) COLLATE utf8mb4_unicode_ci as reference_number, NULL as customer_id, CAST(pb.final_amount AS DECIMAL(10,2)) as amount, CAST(pb.status AS CHAR(50)) COLLATE utf8mb4_unicode_ci as status, CAST('غير محدد' AS CHAR(100)) COLLATE utf8mb4_unicode_ci as payment_method, CAST(COALESCE(pb.review_status, 'pending') AS CHAR(50)) COLLATE utf8mb4_unicode_ci as review_status, pb.reviewed_at, pb.reviewed_by, CAST(COALESCE(pb.review_note, '') AS CHAR(1000)) COLLATE utf8mb4_unicode_ci as review_note, pb.created_at, pb.updated_at, CAST('سلة شراء' AS CHAR(255)) COLLATE utf8mb4_unicode_ci as customer_name, CAST('' AS CHAR(50)) COLLATE utf8mb4_unicode_ci as mobile_number, CAST(COALESCE(u.username, '') AS CHAR(100)) COLLATE utf8mb4_unicode_ci as reviewed_by_name, CAST(NULL AS CHAR(255)) as bank_name FROM purchase_baskets pb LEFT JOIN users u ON pb.reviewed_by = u.id";
+    $baskets_query = "SELECT DISTINCT pb.id, CAST('basket' AS CHAR(50)) COLLATE utf8mb4_unicode_ci as transaction_type, CAST(pb.basket_code AS CHAR(255)) COLLATE utf8mb4_unicode_ci as transaction_number, CAST(pb.currency AS CHAR(255)) COLLATE utf8mb4_unicode_ci as reference_number, NULL as customer_id, CAST(pb.final_amount AS DECIMAL(10,2)) as amount, CAST(pb.status AS CHAR(50)) COLLATE utf8mb4_unicode_ci as status, CAST(CONCAT(COALESCE(pb.sar_amount,''), '|', COALESCE(pb.currency,'YER')) AS CHAR(100)) COLLATE utf8mb4_unicode_ci as payment_method, CAST(COALESCE(pb.review_status, 'pending') AS CHAR(50)) COLLATE utf8mb4_unicode_ci as review_status, pb.reviewed_at, pb.reviewed_by, CAST(COALESCE(pb.review_note, '') AS CHAR(1000)) COLLATE utf8mb4_unicode_ci as review_note, pb.created_at, pb.updated_at, CAST('سلة شراء' AS CHAR(255)) COLLATE utf8mb4_unicode_ci as customer_name, CAST('' AS CHAR(50)) COLLATE utf8mb4_unicode_ci as mobile_number, CAST(COALESCE(u.username, '') AS CHAR(100)) COLLATE utf8mb4_unicode_ci as reviewed_by_name, CAST(NULL AS CHAR(255)) as bank_name FROM purchase_baskets pb LEFT JOIN users u ON pb.reviewed_by = u.id";
     
     $expenses_query = "SELECT DISTINCT e.id, CAST('expense' AS CHAR(50)) COLLATE utf8mb4_unicode_ci as transaction_type, CAST(e.expense_number AS CHAR(255)) COLLATE utf8mb4_unicode_ci as transaction_number, CAST(e.reference_number AS CHAR(255)) COLLATE utf8mb4_unicode_ci as reference_number, NULL as customer_id, CAST(e.amount AS DECIMAL(10,2)) as amount, CAST(e.status AS CHAR(50)) COLLATE utf8mb4_unicode_ci as status, CAST(COALESCE(e.payment_method, 'غير محدد') AS CHAR(100)) COLLATE utf8mb4_unicode_ci as payment_method, CAST(COALESCE(e.review_status, 'pending') AS CHAR(50)) COLLATE utf8mb4_unicode_ci as review_status, e.reviewed_at, e.reviewed_by, CAST(COALESCE(e.review_note, '') AS CHAR(1000)) COLLATE utf8mb4_unicode_ci as review_note, e.created_at, e.updated_at, CAST(COALESCE(e.vendor_name, 'مصروف') AS CHAR(255)) COLLATE utf8mb4_unicode_ci as customer_name, CAST(COALESCE(e.vendor_phone, '') AS CHAR(50)) COLLATE utf8mb4_unicode_ci as mobile_number, CAST(COALESCE(u.username, '') AS CHAR(100)) COLLATE utf8mb4_unicode_ci as reviewed_by_name, CAST(NULL AS CHAR(255)) as bank_name FROM expenses e LEFT JOIN users u ON e.reviewed_by = u.id";
     
@@ -180,12 +180,8 @@ try {
     $where_clauses = [];
     $params = [];
 
-    // تطبيق فلتر الحالة (مراجعة / قيد المراجعة / الكل)
-    if ($review_status_filter === 'pending') {
-        $where_clauses[] = "review_status = 'pending'";
-    } elseif ($review_status_filter === 'reviewed') {
-        $where_clauses[] = "review_status = 'reviewed'";
-    }
+    // NOTE: the review-status filter (pending/reviewed/all) is applied later in PHP, AFTER the
+    // "reviewed" / "pending" counters are calculated, so the two stat cards are always accurate.
 
     // Filter by bank account name
     if ($bank_account_filter === 'cash') {
@@ -218,7 +214,9 @@ try {
         }
 
         if (!empty($date_from) || !empty($date_to)) {
-            $created_date = substr($t['created_at'] ?? '', 0, 10);
+            // Use the same UTC -> Asia/Aden conversion that the table displays, so the filter matches what the user sees
+            $created_date = formatToYemenTime($t['created_at'] ?? '', 'Y-m-d');
+            if ($created_date === '-') { $created_date = substr($t['created_at'] ?? '', 0, 10); }
             if (!empty($date_from) && $created_date < $date_from) return false;
             if (!empty($date_to) && $created_date > $date_to) return false;
         }
@@ -449,6 +447,15 @@ include '../../includes/header.php';
                                     echo '<span class="text-xs text-gray-600">' . htmlspecialchars($t['review_note'] ?: $method_ar) . '</span>'; 
                                     if (!empty($t['reviewed_by_name'])) {
                                         echo '<br><span class="text-xs text-gray-400">بواسطة: ' . htmlspecialchars($t['reviewed_by_name']) . '</span>';
+                                    }
+                                } elseif ($t['transaction_type'] === 'basket') {
+                                    // payment_method holds "sar_amount|currency"
+                                    $basket_parts = explode('|', $t['payment_method'] ?? '');
+                                    $basket_sar = $basket_parts[0] ?? '';
+                                    $basket_currency = $basket_parts[1] ?? 'YER';
+                                    echo '<span class="text-xs text-gray-500">العملة: <strong>' . htmlspecialchars($basket_currency) . '</strong></span>';
+                                    if ($basket_sar !== '' && $basket_sar !== null) {
+                                        echo '<br><span class="text-xs text-blue-600">السعر بالريال السعودي: <strong>' . number_format((float)$basket_sar, 2) . ' ر.س</strong></span>';
                                     }
                                 } else {
                                     if (!empty($t['bank_name'])) {

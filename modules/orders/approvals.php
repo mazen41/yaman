@@ -191,6 +191,29 @@ include '../../includes/header.php';
 <div class="min-h-screen" dir="rtl">
     <?php if ($success_message): ?><div class="alert alert-success"><?php echo $success_message; ?></div><?php endif; ?>
     <?php if ($error_message): ?><div class="alert alert-danger"><?php echo $error_message; ?></div><?php endif; ?>
+    <?php
+    // BUG 11 FIX: Show WhatsApp send buttons if rejection queued them
+    if (!empty($_SESSION['whatsapp_pending'])):
+        $wa_pending = $_SESSION['whatsapp_pending'];
+        unset($_SESSION['whatsapp_pending']);
+        $wa_encoded_msg = urlencode($wa_pending['message']);
+    ?>
+    <div style="background:#d1fae5;border-radius:8px;padding:16px 20px;margin:0 20px 10px;border:1px solid #6ee7b7;">
+        <strong style="color:#065f46;font-size:14px;"><i class="fab fa-whatsapp" style="color:#25D366;margin-left:6px;"></i> <?php echo htmlspecialchars($wa_pending['label']); ?></strong>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;">
+        <?php foreach ($wa_pending['phones'] as $phone):
+            $clean_phone = preg_replace('/[^0-9]/', '', $phone);
+            if (strlen($clean_phone) > 0 && $clean_phone[0] === '0') $clean_phone = '967' . substr($clean_phone, 1);
+            $wa_link = 'https://wa.me/' . $clean_phone . '?text=' . $wa_encoded_msg;
+        ?>
+            <a href="<?php echo htmlspecialchars($wa_link); ?>" target="_blank"
+               style="display:inline-flex;align-items:center;gap:8px;background:#25D366;color:white;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;">
+                <i class="fab fa-whatsapp"></i> إرسال إلى <?php echo htmlspecialchars($phone); ?>
+            </a>
+        <?php endforeach; ?>
+        </div>
+    </div>
+    <?php endif; ?>
 
     <div class="table-wrapper">
         <div class="table-page-header">

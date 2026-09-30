@@ -535,6 +535,7 @@ include '../../includes/header.php';
                     <div style="display: flex; gap: 10px; margin-bottom: 5px;">
                         <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> بحث</button>
                         <a href="index.php" class="btn btn-secondary"><i class="fas fa-redo"></i> إلغاء</a>
+                        <button type="button" onclick="printSelectedLabels()" class="btn btn-warning" style="background:#f59e0b;color:white;border:none;cursor:pointer;"><i class="fas fa-print"></i> طباعة ملصقات</button>
                     </div>
                 </div>
             </div>
@@ -601,6 +602,7 @@ include '../../includes/header.php';
             <table class="vertical-table">
                 <thead>
                     <tr>
+                        <th><input type="checkbox" id="select-all-cb" onchange="document.querySelectorAll('.order-select-cb').forEach(c=>c.checked=this.checked)" title="تحديد الكل"></th>
                         <th>رقم الطلب</th>
                         <th>تاريخ الطلب</th>
                         <th>العميل</th>
@@ -637,6 +639,7 @@ include '../../includes/header.php';
                             $order_sorting_summary = getOrderSortingSummaryFromRow($order);
                         ?>
                             <tr>
+                                <td><input type="checkbox" class="order-select-cb" value="<?php echo $order['id']; ?>"></td>
                                 <!-- Icon logic updated to use $is_manual_order -->
                                 <td>
                                     <strong><?php echo htmlspecialchars(formatOrderNumber($order['order_number'])); ?></strong>
@@ -1003,6 +1006,13 @@ include '../../includes/header.php';
         document.getElementById('deleteModal').style.display = 'none';
         orderIdToDelete = null;
     }
+    function printSelectedLabels() {
+        const checked = document.querySelectorAll('.order-select-cb:checked');
+        if (checked.length === 0) { alert('يرجى تحديد طلب واحد على الأقل'); return; }
+        const ids = Array.from(checked).map(cb => cb.value).join(',');
+        window.open('print_labels.php?ids=' + ids, '_blank');
+    }
+
     document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
         if (!orderIdToDelete) return;
         this.disabled = true;

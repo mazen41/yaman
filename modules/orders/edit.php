@@ -270,8 +270,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && !empty($order)) {
                 $item_id     = intval($item['id'] ?? 0);
 
                 if ($item_id > 0 && isset($existing_items_map[$item_id])) {
-                    // Update existing item, preserve sorting-related fields (status, sorting data)
+                    // BUG 12 FIX: Preserve 'scanned' status — never overwrite it from form post
                     $existing_item = $existing_items_map[$item_id];
+                    $safe_status = ($existing_item['product_status'] === 'scanned') ? 'scanned' : $item_status;
+                    // Also preserve shein_sku if form posted empty
+                    $safe_sku = (!empty($sku_value)) ? $sku_value : ($existing_item['shein_sku'] ?? null);
+
                     $update_stmt = $db->prepare("
                         UPDATE order_items SET
                             product_name = ?, quantity = ?, unit_price = ?, total_price = ?,
@@ -281,7 +285,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && !empty($order)) {
                     ");
                     $update_stmt->execute([
                         $item_name, $qty, $unit_price, $total_price,
-                        $item_notes, $item_link, $item_status, $sku_value,
+                        $item_notes, $item_link, $safe_status, $safe_sku,
                         $item_id
                     ]);
                     $processed_ids[] = $item_id;

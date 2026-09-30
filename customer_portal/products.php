@@ -3,6 +3,7 @@ session_start();
 
 // --- CONFIGURATION ---
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/portal_helpers.php';
 
 $token = $_GET['token'] ?? '';
 
@@ -157,7 +158,9 @@ foreach ($products as $key => $product) {
         @media (max-width: 768px) { .portal-slider { height: 180px; } }
 
         /* ── Category Circles ── */
+        /* BUG 8 FIX: overflow:visible on scroll container + enough padding-top so rings don't clip */
         .cat-item { display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; flex-shrink: 0; }
+        #main-category-scroll { padding-top: 6px; overflow-x: auto; overflow-y: visible; }
         .cat-ring { width: 64px; height: 64px; border-radius: 50%; border: 2.5px solid #e5e7eb; overflow: hidden; position: relative; background: #fff; transition: border-color 0.25s, transform 0.25s, box-shadow 0.25s; }
         .cat-ring img { width: 100%; height: 100%; object-fit: cover; }
         .cat-ring .cat-fallback { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 22px; background: linear-gradient(135deg, #f3f4f6, #e9e9e5); color: #9ca3af; }
@@ -300,8 +303,9 @@ foreach ($products as $key => $product) {
         </div>
 
         <!-- ─── Category Circles (Hierarchical) ─── -->
-        <div class="pb-3 border-b border-gray-200 mb-5">
-            <div class="flex gap-4 overflow-x-auto hide-scrollbar pb-2 items-start" id="main-category-scroll">
+        <!-- BUG 8 FIX: overflow-y:visible so ring border/shadow not clipped -->
+        <div class="pb-3 border-b border-gray-200 mb-5" style="overflow:visible;">
+            <div class="flex gap-4 overflow-x-auto hide-scrollbar pb-2 items-start" id="main-category-scroll" style="overflow-y:visible; padding-top:6px;">
                 <div class="cat-item active" data-filter-type="all" data-category-id="all" onclick="filterCategory(this)">
                     <div class="cat-ring"><div class="cat-fallback"><i class="fas fa-th-large"></i></div></div>
                     <span class="cat-label text-xs text-center whitespace-normal leading-tight w-16">الكل</span>
@@ -391,7 +395,7 @@ foreach ($products as $key => $product) {
             <div class="space-y-2 mb-4 text-sm font-semibold">
                 <div class="flex justify-between text-gray-500"><span>المجموع الفرعي</span><span id="cart-subtotal" class="text-gray-800">0.00 <?php echo $customer_currency; ?></span></div>
                 
-                <div class="flex justify-between text-gray-500 pb-3 border-b border-dashed border-gray-200"><span>رسوم التوصيل</span><span class="text-[#C7A46D]"><?php echo number_format($shipping_cost,2); ?> <?php echo $customer_currency; ?></span></div>
+                <div class="flex justify-between text-gray-500 pb-3 border-b border-dashed border-gray-200"><span>رسوم التوصيل</span><span class="text-[#C7A46D]"><?php echo formatPrice($shipping_cost); ?> <?php echo $customer_currency; ?></span></div>
                 
                 <!-- Final Total: two modes -->
                 <div class="flex justify-between items-end pt-1">
@@ -431,6 +435,7 @@ foreach ($products as $key => $product) {
         const ALL_ATTRIBUTES        = <?php echo json_encode($attributes); ?>;
         const ALL_ATTRIBUTE_VALUES  = <?php echo json_encode($attribute_values_flat); ?>;
         const SHIPPING_COST         = <?php echo (float)$shipping_cost; ?>;
+        const productImagesMap      = <?php echo json_encode($product_images); ?>;
         const CURRENCY              = "<?php echo $customer_currency; ?>";
         const CUSTOMER_ID           = <?php echo (int)$customer_id; ?>;
         const TOKEN                 = "<?php echo htmlspecialchars($token); ?>";
@@ -659,7 +664,37 @@ foreach ($products as $key => $product) {
             document.getElementById('modal-desc').innerHTML = (product.description || 'لا يوجد وصف متاح.').replace(/\n/g,'<br>');
 
             updateModalPriceAndStock(product);
-            setModalImage(product.main_image_url);
+
+            // FEATURE 6: Show all product images as a scrollable gallery
+            const images = productImagesMap[product.id] || [];
+            const imgEl = document.getElementById('modal-img');
+            const phEl  = document.getElementById('modal-img-placeholder');
+            let galleryContainer = document.getElementById('modal-img-gallery');
+            if (!galleryContainer) {
+                galleryContainer = document.createElement('div');
+                galleryContainer.id = 'modal-img-gallery';
+                if (imgEl && imgEl.parentNode) imgEl.parentNode.insertBefore(galleryContainer, imgEl);
+            }
+            galleryContainer.innerHTML = '';
+            if (images.length > 0) {
+                imgEl.classList.add('hidden'); phEl.classList.add('hidden');
+                galleryContainer.style = 'display:flex;gap:8px;overflow-x:auto;padding:8px 0;-webkit-overflow-scrolling:touch;';
+                images.forEach(img => {
+                    const url = img.image_url.startsWith('http') ? img.image_url : '../' + img.image_url;
+                    const im = document.createElement('img');
+                    im.src = url;
+                    im.style = 'width:90px;height:115px;object-fit:cover;border-radius:8px;flex-shrink:0;border:1px solid #e5e7eb;cursor:pointer;';
+                    im.onerror = function() { this.style.display='none'; };
+                    im.onclick = function() { setModalImage(url); };
+                    galleryContainer.appendChild(im);
+                });
+                // Show first image as main
+                setModalImage(images[0].image_url.startsWith('http') ? images[0].image_url : '../' + images[0].image_url);
+                imgEl.classList.remove('hidden');
+            } else {
+                galleryContainer.style = '';
+                setModalImage(product.main_image_url);
+            }
             
             // Build options and trigger default selection logic
             buildModalOptions(product);
@@ -953,10 +988,12 @@ foreach ($products as $key => $product) {
             let maxQty = Infinity;
             const product = ALL_PRODUCTS.find(p => p.id == item.productId);
             if (product) {
-                if (item.cartKey.includes('v')) { 
-                    const variantId = item.cartKey.split('v')[1].split('_')[0];
-                    const variant = product.variants.find(v => v.id == variantId);
+                // Variant keys look like "<productId>_v<variantId>"; keys like "<id>_a3v7" are attribute keys, not variants
+                const variantMatch = item.cartKey.match(/_v(\d+)$/);
+                if (variantMatch) {
+                    const variant = product.variants.find(v => v.id == variantMatch[1]);
                     if (variant) maxQty = parseInt(variant.quantity);
+                    else maxQty = effectiveProductStock(product);
                 } else { maxQty = effectiveProductStock(product); }
             }
             
@@ -1083,6 +1120,17 @@ foreach ($products as $key => $product) {
         }
 
         function checkout() { if (cart.length === 0) return; window.location.href = `checkout.php?token=${TOKEN}`; }
+
+        // BUG 7: Intercept browser back button when cart is open
+        history.pushState(null, '', window.location.href);
+        window.addEventListener('popstate', function(e) {
+            const sidebar = document.getElementById('cart-sidebar');
+            if (sidebar && !sidebar.classList.contains('translate-x-full-rtl')) {
+                toggleCart(); // close cart instead of navigating back
+                history.pushState(null, '', window.location.href);
+            }
+        });
+
         document.addEventListener('DOMContentLoaded', init);
     </script>
 </body>

@@ -19,6 +19,12 @@ $page_title = 'تقرير حسابات العملاء';
 // Filters
 $search = $_GET['search'] ?? '';
 $status_filter = $_GET['status'] ?? ''; // 'has_balance', 'paid', ''
+$date_from = $_GET['date_from'] ?? '';
+$date_to   = $_GET['date_to'] ?? '';
+// Validate date format (YYYY-MM-DD) to avoid garbage input
+if ($date_from !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date_from)) { $date_from = ''; }
+if ($date_to   !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date_to))   { $date_to = ''; }
+$has_date_filter = ($date_from !== '' || $date_to !== '');
 
 // Currency symbol (single unified display)
 $currency_symbol = 'ر.ي';
@@ -47,6 +53,23 @@ try {
 
     $where_sql = !empty($where_clauses) ? 'WHERE ' . implode(' AND ', $where_clauses) : '';
 
+    // Date filter is applied inside the JOIN (not WHERE) so the LEFT JOIN is preserved
+    // and per-customer totals only include orders within the selected range.
+    $join_extra = '';
+    $join_params = [];
+    if ($date_from !== '') {
+        $join_extra .= ' AND co.created_at >= ?';
+        $join_params[] = $date_from . ' 00:00:00';
+    }
+    if ($date_to !== '') {
+        $join_extra .= ' AND co.created_at <= ?';
+        $join_params[] = $date_to . ' 23:59:59';
+    }
+    // When filtering by date, hide customers with no orders in that range
+    $having_sql = $has_date_filter ? 'HAVING COUNT(co.id) > 0' : '';
+    // Join params come first (they appear before WHERE in the SQL)
+    $params = array_merge($join_params, $params);
+
     $customers_query = "
         SELECT
             c.id,
@@ -59,9 +82,10 @@ try {
             COALESCE(SUM(co.paid_amount), 0) AS total_paid_amount,
             COALESCE(SUM(co.final_amount - co.paid_amount), 0) AS total_remaining_amount
         FROM customers c
-        LEFT JOIN customer_orders co ON c.id = co.customer_id
+        LEFT JOIN customer_orders co ON c.id = co.customer_id$join_extra
         $where_sql
         GROUP BY c.id, c.name, c.phone, c.email, c.is_active
+        $having_sql
         ORDER BY total_remaining_amount DESC, c.name ASC
     ";
 
@@ -92,7 +116,10 @@ try {
     $total_paid       = array_sum(array_column($customers, 'total_paid_amount'));
     
     // --- MODIFIED: For the 'المتبقي' (Remaining) card, use the absolute grand total ---
-    $total_remaining  = $absolute_grand_total_remaining; 
+    // With a date filter active, show the remaining for the filtered range instead of the all-time total
+    $total_remaining  = $has_date_filter
+        ? array_sum(array_column($customers, 'total_remaining_amount'))
+        : $absolute_grand_total_remaining; 
     // --- END MODIFIED ---
 
 } catch (PDOException $e) {
@@ -125,7 +152,7 @@ include '../../includes/header.php';
     <!-- Filter Section -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
         <form method="GET" action="">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <div class="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
                 <div class="md:col-span-2">
                     <label class="block text-sm font-medium text-gray-700 mb-1">بحث</label>
                     <div class="relative rounded-md shadow-sm">
@@ -145,6 +172,18 @@ include '../../includes/header.php';
                         <option value="has_balance" <?php echo $status_filter === 'has_balance' ? 'selected' : ''; ?>>لديهم رصيد متبقي</option>
                         <option value="paid" <?php echo $status_filter === 'paid' ? 'selected' : ''; ?>>مسددين بالكامل</option>
                     </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">من تاريخ</label>
+                    <input type="date" name="date_from" value="<?php echo htmlspecialchars($date_from); ?>"
+                           class="w-full rounded-lg border-gray-300 focus:ring-purple-500 focus:border-purple-500 text-sm">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">إلى تاريخ</label>
+                    <input type="date" name="date_to" value="<?php echo htmlspecialchars($date_to); ?>"
+                           class="w-full rounded-lg border-gray-300 focus:ring-purple-500 focus:border-purple-500 text-sm">
                 </div>
 
                 <div class="flex gap-2">

@@ -119,8 +119,13 @@ $page = max(1, $page);
 
 // --- 4. FETCH DATA ---
 try {
-    // قائمة الحالات الثابتة للطلبات الجديدة
-    $all_statuses = ['طلب جديد', 'طلب معتمد', 'مرفوض'];
+    // FEATURE 5: Load statuses from shop_order_statuses table (dynamic)
+    try {
+        $statuses_stmt = $db->query("SELECT status_name FROM shop_order_statuses ORDER BY display_order, id");
+        $all_statuses = $statuses_stmt->fetchAll(PDO::FETCH_COLUMN);
+    } catch (Exception $e) {
+        $all_statuses = ['طلب جديد', 'طلب معتمد', 'قيد التنفيذ', 'مرفوض', 'تم التوصيل'];
+    }
 
     $from_joins = "FROM shop_orders o
                    LEFT JOIN customers c ON o.customer_id = c.id";
@@ -245,8 +250,12 @@ include '../../includes/header.php';
         background: white;
         border-radius: 12px;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        overflow: hidden;
-        margin: 20px;
+        overflow: visible;
+        margin: 10px;
+    }
+
+    @media (min-width: 640px) {
+        .table-wrapper { margin: 20px; }
     }
 
     .table-page-header {

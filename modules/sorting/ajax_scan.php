@@ -358,10 +358,12 @@ function find_order_items_by_sku(PDO $db, string $sku, int $purchaseGroupId = 0)
 
 function get_order_counts(PDO $db, int $orderId): array
 {
+    // BUG 1 FIX: Count SUM of quantities, not just row count.
+    // A self-order item with quantity=3 should count as 3 pieces, not 1.
     $stmt = $db->prepare("
         SELECT
-            COUNT(*) AS total_items,
-            SUM(CASE WHEN status = 'scanned' THEN 1 ELSE 0 END) AS scanned_items
+            COALESCE(SUM(GREATEST(COALESCE(quantity, 1), 1)), 0) AS total_items,
+            COALESCE(SUM(CASE WHEN status = 'scanned' THEN GREATEST(COALESCE(quantity, 1), 1) ELSE 0 END), 0) AS scanned_items
         FROM order_items
         WHERE order_id = ?
     ");

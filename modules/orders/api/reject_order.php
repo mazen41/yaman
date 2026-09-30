@@ -80,7 +80,21 @@ try {
     }
 
     $db->commit();
-    $_SESSION['success_message'] = 'تم رفض الطلب بنجاح.';
+
+    // BUG 11 FIX: Build WhatsApp message and redirect with WA send option
+    $wa_message = 'عزيزي ' . ($customer['name'] ?? 'العميل') . '، نود إبلاغك بأنه تم رفض طلبك #' . $approval_id . '.' . "\n" . 'السبب: ' . $rejection_reason;
+    $wa_phones = $selected_numbers;
+
+    if (!empty($wa_phones)) {
+        // Store WA info in session to show send button on redirect
+        $_SESSION['whatsapp_pending'] = [
+            'phones'  => $wa_phones,
+            'message' => $wa_message,
+            'label'   => 'إشعار رفض الطلب #' . $approval_id,
+        ];
+    }
+
+    $_SESSION['success_message'] = 'تم رفض الطلب بنجاح.' . (!empty($wa_phones) ? ' يرجى إرسال إشعار الواتساب للعميل.' : '');
     header('Location: ../approvals.php');
     exit();
 

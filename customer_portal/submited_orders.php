@@ -34,9 +34,27 @@ function getStatusDetails($status) {
         case 'rejected':
             return ['class' => 'bg-red-100 text-red-800 border-red-200', 'icon' => 'fa-times-circle', 'label' => 'مرفوض'];
         case 'pending':
+        case 'pending_review':
         default:
             return ['class' => 'bg-amber-100 text-amber-800 border-amber-200', 'icon' => 'fa-clock', 'label' => 'قيد المراجعة'];
     }
+}
+
+// Helper: Translate any status string to Arabic
+function translateStatus($status) {
+    $map = [
+        'pending'           => 'قيد المراجعة',
+        'pending_review'    => 'قيد المراجعة',
+        'approved'          => 'تمت الموافقة',
+        'rejected'          => 'مرفوض',
+        'new'               => 'جديد',
+        'processing'        => 'قيد المعالجة',
+        'shipped'           => 'تم الشحن',
+        'delivered'         => 'تم التسليم',
+        'cancelled'         => 'ملغي',
+        'returned'          => 'مُرتجع',
+    ];
+    return $map[$status] ?? $status;
 }
 
 $approvals = [];

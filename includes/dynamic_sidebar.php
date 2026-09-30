@@ -82,6 +82,7 @@ $all_sidebar_modules = [
     // إدارة المخزون (hidden as requested)
     // ['name' => 'إدارة المخزون', 'route' => '/modules/inventory/index.php', 'icon' => 'fas fa-boxes', 'key' => 'inventory', 'section' => 'modules'],
     ['name' => 'الحسابات المالية', 'route' => '/modules/financial/index.php', 'icon' => 'fas fa-coins', 'key' => 'financial', 'section' => 'modules'],
+    ['name' => 'إقفال السنة المالية', 'route' => '/modules/financial/year_close.php', 'icon' => 'fas fa-calendar-check', 'key' => 'financial', 'section' => 'modules'],
     ['name' => 'إدارة الحسابات البنكية', 'route' => '/modules/payments/bank_accounts.php', 'icon' => 'fas fa-university', 'key' => 'bank_accounts', 'section' => 'modules'],
     ['name' => 'إدارة الموظفين', 'route' => '/modules/financial/employee-manage.php', 'icon' => 'fas fa-users-cog', 'key' => 'employees', 'section' => 'modules'],
     ['name' => 'صلاحيات الموظفين', 'route' => '/modules/financial/employee-permissions.php', 'icon' => 'fas fa-user-shield', 'key' => 'permissions', 'section' => 'modules'],
@@ -95,6 +96,7 @@ $all_sidebar_modules = [
     'section' => 'shop_management',
 ],
     ['name' => 'التقارير والطباعة', 'route' => '/modules/reports/index.php', 'icon' => 'fas fa-chart-bar', 'key' => 'reports', 'section' => 'reports'],
+    ['name' => 'ملخص العملاء', 'route' => '/modules/reports/customer_summary.php', 'icon' => 'fas fa-users', 'key' => 'reports', 'section' => 'reports'],
     ['name' => 'إعدادات النظام', 'route' => '/modules/settings/index.php', 'icon' => 'fas fa-cog', 'key' => 'settings', 'section' => 'settings'],
 [
     'name' => 'القيود اليومية',

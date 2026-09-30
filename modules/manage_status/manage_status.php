@@ -47,6 +47,55 @@ $status_tables = [
 
 $all_statuses_data = [];
 
+// --- 3b. ENSURE shop_order_statuses TABLE EXISTS & SEED DEFAULTS ---
+try {
+    $db->exec("CREATE TABLE IF NOT EXISTS shop_order_statuses (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        status_name VARCHAR(100) NOT NULL,
+        color VARCHAR(20) DEFAULT '#6b7280',
+        is_default TINYINT(1) DEFAULT 0,
+        display_order INT DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+
+    $shop_count = $db->query("SELECT COUNT(*) FROM shop_order_statuses")->fetchColumn();
+    if ($shop_count == 0) {
+        $db->exec("INSERT INTO shop_order_statuses (status_name, color, is_default, display_order) VALUES
+            ('طلب جديد', '#3b82f6', 1, 1),
+            ('طلب معتمد', '#10b981', 0, 2),
+            ('قيد التنفيذ', '#f59e0b', 0, 3),
+            ('مرفوض', '#ef4444', 0, 4),
+            ('تم التوصيل', '#6b7280', 0, 5)");
+    }
+} catch (PDOException $e) {
+    // table may already exist
+}
+
+// Handle POST add/delete for shop_order_statuses
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_POST['add_shop_status']) && $can_add_status) {
+        $sname = trim($_POST['shop_status_name'] ?? '');
+        $scolor = trim($_POST['shop_status_color'] ?? '#6b7280');
+        $sis_default = isset($_POST['shop_status_default']) ? 1 : 0;
+        $sorder = (int)($_POST['shop_status_order'] ?? 0);
+        if ($sname) {
+            if ($sis_default) $db->exec("UPDATE shop_order_statuses SET is_default = 0");
+            $db->prepare("INSERT INTO shop_order_statuses (status_name, color, is_default, display_order) VALUES (?, ?, ?, ?)")
+               ->execute([$sname, $scolor, $sis_default, $sorder]);
+            $_SESSION['success_message'] = 'تمت إضافة الحالة بنجاح';
+        }
+        header('Location: manage_status.php'); exit();
+    }
+    if (isset($_POST['delete_shop_status']) && $can_delete_status) {
+        $sid = (int)($_POST['shop_status_id'] ?? 0);
+        if ($sid) $db->prepare("DELETE FROM shop_order_statuses WHERE id = ?")->execute([$sid]);
+        $_SESSION['success_message'] = 'تم حذف الحالة';
+        header('Location: manage_status.php'); exit();
+    }
+}
+
+$shop_statuses = $db->query("SELECT * FROM shop_order_statuses ORDER BY display_order, id")->fetchAll(PDO::FETCH_ASSOC);
+
 // --- 4. FETCH DATA ---
 try {
     foreach ($status_tables as $table_name => $table_title) {
@@ -172,6 +221,57 @@ include '../../includes/header.php';
         </div>
     </div>
     <?php endforeach; ?>
+
+    <!-- Shop Order Statuses Section -->
+    <div class="status-section">
+        <div class="section-header">
+            <h2 class="section-title"><i class="fas fa-store"></i> حالات طلبات المتجر</h2>
+        </div>
+        <div class="table-responsive">
+            <table class="status-table">
+                <thead><tr>
+                    <th>#</th><th>اسم الحالة</th><th>اللون</th><th>الترتيب</th><th>افتراضي</th>
+                    <?php if ($can_delete_status): ?><th>حذف</th><?php endif; ?>
+                </tr></thead>
+                <tbody>
+                <?php foreach ($shop_statuses as $ss): ?>
+                    <tr>
+                        <td><?= $ss['id'] ?></td>
+                        <td><strong><?= htmlspecialchars($ss['status_name']) ?></strong></td>
+                        <td><span style="display:inline-block;width:20px;height:20px;border-radius:4px;background:<?= htmlspecialchars($ss['color']) ?>;vertical-align:middle;"></span> <?= htmlspecialchars($ss['color']) ?></td>
+                        <td><?= $ss['display_order'] ?></td>
+                        <td><?= $ss['is_default'] ? '<span class="badge badge-success">نعم</span>' : '<span class="badge badge-secondary">لا</span>' ?></td>
+                        <?php if ($can_delete_status): ?>
+                        <td>
+                            <form method="POST" onsubmit="return confirm('هل أنت متأكد من الحذف؟');" style="display:inline;">
+                                <input type="hidden" name="shop_status_id" value="<?= $ss['id'] ?>">
+                                <button type="submit" name="delete_shop_status" class="btn btn-danger action-btn"><i class="fas fa-trash-alt"></i> حذف</button>
+                            </form>
+                        </td>
+                        <?php endif; ?>
+                    </tr>
+                <?php endforeach; ?>
+                <?php if (empty($shop_statuses)): ?>
+                    <tr><td colspan="6" style="text-align:center;padding:30px;color:#6b7280;">لا توجد حالات</td></tr>
+                <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+        <?php if ($can_add_status): ?>
+        <div style="padding:16px;border-top:1px solid #e5e7eb;">
+            <form method="POST" style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+                <div><label style="font-size:12px;font-weight:600;">اسم الحالة</label><br>
+                    <input type="text" name="shop_status_name" required class="form-control" style="width:160px;"></div>
+                <div><label style="font-size:12px;font-weight:600;">اللون</label><br>
+                    <input type="color" name="shop_status_color" value="#6b7280" style="width:60px;height:34px;border-radius:4px;border:1px solid #d1d5db;"></div>
+                <div><label style="font-size:12px;font-weight:600;">الترتيب</label><br>
+                    <input type="number" name="shop_status_order" value="0" class="form-control" style="width:70px;"></div>
+                <div style="padding-top:18px;"><label style="font-size:12px;"><input type="checkbox" name="shop_status_default" value="1"> افتراضي</label></div>
+                <button type="submit" name="add_shop_status" class="btn btn-success"><i class="fas fa-plus"></i> إضافة</button>
+            </form>
+        </div>
+        <?php endif; ?>
+    </div>
 </div>
 
 <?php include '../../includes/footer.php'; ?>

@@ -17,6 +17,20 @@ if (!hasPermission($_SESSION['user_id'], 'bank_accounts', 'view')) {
 
 $page_title = 'الحسابات البنكية';
 
+// FEATURE 7: Ensure show_in_store column exists
+try {
+    $db->exec("ALTER TABLE bank_accounts ADD COLUMN IF NOT EXISTS show_in_store TINYINT(1) NOT NULL DEFAULT 1");
+} catch (Exception $e) { /* column already exists */ }
+
+// FEATURE 7: Handle toggle_store POST
+if (($_POST['action'] ?? '') === 'toggle_store' && hasPermission($_SESSION['user_id'], 'bank_accounts', 'edit')) {
+    $toggle_id = (int)($_POST['id'] ?? 0);
+    if ($toggle_id) {
+        $db->prepare("UPDATE bank_accounts SET show_in_store = 1 - show_in_store WHERE id = ?")->execute([$toggle_id]);
+    }
+    header('Location: index.php?currency=' . urlencode($_GET['currency'] ?? 'YER')); exit();
+}
+
 // Currency filter
 $selected_currency = $_GET['currency'] ?? 'YER';
 if (!in_array($selected_currency, ['YER', 'SAR'])) {
@@ -87,13 +101,14 @@ include '../../includes/header.php';
                     <tr>
                         <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">#</th>
                         <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">البيانات</th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">ظهور في المتجر</th>
                         <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">الإجراءات</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     <?php if (empty($items)): ?>
                     <tr>
-                        <td colspan="3" class="px-6 py-12 text-center text-gray-500">
+                        <td colspan="4" class="px-6 py-12 text-center text-gray-500">
                             <i class="fas fa-inbox text-4xl mb-3 text-gray-300"></i>
                             <p>لا توجد بيانات</p>
                         </td>
@@ -104,6 +119,15 @@ include '../../includes/header.php';
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><?php echo $index + 1; ?></td>
                             <td class="px-6 py-4 text-sm text-gray-900">
                                 <?php echo htmlspecialchars(json_encode($item)); ?>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                                <form method="POST" style="display:inline;">
+                                    <input type="hidden" name="action" value="toggle_store">
+                                    <input type="hidden" name="id" value="<?php echo $item['id']; ?>">
+                                    <button type="submit" style="background:<?php echo ($item['show_in_store'] ?? 1) ? '#10b981' : '#6b7280'; ?>;color:white;border:none;padding:4px 14px;border-radius:20px;cursor:pointer;font-size:12px;font-weight:700;">
+                                        <?php echo ($item['show_in_store'] ?? 1) ? '✓ ظاهر' : '✗ مخفي'; ?>
+                                    </button>
+                                </form>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                                 <?php if (hasPermission($_SESSION['user_id'], 'bank_accounts', 'edit')): ?>

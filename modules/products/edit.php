@@ -407,7 +407,8 @@ include '../../includes/header.php';
 
                         <!-- Variants Table -->
                         <div class="bg-gray-50 p-6 rounded-lg shadow-sm border">
-                            <table class="min-w-full" id="variants-table">
+                            <div style="overflow-x:auto; width:100%;">
+                            <table class="min-w-full" id="variants-table" style="width:100%; min-width:600px;">
                                 <thead class="bg-gray-50">
                                     <tr>
                                         <th class="px-4 py-2">اللون</th><th class="px-4 py-2">المقاس</th>
@@ -416,6 +417,7 @@ include '../../includes/header.php';
                                 </thead>
                                 <tbody><tr id="no-variants-row"><td colspan="4" class="text-center py-4 text-gray-500">اختر لتوليد</td></tr></tbody>
                             </table>
+                            </div><!-- end overflow-x:auto -->
                         </div>
 
                         <div class="flex justify-end"><button type="submit" class="px-6 py-3 bg-green-600 text-white rounded-lg"><i class="fas fa-save ml-2"></i> حفظ التعديلات</button></div>

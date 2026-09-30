@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/portal_helpers.php';
 
 $token = $_GET['token'] ?? '';
 
@@ -34,7 +35,7 @@ if (!empty($customer_city)) {
 }
 
 // 3. Fetch Active Bank Accounts
-$banks_stmt = $db->query("SELECT bank_name, account_name, account_holder_name, account_number, iban FROM bank_accounts WHERE is_active = 1");
+$banks_stmt = $db->query("SELECT bank_name, account_name, account_holder_name, account_number, iban FROM bank_accounts WHERE is_active = 1 AND show_in_store = 1");
 $bank_accounts = $banks_stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // 4. Fetch Company Phone
@@ -102,6 +103,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_order'])) {
             // Insert into Database (Transaction)
             $db->beginTransaction();
 
+            // --- Stock Validation (server-side) ---
+            foreach ($cart_items as $item) {
+                $prod_id  = (int)($item['productId'] ?? 0);
+                $item_qty = (int)($item['qty'] ?? 1);
+                $item_name = $item['name'] ?? 'منتج';
+
+                // Check variant stock first if variant selected
+                $variant_id = null;
+                if (!empty($item['cartKey']) && strpos($item['cartKey'], 'v') !== false) {
+                    preg_match('/v(\d+)/', $item['cartKey'], $m);
+                    $variant_id = isset($m[1]) ? (int)$m[1] : null;
+                }
+
+                if ($variant_id) {
+                    $sv = $db->prepare("SELECT quantity FROM product_variants WHERE id = ? AND product_id = ?");
+                    $sv->execute([$variant_id, $prod_id]);
+                    $available = (int)$sv->fetchColumn();
+                } else {
+                    $sv = $db->prepare("SELECT product_quantity FROM products WHERE id = ? AND is_active = 1");
+                    $sv->execute([$prod_id]);
+                    $available = (int)$sv->fetchColumn();
+                }
+
+                if ($item_qty > $available) {
+                    $db->rollBack();
+                    throw new Exception("الكمية المطلوبة للمنتج \"{$item_name}\" ({$item_qty}) تتجاوز المتوفر ({$available}).");
+                }
+            }
+
             // Generate sequential order number: 1, 2, 3...
             $seq_stmt = $db->query("SELECT order_number FROM shop_orders WHERE order_number REGEXP '^[0-9]+$' ORDER BY CAST(order_number AS UNSIGNED) DESC LIMIT 1 FOR UPDATE");
             $last_order_number = $seq_stmt->fetchColumn();
@@ -156,11 +186,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_order'])) {
                 $whatsapp_message = $template['message_content'];
                 $whatsapp_message = str_replace('{{customer-name}}', $customer_name, $whatsapp_message);
                 $whatsapp_message = str_replace('{{order-number}}', $order_number, $whatsapp_message);
-                $whatsapp_message = str_replace('{{total-amount}}', number_format($final_order_total, 2), $whatsapp_message); // Use final total for WhatsApp
+                $whatsapp_message = str_replace('{{total-amount}}', formatPrice($final_order_total), $whatsapp_message); // Use final total for WhatsApp
                 $whatsapp_message = str_replace('{{currency}}', $currency, $whatsapp_message);
             } else {
                 // الرسالة الافتراضية في حال عدم وجود قالب أو إذا كان غير مفعل
-                $whatsapp_message = "مرحباً،\nلدي طلب جديد من البوابة.\n\n*الاسم:* $customer_name\n*رقم الطلب:* $order_number\n*الإجمالي:* " . number_format($final_order_total, 2) . " $currency\n\nيرجى مراجعة واعتماد الطلب في النظام.";
+                $whatsapp_message = "مرحباً،\nلدي طلب جديد من البوابة.\n\n*الاسم:* $customer_name\n*رقم الطلب:* $order_number\n*الإجمالي:* " . formatPrice($final_order_total) . " $currency\n\nيرجى مراجعة واعتماد الطلب في النظام.";
             }
             
         } catch (Exception $e) {
@@ -314,7 +344,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_order'])) {
                         </div>
                         <div class="flex justify-between text-blue-600">
                             <span>رسوم الشحن:</span>
-                            <span><?php echo number_format($shipping_cost, 2) . ' ' . $currency; ?></span>
+                            <span><?php echo formatPrice($shipping_cost) . ' ' . $currency; ?></span>
                         </div>
                         
                         <!-- Coupon Discount -->
@@ -544,15 +574,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_order'])) {
                     document.getElementById('coupon-code').readOnly = true;
                     btn.classList.add('hidden');
                 } else {
-                    msgEl.innerText = data.message;
+                    // BUG 4 FIX: Show error WITHOUT clearing the input field
+                    msgEl.innerText = data.message || 'الكوبون غير صحيح أو غير صالح';
                     msgEl.className = "text-xs mt-2 text-red-500 font-bold block";
-                    resetCoupon();
+                    // Only reset the discount amount, NOT the input field
+                    currentCouponDiscountAmount = 0;
+                    document.getElementById('coupon-discount-row').classList.add('hidden');
+                    document.getElementById('applied-coupon-input').value = '';
+                    document.getElementById('coupon-code').readOnly = false;
+                    document.getElementById('apply-coupon-btn').classList.remove('hidden');
                 }
             } catch (error) {
                 console.error("Coupon check error:", error);
                 msgEl.innerText = "حدث خطأ في التحقق من الشبكة.";
                 msgEl.className = "text-xs mt-2 text-red-500 font-bold block";
-                resetCoupon();
+                // Don't clear input on network error either
+                currentCouponDiscountAmount = 0;
+                document.getElementById('coupon-discount-row').classList.add('hidden');
+                document.getElementById('applied-coupon-input').value = '';
+                document.getElementById('apply-coupon-btn').classList.remove('hidden');
             }
 
             updateTotal();

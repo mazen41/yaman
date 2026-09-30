@@ -154,11 +154,13 @@ try {
         SELECT 
             soi.*,
             p.purchase_amount,
+            pi.image_url,
             (soi.unit_price * soi.quantity) as item_total_sale,
             (p.purchase_amount * soi.quantity) as item_total_cost,
             ((soi.unit_price * soi.quantity) - (p.purchase_amount * soi.quantity)) as item_profit
         FROM shop_order_items soi
         LEFT JOIN products p ON soi.product_id = p.id
+        LEFT JOIN product_images pi ON pi.product_id = soi.product_id AND pi.is_main = 1
         WHERE soi.order_id = ?
     ");
     $items_stmt->execute([$order_id]);
@@ -217,6 +219,7 @@ include '../../includes/header.php';
                 <div class="card-body p-0 overflow-x-auto">
                     <table class="w-full text-right">
                         <thead class="bg-gray-50"><tr>
+                            <th class="p-3 font-semibold text-gray-600">الصورة</th>
                             <th class="p-3 font-semibold text-gray-600">المنتج</th>
                             <th class="p-3 font-semibold text-gray-600">الكمية</th>
                             <th class="p-3 font-semibold text-gray-600">سعر البيع</th>
@@ -225,7 +228,19 @@ include '../../includes/header.php';
                         </tr></thead>
                         <tbody>
                         <?php foreach($order_items as $item): ?>
-                            <tr class="border-b last:border-b-0"><td class="p-3"><?php echo htmlspecialchars($item['product_name']); ?></td>
+                            <tr class="border-b last:border-b-0">
+                                <td class="p-3">
+                                    <?php if (!empty($item['image_url'])): ?>
+                                        <img src="../../../<?= htmlspecialchars($item['image_url']) ?>" style="width:50px;height:65px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;">
+                                    <?php else: ?>
+                                        <div style="width:50px;height:65px;background:#f3f4f6;border-radius:6px;display:flex;align-items:center;justify-content:center;"><i class="fas fa-image" style="color:#9ca3af;"></i></div>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="p-3"><?php echo htmlspecialchars($item['product_name']); ?>
+                                    <?php if (!empty($item['variant_text'])): ?>
+                                        <br><small style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:11px;"><?= htmlspecialchars($item['variant_text']) ?></small>
+                                    <?php endif; ?>
+                                </td>
                                 <td class="p-3 font-bold"><?php echo $item['quantity']; ?></td>
                                 <td class="p-3 text-green-600 font-bold"><?php echo number_format($item['item_total_sale'], 2); ?></td>
                                 <td class="p-3 text-red-600 font-bold"><?php echo number_format($item['item_total_cost'], 2); ?></td>
