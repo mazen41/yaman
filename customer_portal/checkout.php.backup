@@ -34,10 +34,8 @@ if (!empty($customer_city)) {
     }
 }
 
-// 3. Fetch Active Bank Accounts visible in checkout
-// IMPORTANT: We filter by both is_active=1 AND show_in_checkout=1 (server-side).
-// Disabled accounts are never sent to the browser — not even in source.
-$banks_stmt = $db->query("SELECT id, bank_name, account_name, account_holder_name, account_number, iban FROM bank_accounts WHERE is_active = 1 AND show_in_checkout = 1 ORDER BY bank_name ASC");
+// 3. Fetch Active Bank Accounts
+$banks_stmt = $db->query("SELECT bank_name, account_name, account_holder_name, account_number, iban FROM bank_accounts WHERE is_active = 1");
 $bank_accounts = $banks_stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // 4. Fetch Company Phone
@@ -61,31 +59,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_order'])) {
     } elseif (empty($_FILES['payment_evidence']['name'])) {
         $error_msg = "يرجى إرفاق صورة إيصال التحويل البنكي.";
     } else {
-        // ============================================================
-        // SERVER-SIDE BANK ACCOUNT VALIDATION
-        // Verify the selected bank account is valid and currently enabled.
-        // This prevents accepting a disabled account even if the customer
-        // kept the checkout page open while an admin disabled the account.
-        // ============================================================
-        $selected_bank_id = filter_var($_POST['selected_bank_account_id'] ?? null, FILTER_VALIDATE_INT);
-        // Only validate if bank accounts are available (if all are disabled, submission still works without bank selection)
-        $has_available_banks_stmt = $db->query("SELECT COUNT(*) FROM bank_accounts WHERE is_active = 1 AND show_in_checkout = 1");
-        $has_available_banks = (int)$has_available_banks_stmt->fetchColumn() > 0;
-
-        if ($has_available_banks) {
-            if (!$selected_bank_id || $selected_bank_id <= 0) {
-                $error_msg = "يرجى اختيار الحساب البنكي الذي حوّلت إليه المبلغ.";
-            } else {
-                // Verify: account exists + is_active=1 + show_in_checkout=1
-                $verify_bank_stmt = $db->prepare("SELECT id FROM bank_accounts WHERE id = ? AND is_active = 1 AND show_in_checkout = 1");
-                $verify_bank_stmt->execute([$selected_bank_id]);
-                $verified_bank = $verify_bank_stmt->fetch(PDO::FETCH_ASSOC);
-                if (!$verified_bank) {
-                    $error_msg = "الحساب البنكي المحدد غير متاح حالياً. يرجى تحديث الصفحة واختيار حساب متاح.";
-                }
-            }
-        }
-        if (empty($error_msg)) {
         try {
             // Upload Image
             $upload_dir = __DIR__ . '/../uploads/payments/';
@@ -144,22 +117,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_order'])) {
                 }
 
                 if ($variant_id) {
-                    $sv = $db->prepare("SELECT quantity FROM product_variants WHERE id = ? AND product_id = ? AND is_active = 1 FOR UPDATE");
+                    $sv = $db->prepare("SELECT quantity FROM product_variants WHERE id = ? AND product_id = ?");
                     $sv->execute([$variant_id, $prod_id]);
                     $available = (int)$sv->fetchColumn();
                 } else {
-                    // Use same logic as effectiveProductStock: prioritize total_quantity, fallback to product_quantity
-                    $sv = $db->prepare("SELECT total_quantity, product_quantity FROM products WHERE id = ? AND is_active = 1 FOR UPDATE");
+                    $sv = $db->prepare("SELECT product_quantity FROM products WHERE id = ? AND is_active = 1");
                     $sv->execute([$prod_id]);
-                    $stock_data = $sv->fetch(PDO::FETCH_ASSOC);
-                    $total_qty = (int)($stock_data['total_quantity'] ?? 0);
-                    $product_qty = (int)($stock_data['product_quantity'] ?? 0);
-                    $available = ($total_qty > 0) ? $total_qty : $product_qty;
-                }
-
-                if ($available <= 0) {
-                    $db->rollBack();
-                    throw new Exception("المنتج \"{$item_name}\" غير متوفر حالياً.");
+                    $available = (int)$sv->fetchColumn();
                 }
 
                 if ($item_qty > $available) {
@@ -233,8 +197,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_order'])) {
             $db->rollBack();
             $error_msg = "حدث خطأ أثناء حفظ الطلب: " . $e->getMessage();
         }
-        } // end if(empty($error_msg))
-    } // end else (cart not empty)
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -267,10 +230,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_order'])) {
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: #f1f1f1; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        /* Bank card selection */
-        .bank-card.selected { border-color: #C7A46D !important; background: #fffbf4 !important; box-shadow: 0 0 0 3px rgba(199,164,109,.2); }
-        .bank-card.selected .bank-select-dot { background: #C7A46D !important; border-color: #C7A46D !important; }
-        .bank-card.selected .bank-select-dot i { display: inline-block !important; }
     </style>
 </head>
 <body class="bg-gray-50 pb-16">
@@ -307,59 +266,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_order'])) {
                     <p class="text-sm text-gray-600"><strong>مدينة الشحن المعتمدة:</strong> <span class="text-blue-600 font-bold"><?php echo htmlspecialchars($customer_city ?: 'غير محددة'); ?></span></p>
                 </div>
 
-                <!-- 2. Bank Accounts — selectable cards with copy buttons -->
+                <!-- 2. Bank Accounts (3 in a row layout) -->
                 <div class="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-gray-100">
-                    <h2 class="text-lg font-bold text-gray-800 mb-3 border-b pb-3"><i class="fas fa-university text-[#C7A46D] ml-2"></i> اختر الحساب البنكي للتحويل</h2>
-                    <?php if (empty($bank_accounts)): ?>
-                        <!-- Empty state: no enabled bank accounts -->
-                        <div class="text-center py-6">
-                            <div class="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                                <i class="fas fa-university text-2xl text-gray-400"></i>
-                            </div>
-                            <p class="text-sm font-bold text-gray-600">لا توجد حسابات بنكية متاحة حالياً</p>
-                            <p class="text-xs text-gray-400 mt-1">يرجى التواصل مع الشركة للحصول على بيانات الحساب.</p>
-                        </div>
-                    <?php else: ?>
-                        <p class="text-xs sm:text-sm text-gray-500 mb-4">يرجى تحويل إجمالي المبلغ لأحد الحسابات التالية ثم اضغط على الحساب لتحديده وأرفق صورة الإيصال أدناه.</p>
-                        <!-- Hidden input: passes selected bank account id for server-side validation -->
-                        <input type="hidden" name="selected_bank_account_id" id="selected-bank-account-id" value="">
-                        <div class="grid grid-cols-1 sm:grid-cols-2 <?php echo count($bank_accounts) >= 3 ? 'lg:grid-cols-3' : ''; ?> gap-3" id="bank-cards-container">
-                            <?php foreach ($bank_accounts as $bank): ?>
-                            <div class="bank-card border-2 border-gray-200 rounded-xl p-3 cursor-pointer transition-all duration-150 bg-gray-50 hover:border-[#C7A46D] hover:shadow-md hover:bg-white"
-                                 data-bank-id="<?php echo (int)$bank['id']; ?>"
-                                 onclick="selectBankCard(this)">
-                                <div class="flex items-center justify-between mb-2">
-                                    <h3 class="font-bold text-sm text-gray-800 flex items-center gap-1">
-                                        <i class="fas fa-university text-[#C7A46D] text-xs"></i>
-                                        <?php echo htmlspecialchars($bank['bank_name']); ?>
-                                    </h3>
-                                    <div class="bank-select-dot w-5 h-5 rounded-full border-2 border-gray-300 flex items-center justify-center flex-shrink-0 transition-all">
-                                        <i class="fas fa-check text-white text-xs" style="display:none" class="bank-check-icon"></i>
-                                    </div>
-                                </div>
-                                <?php if (!empty($bank['account_name'])): ?>
-                                <p class="text-xs text-gray-500 mb-2 truncate"><?php echo htmlspecialchars($bank['account_name']); ?></p>
-                                <?php endif; ?>
-                                <p class="text-xs text-gray-600 mb-2 font-semibold"><?php echo htmlspecialchars($bank['account_holder_name']); ?></p>
-                                <div class="flex items-center gap-1 bg-white border border-gray-200 rounded-lg px-2 py-1 mb-1">
-                                    <span class="text-xs font-bold text-blue-700 flex-1 select-all" dir="ltr" style="font-family:monospace"><?php echo htmlspecialchars($bank['account_number']); ?></span>
-                                    <button type="button" class="text-gray-400 hover:text-blue-600 text-xs p-0.5 transition-colors flex-shrink-0 copy-btn-inner" onclick="event.stopPropagation(); copyCheckoutValue(this, '<?php echo htmlspecialchars($bank['account_number'], ENT_QUOTES); ?>')" title="نسخ رقم الحساب">
-                                        <i class="fas fa-copy"></i>
-                                    </button>
-                                </div>
+                    <h2 class="text-lg font-bold text-gray-800 mb-3 border-b pb-3"><i class="fas fa-university text-[#C7A46D] ml-2"></i> الحسابات البنكية</h2>
+                    <p class="text-xs sm:text-sm text-gray-500 mb-4">يرجى تحويل إجمالي المبلغ لأحد الحسابات التالية، ثم إرفاق صورة الإيصال في الأسفل.</p>
+                    
+                    <!-- Grid: 3 columns unconditionally -->
+                    <div class="grid grid-cols-3 gap-2 sm:gap-3">
+                        <?php foreach ($bank_accounts as $bank): ?>
+                            <div class="border border-gray-200 rounded-xl p-2 sm:p-3 hover:border-[#C7A46D] hover:shadow-md transition bg-gray-50 flex flex-col justify-center text-center">
+                                <h3 class="font-bold text-[10px] sm:text-sm text-gray-800 mb-1 leading-tight line-clamp-1" title="<?php echo htmlspecialchars($bank['bank_name']); ?>">
+                                    <i class="fas fa-building text-gray-400 hidden sm:inline-block ml-1"></i><?php echo htmlspecialchars($bank['bank_name']); ?>
+                                </h3>
+                                <p class="text-[9px] sm:text-xs text-gray-600 mb-1 line-clamp-1" title="<?php echo htmlspecialchars($bank['account_name'] ?: $bank['account_holder_name']); ?>">
+                                    <?php echo htmlspecialchars($bank['account_name'] ?: $bank['account_holder_name']); ?>
+                                </p>
+                                <p class="text-[10px] sm:text-sm font-bold text-blue-700 select-all mb-1 leading-none">
+                                    <?php echo htmlspecialchars($bank['account_number']); ?>
+                                </p>
                                 <?php if (!empty($bank['iban'])): ?>
-                                <div class="flex items-center gap-1 bg-white border border-gray-200 rounded-lg px-2 py-1">
-                                    <span class="text-[10px] text-gray-500 flex-1 select-all truncate" dir="ltr" style="font-family:monospace" title="<?php echo htmlspecialchars($bank['iban']); ?>"><?php echo htmlspecialchars($bank['iban']); ?></span>
-                                    <button type="button" class="text-gray-400 hover:text-blue-600 text-xs p-0.5 transition-colors flex-shrink-0 copy-btn-inner" onclick="event.stopPropagation(); copyCheckoutValue(this, '<?php echo htmlspecialchars($bank['iban'], ENT_QUOTES); ?>')" title="نسخ IBAN">
-                                        <i class="fas fa-copy"></i>
-                                    </button>
-                                </div>
+                                    <p class="text-[8px] sm:text-[10px] text-gray-400 select-all line-clamp-1 leading-none" title="<?php echo htmlspecialchars($bank['iban']); ?>">
+                                        <?php echo htmlspecialchars($bank['iban']); ?>
+                                    </p>
                                 <?php endif; ?>
                             </div>
-                            <?php endforeach; ?>
-                        </div>
-                        <p id="bank-select-msg" class="text-xs text-amber-600 mt-2 font-bold hidden"><i class="fas fa-exclamation-circle ml-1"></i>يرجى اختيار الحساب الذي حوّلت إليه المبلغ.</p>
-                    <?php endif; ?>
+                        <?php endforeach; ?>
+                    </div>
                 </div>
 
                 <!-- 3. Upload Payment Evidence with Preview -->
@@ -547,24 +479,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_order'])) {
             originalSubtotal = 0;
             totalProductDiscount = 0;
 
-            // Filter out invalid items first
-            const validCart = cart.filter(item => item.qty > 0);
-
-            // Check if cart was modified
-            if (validCart.length !== cart.length) {
-                cart = validCart;
-                localStorage.setItem('cart_' + CUSTOMER_ID, JSON.stringify(cart));
-                document.getElementById('cart-data-input').value = JSON.stringify(cart);
-                // Re-render if cart is now empty
-                if (cart.length === 0) {
-                    alert("السلة فارغة، سيتم إعادتك للمتجر.");
-                    window.location.href = "products.php?token=<?php echo htmlspecialchars($_GET['token'] ?? ''); ?>";
-                    return;
-                }
-                renderCartSummary();
-                return;
-            }
-
             cart.forEach(item => {
                 const itemFinalTotal = item.price * item.qty;
                 const itemOriginalPrice = item.originalPrice || item.price; // Fallback for old cart items
@@ -572,12 +486,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_order'])) {
 
                 originalSubtotal += itemOriginalTotal; // Accumulate original prices for the subtotal
                 totalProductDiscount += (itemOriginalTotal - itemFinalTotal); // Accumulate product discounts
-
+                
                 let originalPriceHtml = '';
                 if (itemOriginalPrice > item.price) {
                     originalPriceHtml = `<span class="text-gray-400 line-through text-[10px] mr-1">${fmt(itemOriginalPrice)}</span>`;
                 }
-
+                
                 const variantHtml = item.variantText ? `<p class="text-[10px] text-gray-500 bg-gray-100 inline-block px-1.5 py-0.5 rounded mt-1">${item.variantText}</p>` : '';
 
                 listEl.innerHTML += `
@@ -704,42 +618,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_order'])) {
             updateTotal();
         }
 
-
-        /* ===== BANK CARD SELECTION ===== */
-        function selectBankCard(card) {
-            document.querySelectorAll('.bank-card').forEach(c => c.classList.remove('selected'));
-            card.classList.add('selected');
-            const inp = document.getElementById('selected-bank-account-id');
-            if (inp) inp.value = card.dataset.bankId;
-            const msg = document.getElementById('bank-select-msg');
-            if (msg) msg.classList.add('hidden');
-        }
-
-        /* ===== COPY VALUE ===== */
-        function copyCheckoutValue(btn, text) {
-            navigator.clipboard.writeText(text).then(() => {
-                const orig = btn.innerHTML;
-                btn.innerHTML = '<i class="fas fa-check"></i>';
-                btn.style.color = '#16a34a';
-                setTimeout(() => { btn.innerHTML = orig; btn.style.color = ''; }, 2000);
-            }).catch(() => { alert('فشل النسخ'); });
-        }
-
-        // Prevent submission if cart empty or bank not selected
+        // Prevent submission if cart empty or form already submitted
         document.getElementById('checkout-form').addEventListener('submit', function(e) {
             if(cart.length === 0) {
                 e.preventDefault();
                 alert('السلة فارغة!');
-                return;
-            }
-            const bankInp = document.getElementById('selected-bank-account-id');
-            const hasBankCards = document.querySelectorAll('.bank-card').length > 0;
-            if (hasBankCards && bankInp && !bankInp.value) {
-                e.preventDefault();
-                const msg = document.getElementById('bank-select-msg');
-                if (msg) msg.classList.remove('hidden');
-                const container = document.getElementById('bank-cards-container');
-                if (container) container.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 return;
             }
             const btn = document.getElementById('submit-btn');

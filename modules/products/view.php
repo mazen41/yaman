@@ -158,7 +158,11 @@ include '../../includes/header.php';
                         </div>
                         <div>
                             <p class="text-sm font-medium text-gray-500">الكمية الإجمالية</p>
-                            <p class="mt-1 text-lg text-gray-900"><?php echo number_format($product['total_quantity']); ?></p>
+                            <p class="mt-1 text-lg text-gray-900"><?php
+                                // Use same logic as effectiveProductStock: prioritize total_quantity, fallback to product_quantity
+                                $display_quantity = ($product['total_quantity'] > 0) ? $product['total_quantity'] : $product['product_quantity'];
+                                echo number_format($display_quantity);
+                            ?></p>
                         </div>
                         <div>
                             <p class="text-sm font-medium text-gray-500">ترتيب العرض</p>

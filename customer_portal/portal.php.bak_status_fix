@@ -1,0 +1,226 @@
+<?php
+/**
+ * Customer Portal - Specific Customer View
+ * PREVIOUS FIXES: Mobile Optimized + No Overlay + Full Image Visibility
+ * NEW: Added conditional "Shop/Products" button based on 'show_shop_for_customer' column, integrated into the top navigation bar.
+ * طلباتي: simple legacy SQL on customer_orders (+ status join + small subqueries). Review/approval table keeps its own query.
+ */
+
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+require_once __DIR__ . '/../config/database.php';
+
+$token = $_GET['token'] ?? '';
+
+if (empty($token)) {
+    die('Invalid access. Please use the link provided to you.');
+}
+
+// 1. Validate Customer Token
+$stmt = $db->prepare("SELECT * FROM customers WHERE portal_token = ?");
+$stmt->execute([$token]);
+$customer = $stmt->fetch(PDO::FETCH_ASSOC);
+
+if (!$customer) {
+    die('Invalid or expired link. Please contact support.');
+}
+
+// NEW LOGIC: Determine if "Shop" button should be shown
+// Assumes 'show_shop_for_customer' column exists in 'customers' table and is 1 for true.
+// Default to false if the column doesn't exist to be safe.
+$showShopLink = isset($customer['show_shop_for_customer']) && $customer['show_shop_for_customer'] == 1;
+
+// Ensure the conditional value exists for existing 'enable_create_self_order' logic
+if (!isset($customer['enable_create_self_order'])) {
+    $customer['enable_create_self_order'] = 'inactive'; 
+}
+
+$customer_id = $customer['id'];
+
+// NEW: Fetch Customer Cards
+$customer_cards = [];
+try {
+    $cards_stmt = $db->prepare("SELECT id, card_number, current_balance, expiry_date, status FROM customer_cards WHERE customer_id = ? AND status = 'active' ORDER BY expiry_date ASC");
+    $cards_stmt->execute([$customer_id]);
+    $customer_cards = $cards_stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log("Portal Error fetching customer cards: " . $e->getMessage());
+    $customer_cards = [];
+}
+
+// 2. Fetch Slides
+$slides = [];
+try {
+    $slides_stmt = $db->query("
+        SELECT * FROM portal_slides 
+        WHERE is_active = 1 
+        ORDER BY 
+            CASE WHEN display_order = 0 THEN 9999 ELSE display_order END ASC, 
+            created_at DESC
+    ");
+    $slides = $slides_stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    $slides = [];
+}
+
+// 3. Totals Initialization for My Orders
+$total_subtotal = 0; 
+$total_discount = 0; 
+$total_damaged = 0; 
+$total_final = 0; 
+$total_paid = 0; 
+$total_remaining = 0; 
+$total_quantity = 0;
+$total_customer_orders = 0;
+$total_all_discounts = 0;
+
+$orders = [];
+$order_status_options = [];
+
+// Status Colors Helper
+function getStatusClass($status) {
+    $colors = [
+        'new' => 'bg-blue-100 text-blue-800',
+        'pending' => 'bg-orange-100 text-orange-800',
+        'approved' => 'bg-teal-100 text-teal-800',
+        'processing' => 'bg-blue-100 text-blue-800', 
+        'in_preparation' => 'bg-yellow-100 text-yellow-800',
+        'shipped' => 'bg-indigo-100 text-indigo-800',
+        'out_for_delivery' => 'bg-purple-100 text-purple-800',
+        'delivered' => 'bg-green-100 text-green-800',
+        'completed' => 'bg-green-100 text-green-800',
+        'cancelled' => 'bg-red-100 text-red-800',
+        'rejected' => 'bg-red-100 text-red-800',
+        'returned' => 'bg-gray-100 text-gray-800',
+        'under_review' => 'bg-amber-100 text-amber-800',
+    ];
+    return $colors[$status] ?? 'bg-gray-100 text-gray-800';
+}
+
+try {
+    // Main customer orders (طلباتي): keep simple legacy query — no coupon CASE, no order_approvals flags.
+    $query = "SELECT 
+                co.*,
+                COALESCE(NULLIF(co.status, ''), 'new') AS display_status_key,
+                COALESCE(NULLIF(cos.status_name_ar, ''), NULLIF(co.status, ''), 'جديد') AS display_status_label,
+                COALESCE((SELECT SUM(oi.quantity) FROM order_items oi WHERE oi.order_id = co.id), 0) AS total_quantity,
+                co.automatic_discount_percentage AS display_discount_percentage,
+                (SELECT oi.product_link FROM order_items oi WHERE oi.order_id = co.id AND oi.product_link IS NOT NULL AND oi.product_link <> '' ORDER BY oi.id LIMIT 1) AS first_product_link,
+                EXISTS(SELECT 1 FROM order_approvals oa WHERE oa.final_order_id = co.id) AS is_self_order,
+                (SELECT COALESCE(SUM(odi.price), 0) FROM order_damaged_items odi WHERE odi.order_id = co.id) AS damaged_amount
+            FROM customer_orders co
+            LEFT JOIN customer_order_statuses cos ON co.status = cos.status_key
+            WHERE co.customer_id = ? 
+            AND co.status NOT IN ('cancelled', 'rejected')
+            ORDER BY co.created_at DESC";
+
+    $stmt = $db->prepare($query);
+    $stmt->execute([$customer_id]);
+    $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $total_customer_orders = count($orders);
+
+    foreach ($orders as $order) {
+        $status_key = $order['display_status_key'] ?? ($order['status'] ?? '');
+        if ($status_key !== '') {
+            $order_status_options[$status_key] = $order['display_status_label'] ?? $status_key;
+        }
+        $total_quantity += $order['total_quantity'];
+        $total_subtotal += $order['subtotal_amount'];
+        $total_discount += $order['discount_amount'];
+        $total_damaged += (float) ($order['damaged_amount'] ?? 0);
+        $total_final += $order['final_amount'];
+        $total_paid += $order['paid_amount'];
+        $total_remaining += ($order['final_amount'] - $order['paid_amount']);
+        $total_all_discounts += $order['discount_amount'];
+    }
+
+} catch (PDOException $e) {
+    $orders = [];
+    error_log("Portal Error: " . $e->getMessage());
+}
+
+$currency = $customer['currency'] ?? 'YER'; 
+
+function getSubmittedStatusDetails($status) {
+    switch ($status) {
+        case 'approved':
+            return ['class' => 'bg-emerald-100 text-emerald-800 border-emerald-200', 'icon' => 'fa-check-circle', 'label' => 'تمت الموافقة'];
+        case 'rejected':
+            return ['class' => 'bg-red-100 text-red-800 border-red-200', 'icon' => 'fa-times-circle', 'label' => 'مرفوض'];
+        case 'pending':
+        default:
+            return ['class' => 'bg-amber-100 text-amber-800 border-amber-200', 'icon' => 'fa-clock', 'label' => 'قيد المراجعة'];
+    }
+}
+
+if ($customer['enable_create_self_order'] === 'active') {
+    try {
+        $query_approvals = "SELECT
+                    oa.id,
+                    oa.created_at,
+                    oa.status,
+                    oa.subtotal_amount,
+                    oa.shipping_cost,
+                    oa.coupon_discount_amount,
+                    oa.automatic_discount_percentage,
+                    oa.automatic_discount_amount,
+                    oa.paid_amount,
+                    oa.total_after_discounts,
+                    oa.notes,
+                    COALESCE((SELECT SUM(oai.item_count) FROM order_approval_items oai WHERE oai.approval_id = oa.id), 0) AS total_quantity,
+                    (SELECT TRIM(oai.product_link) FROM order_approval_items oai WHERE oai.approval_id = oa.id AND TRIM(COALESCE(oai.product_link,'')) <> '' ORDER BY oai.id ASC LIMIT 1) AS display_order_link,
+                    (SELECT TRIM(oai.additional_link) FROM order_approval_items oai WHERE oai.approval_id = oa.id AND TRIM(COALESCE(oai.additional_link,'')) <> '' ORDER BY oai.id ASC LIMIT 1) AS display_additional_link
+                FROM order_approvals oa
+                WHERE oa.customer_id = ?
+                AND oa.status = 'pending'
+                ORDER BY oa.created_at DESC";
+
+        $stmt_approvals = $db->prepare($query_approvals);
+        $stmt_approvals->execute([$customer_id]);
+        $pending_approvals = $stmt_approvals->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($pending_approvals as $approval) {
+            $total_discount_amount = (float)($approval['coupon_discount_amount'] ?? 0) + (float)($approval['automatic_discount_amount'] ?? 0);
+            $final_amount = (float)($approval['total_after_discounts'] ?? 0) + (float)($approval['shipping_cost'] ?? 0);
+            $paid_amount = (float)($approval['paid_amount'] ?? 0);
+            $subtotal_amount = (float)($approval['subtotal_amount'] ?? 0);
+
+            $orders[] = [
+                'id' => null,
+                'approval_id' => (int)$approval['id'],
+                'order_number' => 'SA-' . (int)$approval['id'],
+                'created_at' => $approval['created_at'],
+                'display_status_key' => 'under_review',
+                'display_status_label' => 'Under Review',
+                'total_quantity' => (float)$approval['total_quantity'],
+                'order_link' => $approval['display_order_link'],
+                'first_product_link' => $approval['display_order_link'],
+                'additional_link' => $approval['display_additional_link'],
+                'subtotal_amount' => $subtotal_amount,
+                'discount_amount' => $total_discount_amount,
+                'display_discount_percentage' => $subtotal_amount > 0 ? ($total_discount_amount / $subtotal_amount) * 100 : 0,
+                'damaged_amount' => 0,
+                'final_amount' => $final_amount,
+                'paid_amount' => $paid_amount,
+                'notes' => $approval['notes'],
+                'is_self_order' => 1,
+                'is_pending_self_order' => 1,
+            ];
+
+            $order_status_options['under_review'] = 'Under Review';
+            $total_customer_orders++;
+            $total_quantity += (float)$approval['total_quantity'];
+            $total_subtotal += $subtotal_amount;
+            $total_discount += $total_discount_amount;
+            $total_final += $final_amount;
+            $total_paid += $paid_amount;
+            $total_remaining += ($final_amount - $paid_amount);
+            $total_all_discounts += $total_discount_amount;
+        }
+
+    } catch (PDOException $e) {
+        error_log("Submitted Orders Portal Error: " . $e->getMessage());
+    }
+}

@@ -97,22 +97,10 @@ $order_ids_stmt->execute($sql_params);
 $page_order_ids = $order_ids_stmt->fetchAll(PDO::FETCH_COLUMN);
 
 // ── Step 3: count ALL missing pieces (global stat — sum of quantities, not row count) ──
-// IMPORTANT: this must always count only items WITHOUT an SKU, even in single-order
-// mode (where $where_clause intentionally omits the SKU filter so the item list can
-// show already-completed lines too). Build a dedicated WHERE clause for this stat so
-// it never blends in quantity that already has an SKU assigned.
-$missing_conditions = $sql_conditions;
-if ($single_order_mode) {
-    // In single-order mode $sql_conditions has no SKU filter (by design, for Step 1/2/4).
-    // Add it back here so the "missing pieces" stat reflects only unresolved quantity.
-    $missing_conditions[] = "TRIM(COALESCE(oi.shein_sku, '')) = ''";
-}
-$missing_where_clause = !empty($missing_conditions) ? implode(' AND ', $missing_conditions) : '1=1';
-
 $total_items_stmt = $db->prepare("
     SELECT COALESCE(SUM(oi.quantity), 0) FROM order_items oi
     INNER JOIN customer_orders o ON o.id = oi.order_id
-    WHERE {$missing_where_clause}
+    WHERE {$where_clause}
 ");
 $total_items_stmt->execute($sql_params);
 $total_missing_items = (int)$total_items_stmt->fetchColumn();
@@ -486,15 +474,6 @@ include '../../includes/header.php';
                 if (empty($all_items)) continue;
                 $total_count = count($all_items);
                 $total_qty   = array_sum(array_column($all_items, 'quantity'));
-                // Missing quantity = sum of quantities among items that do NOT have an
-                // SKU yet. In list mode $all_items already only contains missing items,
-                // so this equals $total_qty; in single-order mode $all_items contains
-                // every item (including already-resolved ones), so this must be computed
-                // separately to avoid mislabeling total quantity as "missing".
-                $missing_qty = array_sum(array_map(
-                    fn($it) => (trim((string)($it['shein_sku'] ?? '')) === '') ? (int)$it['quantity'] : 0,
-                    $all_items
-                ));
                 $created     = $order['created_at'] ? date('Y/m/d — H:i', strtotime($order['created_at'])) : '—';
                 $customer    = htmlspecialchars($order['customer_name'] ?? '');
                 $items_json  = json_encode(array_map(fn($it) => [
@@ -514,7 +493,6 @@ include '../../includes/header.php';
                 data-rendered="0"
                 data-total="<?php echo $total_count; ?>"
                 data-total-qty="<?php echo $total_qty; ?>"
-                data-missing-qty="<?php echo $missing_qty; ?>"
                 data-batch="<?php echo $BATCH_SIZE; ?>"
             >
                 <div class="order-header" onclick="toggleOrder(<?php echo $oid; ?>)">
@@ -533,7 +511,7 @@ include '../../includes/header.php';
                     </div>
                     <div style="display:flex;align-items:center;gap:.625rem;flex-shrink:0;">
                         <div class="missing-badge" id="badge-<?php echo $oid; ?>">
-                            ⚠️ <span id="count-<?php echo $oid; ?>"><?php echo $missing_qty; ?></span> ناقص
+                            ⚠️ <span id="count-<?php echo $oid; ?>"><?php echo $total_qty; ?></span> ناقص
                         </div>
                         <div class="chevron">▾</div>
                     </div>
@@ -639,11 +617,7 @@ function buildItemRow(item, index) {
     const row = document.createElement('div');
     row.id = `row-${item.id}`;
     row.className = 'item-row';
-    // Only count this item's quantity toward "missing" if it doesn't already have an SKU
-    // (relevant in single-order view, where already-resolved items are shown too).
-    row.dataset.missingQty = item.shein_sku ? 0 : (item.quantity || 1);
-    row.dataset.qty = item.quantity || 1;
-    row.dataset.orderId = item.order_id;
+    row.dataset.missingQty = item.quantity || 1;
     row.style.animationDelay = `${(index % 5) * 0.04}s`;
 
     const numBadge = document.createElement('div');
@@ -780,27 +754,6 @@ function markItemRowSaved(itemId, sku, inputRef) {
     if (!row) return;
     row.classList.remove('saving');
     row.classList.add('saved');
-
-    // Keep the per-order "missing" badge in sync with the actual missing quantity,
-    // since this row stays visible (not removed) after a successful save.
-    const orderId = row.dataset.orderId;
-    const qty = parseInt(row.dataset.qty, 10) || 1;
-    const oldMissingQty = parseInt(row.dataset.missingQty, 10) || 0;
-    const newMissingQty = sku ? 0 : qty;
-    const delta = newMissingQty - oldMissingQty;
-    row.dataset.missingQty = newMissingQty;
-    if (delta !== 0 && orderId) {
-        const countEl = document.getElementById(`count-${orderId}`);
-        if (countEl) {
-            const updated = Math.max(0, (parseInt(countEl.textContent, 10) || 0) + delta);
-            countEl.textContent = updated;
-        }
-        const card = document.getElementById(`order-${orderId}`);
-        if (card) {
-            const prevMissing = parseInt(card.dataset.missingQty || '0', 10);
-            card.dataset.missingQty = Math.max(0, prevMissing + delta);
-        }
-    }
 
     const input = row.querySelector('.sku-input');
     if (input) {

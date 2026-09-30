@@ -135,9 +135,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') { // No global permission check here,
 
 // --- 3. FETCH DATA FOR VIEW ---
 try {
-    // Fetch main order details
+    // Fetch main order details with full customer information
     $stmt = $db->prepare("
-        SELECT o.*, c.name as customer_name, c.mobile_number, c.whatsapp_number
+        SELECT o.*,
+               c.name as customer_name,
+               c.mobile_number,
+               c.whatsapp_number,
+               c.email,
+               c.address,
+               c.city_name,
+               c.location_area,
+               c.customer_code
         FROM shop_orders o
         LEFT JOIN customers c ON o.customer_id = c.id
         WHERE o.id = ?
@@ -149,15 +157,17 @@ try {
         throw new Exception("الطلب غير موجود.");
     }
 
-    // Fetch order items with cost and profit calculation
+    // Fetch order items with product details, SKU, and image
     $items_stmt = $db->prepare("
-        SELECT 
+        SELECT
             soi.*,
+            p.sku,
             p.purchase_amount,
             pi.image_url,
             (soi.unit_price * soi.quantity) as item_total_sale,
             (p.purchase_amount * soi.quantity) as item_total_cost,
-            ((soi.unit_price * soi.quantity) - (p.purchase_amount * soi.quantity)) as item_profit
+            ((soi.unit_price * soi.quantity) - (p.purchase_amount * soi.quantity)) as item_profit,
+            CASE WHEN soi.original_unit_price > soi.unit_price THEN (soi.original_unit_price - soi.unit_price) * soi.quantity ELSE 0 END as item_discount_amount
         FROM shop_order_items soi
         LEFT JOIN products p ON soi.product_id = p.id
         LEFT JOIN product_images pi ON pi.product_id = soi.product_id AND pi.is_main = 1
@@ -168,40 +178,473 @@ try {
 
     // Fetch active bank accounts for the approval modal (only if user can approve)
     $bank_accounts = [];
-    if ($can_approve) { // Only fetch if user might need to approve
+    if ($can_approve) {
         $bank_accounts = $db->query("SELECT id, bank_name, account_number FROM bank_accounts WHERE is_active = 1")->fetchAll(PDO::FETCH_ASSOC);
     }
 
 } catch (Exception $e) {
     $error_message = $e->getMessage();
-    $order = null; // Set order to null to hide content on error
+    $order = null;
 }
 
 include '../../includes/header.php';
 ?>
 <style>
-    .card { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 24px; }
-    .card-header { padding: 16px 24px; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; gap: 12px; }
-    .card-header h2 { font-size: 1.125rem; font-weight: 700; color: #111827; margin: 0; }
-    .card-body { padding: 24px; }
-    .detail-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #e5e7eb; }
-    .detail-row:last-child { border-bottom: none; }
-    .detail-label { font-weight: 600; color: #4b5563; }
-    .detail-value { font-weight: 500; color: #111827; }
+    :root {
+        --primary-gold: #C7A46D;
+        --primary-gold-dark: #B8956A;
+        --gray-50: #f9fafb;
+        --gray-100: #f3f4f6;
+        --gray-200: #e5e7eb;
+        --gray-300: #d1d5db;
+        --gray-600: #4b5563;
+        --gray-700: #374151;
+        --gray-800: #1f2937;
+        --gray-900: #111827;
+    }
 
-    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 20px; border-radius: 8px; font-weight: 700; cursor: pointer; transition: all 0.2s ease; border: none; text-decoration: none; }
-    .btn-success { background-color: #10b981; color: white; }
-    .btn-danger { background-color: #ef4444; color: white; }
-    .btn-secondary { background-color: #6b7280; color: white; }
-    .btn-whatsapp { background-color: #25d366; color: white; }
-    
-    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 999; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
-    .modal-box { background: white; border-radius: 12px; padding: 32px; max-width: 500px; width: 90%; text-align: right; }
+    .card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+        margin-bottom: 24px;
+        border: 1px solid var(--gray-200);
+    }
+
+    .card-header {
+        padding: 20px 24px;
+        border-bottom: 1px solid var(--gray-200);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: linear-gradient(to left, rgba(199, 164, 109, 0.05), transparent);
+    }
+
+    .card-header h2 {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--gray-900);
+        margin: 0;
+    }
+
+    .card-body {
+        padding: 24px;
+    }
+
+    .product-card {
+        background: white;
+        border: 1px solid var(--gray-200);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 16px;
+        transition: all 0.2s ease;
+    }
+
+    .product-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        border-color: var(--primary-gold);
+    }
+
+    .product-image {
+        width: 120px;
+        height: 120px;
+        object-fit: cover;
+        border-radius: 12px;
+        border: 2px solid var(--gray-200);
+        background: var(--gray-100);
+    }
+
+    .product-image-placeholder {
+        width: 120px;
+        height: 120px;
+        background: linear-gradient(135deg, var(--gray-100), var(--gray-200));
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px dashed var(--gray-300);
+    }
+
+    .variant-tag {
+        display: inline-block;
+        background: rgba(199, 164, 109, 0.1);
+        color: var(--primary-gold);
+        border: 1px solid rgba(199, 164, 109, 0.2);
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        margin-left: 6px;
+        margin-bottom: 6px;
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .status-new {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .status-approved {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .status-rejected {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .status-completed {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+
+    .status-cancelled {
+        background: #f3f4f6;
+        color: #4b5563;
+    }
+
+    .info-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 14px 0;
+        border-bottom: 1px solid var(--gray-100);
+    }
+
+    .info-item:last-child {
+        border-bottom: none;
+    }
+
+    .info-label {
+        font-weight: 600;
+        color: var(--gray-600);
+        font-size: 14px;
+    }
+
+    .info-value {
+        font-weight: 500;
+        color: var(--gray-900);
+        font-size: 14px;
+    }
+
+    .info-value.highlight {
+        font-weight: 700;
+        color: var(--primary-gold);
+    }
+
+    .total-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 0;
+        border-top: 2px solid var(--gray-900);
+        margin-top: 16px;
+    }
+
+    .total-label {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--gray-900);
+    }
+
+    .total-value {
+        font-size: 22px;
+        font-weight: 800;
+        color: #10b981;
+    }
+
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 12px 24px;
+        border-radius: 10px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: none;
+        text-decoration: none;
+        font-size: 14px;
+    }
+
+    .btn-success {
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: white;
+        box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+    }
+
+    .btn-success:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+    }
+
+    .btn-danger {
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+        color: white;
+        box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+    }
+
+    .btn-danger:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+    }
+
+    .btn-secondary {
+        background: linear-gradient(135deg, #6b7280, #4b5563);
+        color: white;
+        box-shadow: 0 2px 8px rgba(107, 114, 128, 0.3);
+    }
+
+    .btn-secondary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(107, 114, 128, 0.4);
+    }
+
+    .btn-whatsapp {
+        background: linear-gradient(135deg, #25d366, #128c7e);
+        color: white;
+        box-shadow: 0 2px 8px rgba(37, 211, 102, 0.3);
+    }
+
+    .btn-whatsapp:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(37, 211, 102, 0.4);
+    }
+
+    .btn-icon {
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        border-radius: 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--gray-100);
+        color: var(--gray-600);
+        transition: all 0.2s ease;
+    }
+
+    .btn-icon:hover {
+        background: var(--primary-gold);
+        color: white;
+    }
+
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.6);
+        z-index: 999;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(4px);
+        padding: 16px;
+    }
+
+    .modal-box {
+        background: white;
+        border-radius: 16px;
+        padding: 32px;
+        max-width: 500px;
+        width: 100%;
+        max-height: 90vh;
+        overflow-y: auto;
+        text-align: right;
+        box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+    }
+
+    .section-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--gray-600);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid var(--primary-gold);
+    }
+
+    .price-original {
+        text-decoration: line-through;
+        color: var(--gray-400);
+        font-size: 13px;
+    }
+
+    .price-discount {
+        color: #ef4444;
+        font-weight: 600;
+        font-size: 14px;
+    }
+
+    .price-final {
+        color: var(--gray-900);
+        font-weight: 700;
+        font-size: 16px;
+    }
+
+    .price-total {
+        color: #10b981;
+        font-weight: 800;
+        font-size: 18px;
+    }
+
+    @media (max-width: 1024px) {
+        .product-image {
+            width: 100px;
+            height: 100px;
+        }
+        .product-image-placeholder {
+            width: 100px;
+            height: 100px;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .card-header {
+            padding: 16px 20px;
+        }
+
+        .card-header h2 {
+            font-size: 1.1rem;
+        }
+
+        .card-body {
+            padding: 20px;
+        }
+
+        .product-card {
+            padding: 16px;
+        }
+
+        .product-image {
+            width: 80px;
+            height: 80px;
+        }
+
+        .product-image-placeholder {
+            width: 80px;
+            height: 80px;
+        }
+
+        .info-item {
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .info-label {
+            font-size: 13px;
+        }
+
+        .info-value {
+            font-size: 13px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            font-size: 13px;
+        }
+
+        .modal-box {
+            padding: 24px;
+        }
+
+        .total-label {
+            font-size: 16px;
+        }
+
+        .total-value {
+            font-size: 18px;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .card-body {
+            padding: 16px;
+        }
+
+        .product-card {
+            padding: 12px;
+        }
+
+        .product-image {
+            width: 70px;
+            height: 70px;
+        }
+
+        .product-image-placeholder {
+            width: 70px;
+            height: 70px;
+        }
+
+        .btn {
+            padding: 10px 16px;
+            font-size: 12px;
+            width: 100%;
+        }
+
+        .modal-box {
+            padding: 20px;
+        }
+
+        .section-title {
+            font-size: 12px;
+        }
+    }
 </style>
 
-<div class="container-fluid py-4" dir="rtl">
-    <div class="page-header mb-4 flex justify-between items-center">
-        <h1><?php echo $page_title; ?> - #<?php echo htmlspecialchars($order['order_number'] ?? ''); ?></h1>
+<div class="container-fluid pt-32 pb-8 px-4" dir="rtl">
+    <div class="page-header mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div class="flex items-center gap-4">
+            <div>
+                <h1 class="text-2xl sm:text-3xl font-bold text-gray-800"><?php echo $page_title; ?></h1>
+                <p class="text-gray-500 text-sm mt-1">#<?php echo htmlspecialchars($order['order_number'] ?? ''); ?></p>
+            </div>
+            <?php if ($order): ?>
+                <?php
+                $status_class = '';
+                $status_icon = '';
+                switch($order['order_status']) {
+                    case 'طلب جديد':
+                        $status_class = 'status-new';
+                        $status_icon = 'fa-clock';
+                        break;
+                    case 'طلب معتمد':
+                        $status_class = 'status-approved';
+                        $status_icon = 'fa-check-circle';
+                        break;
+                    case 'مرفوض':
+                        $status_class = 'status-rejected';
+                        $status_icon = 'fa-times-circle';
+                        break;
+                    case 'مكتمل':
+                        $status_class = 'status-completed';
+                        $status_icon = 'fa-check-double';
+                        break;
+                    case 'ملغي':
+                        $status_class = 'status-cancelled';
+                        $status_icon = 'fa-ban';
+                        break;
+                    default:
+                        $status_class = 'status-new';
+                        $status_icon = 'fa-circle';
+                }
+                ?>
+                <span class="status-badge <?php echo $status_class; ?>">
+                    <i class="fas <?php echo $status_icon; ?>"></i>
+                    <?php echo htmlspecialchars($order['order_status']); ?>
+                </span>
+            <?php endif; ?>
+        </div>
         <a href="shop_orders_manage.php" class="btn btn-secondary"><i class="fas fa-arrow-left mr-2"></i> العودة لقائمة الطلبات</a>
     </div>
 
@@ -210,57 +653,141 @@ include '../../includes/header.php';
 
     <?php if ($order): ?>
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        <!-- Main Column -->
+
+        <!-- Main Column - Order Items -->
         <div class="lg:col-span-2 space-y-6">
-            <!-- Order Items -->
+            <!-- Order Items Card -->
             <div class="card">
-                <div class="card-header"><i class="fas fa-cubes text-blue-500"></i><h2>منتجات الطلب</h2></div>
-                <div class="card-body p-0 overflow-x-auto">
-                    <table class="w-full text-right">
-                        <thead class="bg-gray-50"><tr>
-                            <th class="p-3 font-semibold text-gray-600">الصورة</th>
-                            <th class="p-3 font-semibold text-gray-600">المنتج</th>
-                            <th class="p-3 font-semibold text-gray-600">الكمية</th>
-                            <th class="p-3 font-semibold text-gray-600">سعر البيع</th>
-                            <th class="p-3 font-semibold text-gray-600">التكلفة</th>
-                            <th class="p-3 font-semibold text-gray-600">الربح</th>
-                        </tr></thead>
-                        <tbody>
+                <div class="card-header">
+                    <i class="fas fa-shopping-bag text-[#C7A46D]"></i>
+                    <h2>منتجات الطلب</h2>
+                    <span class="mr-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm font-semibold">
+                        <?php echo count($order_items); ?> منتج
+                    </span>
+                </div>
+                <div class="card-body">
+                    <?php if (empty($order_items)): ?>
+                        <div class="text-center py-12 text-gray-500">
+                            <i class="fas fa-box-open text-4xl mb-4 text-gray-300"></i>
+                            <p>لا توجد منتجات في هذا الطلب</p>
+                        </div>
+                    <?php else: ?>
                         <?php foreach($order_items as $item): ?>
-                            <tr class="border-b last:border-b-0">
-                                <td class="p-3">
-                                    <?php if (!empty($item['image_url'])): ?>
-                                        <img src="../../../<?= htmlspecialchars($item['image_url']) ?>" style="width:50px;height:65px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;">
-                                    <?php else: ?>
-                                        <div style="width:50px;height:65px;background:#f3f4f6;border-radius:6px;display:flex;align-items:center;justify-content:center;"><i class="fas fa-image" style="color:#9ca3af;"></i></div>
-                                    <?php endif; ?>
-                                </td>
-                                <td class="p-3"><?php echo htmlspecialchars($item['product_name']); ?>
-                                    <?php if (!empty($item['variant_text'])): ?>
-                                        <br><small style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:11px;"><?= htmlspecialchars($item['variant_text']) ?></small>
-                                    <?php endif; ?>
-                                </td>
-                                <td class="p-3 font-bold"><?php echo $item['quantity']; ?></td>
-                                <td class="p-3 text-green-600 font-bold"><?php echo number_format($item['item_total_sale'], 2); ?></td>
-                                <td class="p-3 text-red-600 font-bold"><?php echo number_format($item['item_total_cost'], 2); ?></td>
-                                <td class="p-3 font-extrabold <?php echo $item['item_profit'] >= 0 ? 'text-blue-600' : 'text-red-600'; ?>"><?php echo number_format($item['item_profit'], 2); ?></td></tr>
+                            <div class="product-card">
+                                <div class="flex gap-4">
+                                    <!-- Product Image -->
+                                    <div class="flex-shrink-0">
+                                        <?php if (!empty($item['image_url'])): ?>
+                                            <img src="../../../<?= htmlspecialchars($item['image_url']) ?>"
+                                                 class="product-image cursor-pointer hover:opacity-90 transition-opacity"
+                                                 onclick="openImageModal('../../../<?= htmlspecialchars($item['image_url']) ?>')"
+                                                 alt="<?php echo htmlspecialchars($item['product_name']); ?>">
+                                        <?php else: ?>
+                                            <div class="product-image-placeholder">
+                                                <i class="fas fa-image text-3xl text-gray-400"></i>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+
+                                    <!-- Product Details -->
+                                    <div class="flex-grow min-w-0">
+                                        <!-- Product Name & SKU -->
+                                        <div class="mb-3">
+                                            <h3 class="font-bold text-gray-900 text-lg mb-1">
+                                                <?php echo htmlspecialchars($item['product_name']); ?>
+                                            </h3>
+                                            <?php if (!empty($item['sku'])): ?>
+                                                <div class="text-sm text-gray-500 flex items-center gap-2">
+                                                    <span class="font-mono bg-gray-100 px-2 py-0.5 rounded text-xs">
+                                                        SKU: <?php echo htmlspecialchars($item['sku']); ?>
+                                                    </span>
+                                                    <span class="text-gray-400">|</span>
+                                                    <span class="text-xs">ID: <?php echo $item['product_id']; ?></span>
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
+
+                                        <!-- Variant/Attributes -->
+                                        <?php if (!empty($item['variant_text'])): ?>
+                                            <div class="mb-3">
+                                                <?php
+                                                $variant_parts = explode(' / ', $item['variant_text']);
+                                                foreach ($variant_parts as $part) {
+                                                    if (!empty(trim($part))) {
+                                                        echo '<span class="variant-tag">' . htmlspecialchars(trim($part)) . '</span>';
+                                                    }
+                                                }
+                                                ?>
+                                            </div>
+                                        <?php endif; ?>
+
+                                        <!-- Price & Quantity -->
+                                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4">
+                                            <div>
+                                                <div class="text-xs text-gray-500 mb-1">الكمية</div>
+                                                <div class="font-bold text-gray-900 text-lg"><?php echo $item['quantity']; ?></div>
+                                            </div>
+                                            <div>
+                                                <div class="text-xs text-gray-500 mb-1">سعر الوحدة</div>
+                                                <div class="price-final">
+                                                    <?php
+                                                    $unit_price = floatval($item['unit_price']);
+                                                    echo preg_replace('/\.?0+$/', '', number_format($unit_price, 2));
+                                                    ?>
+                                                </div>
+                                                <?php if (!empty($item['original_unit_price']) && floatval($item['original_unit_price']) > $unit_price): ?>
+                                                    <div class="price-original mt-1">
+                                                        <?php echo preg_replace('/\.?0+$/', '', number_format($item['original_unit_price'], 2)); ?>
+                                                    </div>
+                                                <?php endif; ?>
+                                            </div>
+                                            <div>
+                                                <div class="text-xs text-gray-500 mb-1">الخصم</div>
+                                                <div class="price-discount">
+                                                    <?php
+                                                    $discount = floatval($item['item_discount_amount'] ?? 0);
+                                                    if ($discount > 0) {
+                                                        echo '-' . preg_replace('/\.?0+$/', '', number_format($discount, 2));
+                                                    } else {
+                                                        echo '-';
+                                                    }
+                                                    ?>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div class="text-xs text-gray-500 mb-1">الإجمالي</div>
+                                                <div class="price-total">
+                                                    <?php echo preg_replace('/\.?0+$/', '', number_format($item['total_price'], 2)); ?>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         <?php endforeach; ?>
-                        </tbody>
-                    </table>
+                    <?php endif; ?>
                 </div>
             </div>
 
-            <!-- Payment Evidence -->
+            <!-- Payment Evidence Card -->
             <div class="card">
-                <div class="card-header"><i class="fas fa-file-invoice-dollar text-green-500"></i><h2>إيصال التحويل</h2></div>
+                <div class="card-header">
+                    <i class="fas fa-receipt text-green-500"></i>
+                    <h2>إيصال التحويل</h2>
+                </div>
                 <div class="card-body text-center">
                     <?php if (!empty($order['payment_evidence_url'])): ?>
-                        <a href="../../<?php echo htmlspecialchars($order['payment_evidence_url']); ?>" target="_blank">
-                            <img src="../../<?php echo htmlspecialchars($order['payment_evidence_url']); ?>" class="max-w-md mx-auto rounded-lg shadow-md cursor-pointer">
+                        <a href="../../<?php echo htmlspecialchars($order['payment_evidence_url']); ?>" target="_blank" class="inline-block">
+                            <img src="../../<?php echo htmlspecialchars($order['payment_evidence_url']); ?>"
+                                 class="max-w-full max-h-96 mx-auto rounded-lg shadow-md cursor-pointer hover:shadow-lg transition-shadow"
+                                 alt="إيصال التحويل">
                         </a>
+                        <p class="text-sm text-gray-500 mt-3">انقر لفتح الصورة في نافذة جديدة</p>
                     <?php else: ?>
-                        <p class="text-gray-500">لم يتم رفع إيصال الدفع.</p>
+                        <div class="py-12">
+                            <i class="fas fa-file-invoice text-4xl text-gray-300 mb-4"></i>
+                            <p class="text-gray-500">لم يتم رفع إيصال الدفع</p>
+                        </div>
                     <?php endif; ?>
                 </div>
             </div>
@@ -268,34 +795,40 @@ include '../../includes/header.php';
 
         <!-- Sidebar Column -->
         <div class="lg:col-span-1 space-y-6">
-            <!-- Action Buttons -->
-            <?php if ($order['order_status'] === 'طلب جديد'): // Only show if order is new ?>
+            <!-- Action Buttons Card -->
+            <?php if ($order['order_status'] === 'طلب جديد'): ?>
             <div class="card">
-                <div class="card-header"><i class="fas fa-tasks text-yellow-500"></i><h2>اتخاذ إجراء</h2></div>
-                <div class="card-body flex gap-4">
+                <div class="card-header">
+                    <i class="fas fa-tasks text-yellow-500"></i>
+                    <h2>اتخاذ إجراء</h2>
+                </div>
+                <div class="card-body flex flex-col sm:flex-row gap-3">
                     <?php if ($can_approve): ?>
-                        <button onclick="openApproveModal()" class="btn btn-success flex-1"><i class="fas fa-check-circle"></i> موافقة</button>
+                        <button onclick="openApproveModal()" class="btn btn-success flex-1 w-full sm:w-auto">
+                            <i class="fas fa-check-circle"></i> موافقة
+                        </button>
                     <?php endif; ?>
                     <?php if ($can_reject): ?>
-                        <button onclick="openRejectModal()" class="btn btn-danger flex-1"><i class="fas fa-times-circle"></i> رفض</button>
+                        <button onclick="openRejectModal()" class="btn btn-danger flex-1 w-full sm:w-auto">
+                            <i class="fas fa-times-circle"></i> رفض
+                        </button>
                     <?php endif; ?>
-                    <?php // CHANGE START: Message if user has neither approve nor reject permission ?>
                     <?php if (!$can_approve && !$can_reject): ?>
-                        <p class="text-gray-500 text-center w-full">ليس لديك صلاحية لاتخاذ إجراء على هذا الطلب.</p>
+                        <p class="text-gray-500 text-center w-full text-sm">ليس لديك صلاحية لاتخاذ إجراء على هذا الطلب.</p>
                     <?php endif; ?>
-                    <?php // CHANGE END ?>
                 </div>
             </div>
             <?php endif; ?>
 
-            <?php if ($order['order_status'] === 'طلب معتمد'): 
+            <!-- Approved Status Card -->
+            <?php if ($order['order_status'] === 'طلب معتمد'):
                  $whatsapp_msg = "مرحباً {$order['customer_name']}\nتم اعتماد طلبك رقم #{$order['order_number']} بنجاح!\nسيتم شحنه قريباً. شكراً لثقتكم.";
                  $whatsapp_url = "https://wa.me/{$order['whatsapp_number']}?text=" . urlencode($whatsapp_msg);
             ?>
             <div class="card bg-green-50 border-green-300">
                 <div class="card-body text-center">
-                     <i class="fas fa-check-circle text-green-500 text-3xl mb-2"></i>
-                     <p class="font-bold text-green-700">تم اعتماد هذا الطلب.</p>
+                     <i class="fas fa-check-circle text-green-500 text-4xl mb-3"></i>
+                     <p class="font-bold text-green-700 text-lg">تم اعتماد هذا الطلب</p>
                      <a href="<?php echo $whatsapp_url; ?>" target="_blank" class="mt-4 btn btn-whatsapp w-full">
                         <i class="fab fa-whatsapp"></i> إرسال إشعار للعميل
                      </a>
@@ -303,31 +836,145 @@ include '../../includes/header.php';
             </div>
             <?php endif; ?>
 
+            <!-- Rejected Status Card -->
             <?php if ($order['order_status'] === 'مرفوض'): ?>
              <div class="card bg-red-50 border-red-300">
                 <div class="card-body">
-                    <div class="text-center mb-3">
-                         <i class="fas fa-times-circle text-red-500 text-3xl"></i>
-                         <p class="font-bold text-red-700">تم رفض هذا الطلب.</p>
+                    <div class="text-center mb-4">
+                         <i class="fas fa-times-circle text-red-500 text-4xl"></i>
+                         <p class="font-bold text-red-700 text-lg">تم رفض هذا الطلب</p>
                     </div>
-                     <p class="text-sm"><strong class="text-gray-700">سبب الرفض:</strong> <span class="text-red-800"><?php echo htmlspecialchars($order['rejection_reason']); ?></span></p>
+                     <div class="bg-white rounded-lg p-3 border border-red-200">
+                         <p class="text-sm text-gray-600 mb-1"><strong>سبب الرفض:</strong></p>
+                         <p class="text-red-800"><?php echo htmlspecialchars($order['rejection_reason']); ?></p>
+                     </div>
                 </div>
             </div>
             <?php endif; ?>
 
-            <!-- Order Summary -->
+            <!-- Customer Information Card -->
             <div class="card">
-                <div class="card-header"><i class="fas fa-receipt text-purple-500"></i><h2>ملخص الطلب</h2></div>
-                <div class="card-body space-y-2">
-                    <div class="detail-row"><span class="detail-label">رقم الطلب</span><span class="detail-value font-bold"><?php echo htmlspecialchars($order['order_number']); ?></span></div>
-                    <div class="detail-row"><span class="detail-label">تاريخ الإنشاء</span><span class="detail-value text-sm"><?php echo date('Y-m-d h:i A', strtotime($order['created_at'])); ?></span></div>
-                    <div class="detail-row"><span class="detail-label">العميل</span><span class="detail-value text-blue-600 font-bold"><?php echo htmlspecialchars($order['customer_name']); ?></span></div>
-                    <div class="detail-row"><span class="detail-label">رقم الجوال</span><span class="detail-value"><?php echo htmlspecialchars($order['mobile_number']); ?></span></div>
-                    <hr class="my-3">
-                    <div class="detail-row"><span class="detail-label">مجموع المنتجات</span><span class="detail-value"><?php echo number_format($order['subtotal'], 2); ?></span></div>
-                    <div class="detail-row"><span class="detail-label">رسوم الشحن</span><span class="detail-value"><?php echo number_format($order['shipping_fee'], 2); ?></span></div>
-                    <div class="detail-row text-red-500"><span class="detail-label">الخصم</span><span class="detail-value">-<?php echo number_format($order['discount_amount'], 2); ?></span></div>
-                    <div class="detail-row text-xl mt-2 pt-2 border-t-2 border-black"><span class="detail-label">الإجمالي النهائي</span><span class="detail-value font-black text-green-600"><?php echo number_format($order['total_amount'], 2); ?></span></div>
+                <div class="card-header">
+                    <i class="fas fa-user text-blue-500"></i>
+                    <h2>معلومات العميل</h2>
+                </div>
+                <div class="card-body">
+                    <div class="info-item">
+                        <span class="info-label">اسم العميل</span>
+                        <span class="info-value highlight"><?php echo htmlspecialchars($order['customer_name']); ?></span>
+                    </div>
+                    <?php if (!empty($order['customer_code'])): ?>
+                    <div class="info-item">
+                        <span class="info-label">كود العميل</span>
+                        <span class="info-value"><?php echo htmlspecialchars($order['customer_code']); ?></span>
+                    </div>
+                    <?php endif; ?>
+                    <div class="info-item">
+                        <span class="info-label">رقم الجوال</span>
+                        <span class="info-value flex items-center gap-2">
+                            <?php echo htmlspecialchars($order['mobile_number']); ?>
+                            <button class="btn-icon" onclick="copyToClipboard('<?php echo htmlspecialchars($order['mobile_number']); ?>')" title="نسخ">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </span>
+                    </div>
+                    <?php if (!empty($order['whatsapp_number'])): ?>
+                    <div class="info-item">
+                        <span class="info-label">واتساب</span>
+                        <span class="info-value">
+                            <a href="https://wa.me/<?php echo htmlspecialchars($order['whatsapp_number']); ?>" target="_blank" class="text-green-600 hover:text-green-700 font-semibold">
+                                <?php echo htmlspecialchars($order['whatsapp_number']); ?>
+                                <i class="fab fa-whatsapp mr-1"></i>
+                            </a>
+                        </span>
+                    </div>
+                    <?php endif; ?>
+                    <?php if (!empty($order['email'])): ?>
+                    <div class="info-item">
+                        <span class="info-label">البريد الإلكتروني</span>
+                        <span class="info-value"><?php echo htmlspecialchars($order['email']); ?></span>
+                    </div>
+                    <?php endif; ?>
+                    <?php if (!empty($order['address'])): ?>
+                    <div class="info-item">
+                        <span class="info-label">العنوان</span>
+                        <span class="info-value"><?php echo htmlspecialchars($order['address']); ?></span>
+                    </div>
+                    <?php endif; ?>
+                    <?php if (!empty($order['city_name'])): ?>
+                    <div class="info-item">
+                        <span class="info-label">المدينة</span>
+                        <span class="info-value"><?php echo htmlspecialchars($order['city_name']); ?></span>
+                    </div>
+                    <?php endif; ?>
+                    <?php if (!empty($order['location_area'])): ?>
+                    <div class="info-item">
+                        <span class="info-label">المنطقة</span>
+                        <span class="info-value"><?php echo htmlspecialchars($order['location_area']); ?></span>
+                    </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <!-- Order Summary Card -->
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-file-invoice-dollar text-[#C7A46D]"></i>
+                    <h2>ملخص الطلب</h2>
+                </div>
+                <div class="card-body">
+                    <div class="section-title">معلومات الطلب</div>
+                    <div class="info-item">
+                        <span class="info-label">رقم الطلب</span>
+                        <span class="info-value flex items-center gap-2">
+                            <?php echo htmlspecialchars($order['order_number']); ?>
+                            <button class="btn-icon" onclick="copyToClipboard('<?php echo htmlspecialchars($order['order_number']); ?>')" title="نسخ">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">تاريخ الإنشاء</span>
+                        <span class="info-value"><?php echo date('Y-m-d h:i A', strtotime($order['created_at'])); ?></span>
+                    </div>
+                    <?php if (!empty($order['updated_at']) && $order['updated_at'] != $order['created_at']): ?>
+                    <div class="info-item">
+                        <span class="info-label">آخر تحديث</span>
+                        <span class="info-value"><?php echo date('Y-m-d h:i A', strtotime($order['updated_at'])); ?></span>
+                    </div>
+                    <?php endif; ?>
+                    <?php if (!empty($order['coupon_code'])): ?>
+                    <div class="info-item">
+                        <span class="info-label">كود الخصم</span>
+                        <span class="info-value bg-green-100 text-green-700 px-2 py-1 rounded text-sm">
+                            <?php echo htmlspecialchars($order['coupon_code']); ?>
+                        </span>
+                    </div>
+                    <?php endif; ?>
+
+                    <div class="section-title mt-6">التفاصيل المالية</div>
+                    <div class="info-item">
+                        <span class="info-label">مجموع المنتجات</span>
+                        <span class="info-value"><?php echo preg_replace('/\.?0+$/', '', number_format($order['subtotal'], 2)); ?></span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">رسوم الشحن</span>
+                        <span class="info-value"><?php echo preg_replace('/\.?0+$/', '', number_format($order['shipping_fee'], 2)); ?></span>
+                    </div>
+                    <?php if (floatval($order['discount_amount']) > 0): ?>
+                    <div class="info-item">
+                        <span class="info-label text-red-600">الخصم</span>
+                        <span class="info-value text-red-600 font-semibold">
+                            -<?php echo preg_replace('/\.?0+$/', '', number_format($order['discount_amount'], 2)); ?>
+                        </span>
+                    </div>
+                    <?php endif; ?>
+                    <div class="total-row">
+                        <span class="total-label">الإجمالي النهائي</span>
+                        <span class="total-value">
+                            <?php echo preg_replace('/\.?0+$/', '', number_format($order['total_amount'], 2)); ?>
+                        </span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -364,7 +1011,7 @@ include '../../includes/header.php';
     <?php endif; // End can_approve ?>
 
     <!-- Reject Modal -->
-    <?php if ($can_reject): // Only render modal if user has permission ?>
+    <?php if ($can_reject): ?>
     <div id="rejectModal" class="modal-overlay" onclick="closeRejectModal()">
         <div class="modal-box" onclick="event.stopPropagation()">
             <form method="POST">
@@ -375,14 +1022,24 @@ include '../../includes/header.php';
                     <label for="rejection_reason" class="block font-bold text-gray-700 mb-2">اكتب سبب الرفض (مطلوب):</label>
                     <textarea name="rejection_reason" id="rejection_reason" rows="4" required class="w-full border-2 border-gray-300 rounded-lg p-3 focus:border-red-500 outline-none" placeholder="مثال: صورة الحوالة غير واضحة..."></textarea>
                 </div>
-                <div class="mt-8 flex gap-4">
-                    <button type="button" onclick="closeRejectModal()" class="btn btn-secondary flex-1">إلغاء</button>
-                    <button type="submit" class="btn btn-danger flex-1">تأكيد الرفض</button>
+                <div class="mt-8 flex flex-col sm:flex-row gap-3">
+                    <button type="button" onclick="closeRejectModal()" class="btn btn-secondary flex-1 w-full sm:w-auto">إلغاء</button>
+                    <button type="submit" class="btn btn-danger flex-1 w-full sm:w-auto">تأكيد الرفض</button>
                 </div>
             </form>
         </div>
     </div>
-    <?php endif; // End can_reject ?>
+    <?php endif; ?>
+
+    <!-- Image Modal -->
+    <div id="imageModal" class="modal-overlay" onclick="closeImageModal()">
+        <div class="modal-box" onclick="event.stopPropagation()" style="max-width: 800px; padding: 0; overflow: hidden;">
+            <button onclick="closeImageModal()" class="absolute top-4 left-4 w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center text-gray-600 hover:text-gray-900 z-10">
+                <i class="fas fa-times"></i>
+            </button>
+            <img id="modalImage" src="" alt="Product Image" class="w-full h-auto max-h-[80vh] object-contain">
+        </div>
+    </div>
 </div>
 
 <script>
@@ -390,6 +1047,37 @@ include '../../includes/header.php';
     function closeApproveModal() { document.getElementById('approveModal').style.display = 'none'; }
     function openRejectModal() { document.getElementById('rejectModal').style.display = 'flex'; }
     function closeRejectModal() { document.getElementById('rejectModal').style.display = 'none'; }
+
+    function openImageModal(imageSrc) {
+        document.getElementById('modalImage').src = imageSrc;
+        document.getElementById('imageModal').style.display = 'flex';
+    }
+
+    function closeImageModal() {
+        document.getElementById('imageModal').style.display = 'none';
+    }
+
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(function() {
+            // Show a brief notification
+            const notification = document.createElement('div');
+            notification.className = 'fixed bottom-4 left-4 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+            notification.textContent = 'تم النسخ!';
+            document.body.appendChild(notification);
+            setTimeout(() => notification.remove(), 2000);
+        }).catch(function(err) {
+            console.error('Failed to copy: ', err);
+        });
+    }
+
+    // Close modals on Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeApproveModal();
+            closeRejectModal();
+            closeImageModal();
+        }
+    });
 </script>
 
 <?php include '../../includes/footer.php'; ?>

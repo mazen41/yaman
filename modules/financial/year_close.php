@@ -21,7 +21,7 @@ if (!hasPermission($user_id, 'financial', 'view')) {
     exit();
 }
 
-$page_title = 'إقفال السنة المالية';
+$page_title = 'تفاصيل السنة المالية';
 $current_year = (int)date('Y');
 $selected_year = (int)($_GET['year'] ?? $current_year);
 if ($selected_year < 2000 || $selected_year > $current_year) {
@@ -35,7 +35,7 @@ $usd_to_yer_rate = 535;
 $sar_to_yer_rate = 142;
 $base_currency   = 'YER';
 
-// Only admins may actually close a year (the action cannot be undone from this page)
+// Check if user is admin (for permissions/info display)
 $is_admin = false;
 try {
     $admin_stmt = $db->prepare("SELECT is_admin FROM users WHERE id = ?");
@@ -138,55 +138,6 @@ function fy_summary(PDO $db, int $year, float $usd_rate, float $sar_rate, string
     ];
 }
 
-// --- Handle POST: close the year ---
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['confirm_close'])) {
-    $year_to_close = (int)($_POST['year_to_close'] ?? 0);
-
-    if (!$is_admin) {
-        $message = ['type' => 'error', 'text' => 'إقفال السنة المالية متاح للمدير فقط.'];
-    } elseif ($year_to_close < 2000 || $year_to_close > $current_year) {
-        $message = ['type' => 'error', 'text' => 'السنة المحددة غير صالحة.'];
-    } else {
-        try {
-            $chk = $db->prepare("SELECT COUNT(*) FROM fiscal_years WHERE year = ? AND is_closed = 1");
-            $chk->execute([$year_to_close]);
-            if ((int)$chk->fetchColumn() > 0) {
-                $message = ['type' => 'error', 'text' => 'هذه السنة مغلقة بالفعل.'];
-            } else {
-                $snap = fy_summary($db, $year_to_close, $usd_to_yer_rate, $sar_to_yer_rate, $base_currency);
-
-                $db->beginTransaction();
-                $ins = $db->prepare("
-                    INSERT INTO fiscal_years
-                        (year, is_closed, closed_by, closed_at, total_orders, total_revenue, total_collected,
-                         total_expenses, net_profit, carry_customers, carry_amount)
-                    VALUES (?, 1, ?, NOW(), ?, ?, ?, ?, ?, ?, ?)
-                    ON DUPLICATE KEY UPDATE
-                        is_closed = 1, closed_by = VALUES(closed_by), closed_at = NOW(),
-                        total_orders = VALUES(total_orders), total_revenue = VALUES(total_revenue),
-                        total_collected = VALUES(total_collected), total_expenses = VALUES(total_expenses),
-                        net_profit = VALUES(net_profit), carry_customers = VALUES(carry_customers),
-                        carry_amount = VALUES(carry_amount)
-                ");
-                $ins->execute([
-                    $year_to_close, $user_id, $snap['total_orders'], $snap['total_revenue'], $snap['collected'],
-                    $snap['expenses'], $snap['net_profit'], $snap['carry_customers'], $snap['carry_amount'],
-                ]);
-                $db->commit();
-
-                $selected_year = $year_to_close;
-                $message = ['type' => 'success', 'text' => 'تم إقفال السنة المالية ' . $year_to_close . ' بنجاح. عدد العملاء ذوي الأرصدة المرحّلة: ' . $snap['carry_customers']];
-            }
-        } catch (Exception $e) {
-            if ($db->inTransaction()) {
-                $db->rollBack();
-            }
-            error_log('year_close failed: ' . $e->getMessage());
-            $message = ['type' => 'error', 'text' => 'فشل إقفال السنة المالية. يرجى المحاولة مرة أخرى.'];
-        }
-    }
-}
-
 // --- Data for the selected year ---
 $closed_info = false;
 $year_data = [
@@ -215,7 +166,7 @@ include '../../includes/header.php';
             <i class="fas fa-calendar-check"></i>
             <?php echo $page_title; ?>
         </h1>
-        <p class="text-purple-100 text-sm sm:text-base opacity-90">مراجعة ملخص السنة المالية وإقفالها</p>
+        <p class="text-purple-100 text-sm sm:text-base opacity-90">مراجعة تفاصيل وملخص السنة المالية (صفحة للعرض والمراجعة فقط)</p>
     </div>
 
     <?php if ($message): ?>
@@ -224,8 +175,8 @@ include '../../includes/header.php';
         </div>
     <?php endif; ?>
 
-    <!-- Year Selector -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
+    <!-- Year Selector & Status -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6 flex flex-wrap items-center justify-between gap-4">
         <form method="GET" class="flex items-center gap-3">
             <label class="text-sm font-medium text-gray-700">اختر السنة:</label>
             <select name="year" onchange="this.form.submit()" class="rounded-lg border-gray-300 focus:ring-purple-500 focus:border-purple-500 text-sm">
@@ -234,17 +185,24 @@ include '../../includes/header.php';
                 <?php endfor; ?>
             </select>
         </form>
-    </div>
 
-    <?php if ($already_closed): ?>
-        <div class="bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-lg p-4 mb-6 font-bold">
-            <i class="fas fa-lock"></i>
-            السنة المالية <?php echo $selected_year; ?> مغلقة
-            <?php if (!empty($closed_info['closed_at'])): ?>
-                <span class="font-normal text-sm">(بتاريخ <?php echo htmlspecialchars($closed_info['closed_at']); ?>)</span>
+        <div>
+            <?php if ($already_closed): ?>
+                <span class="inline-flex items-center gap-2 bg-yellow-100 text-yellow-800 text-xs sm:text-sm font-bold px-3 py-1.5 rounded-full border border-yellow-300">
+                    <i class="fas fa-lock"></i>
+                    السنة المالية <?php echo $selected_year; ?> مغلقة
+                    <?php if (!empty($closed_info['closed_at'])): ?>
+                        <span class="font-normal text-xs">(بتاريخ <?php echo htmlspecialchars($closed_info['closed_at']); ?>)</span>
+                    <?php endif; ?>
+                </span>
+            <?php else: ?>
+                <span class="inline-flex items-center gap-2 bg-blue-100 text-blue-800 text-xs sm:text-sm font-bold px-3 py-1.5 rounded-full border border-blue-300">
+                    <i class="fas fa-calendar-alt"></i>
+                    السنة المالية <?php echo $selected_year; ?> مفتوحة (نشطة)
+                </span>
             <?php endif; ?>
         </div>
-    <?php endif; ?>
+    </div>
 
     <!-- Summary Cards -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
@@ -311,28 +269,11 @@ include '../../includes/header.php';
     </div>
     <?php endif; ?>
 
-    <!-- Close Year -->
-    <?php if (!$already_closed): ?>
-    <div class="bg-white border border-red-200 rounded-xl p-5">
-        <?php if ($is_admin): ?>
-            <p class="font-bold text-red-700 mb-4">
-                <i class="fas fa-exclamation-triangle"></i>
-                تحذير: إقفال السنة المالية لا يمكن التراجع عنه من هذه الصفحة. راجع جميع البيانات أعلاه قبل المتابعة.
-            </p>
-            <form method="POST" onsubmit="return confirm('هل أنت متأكد تماماً من إقفال السنة المالية <?php echo $selected_year; ?>؟ هذا الإجراء لا يمكن التراجع عنه.');">
-                <input type="hidden" name="confirm_close" value="1">
-                <input type="hidden" name="year_to_close" value="<?php echo $selected_year; ?>">
-                <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-8 rounded-lg transition-colors duration-200">
-                    <i class="fas fa-lock"></i> إقفال السنة المالية <?php echo $selected_year; ?>
-                </button>
-            </form>
-        <?php else: ?>
-            <p class="font-bold text-gray-600">
-                <i class="fas fa-info-circle"></i> إقفال السنة المالية متاح للمدير فقط.
-            </p>
-        <?php endif; ?>
+    <!-- Read-only Notice -->
+    <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 text-center text-sm text-gray-600">
+        <i class="fas fa-info-circle ml-1 text-gray-500"></i>
+        هذه الصفحة مخصصة لعرض واستعراض تفاصيل وملخص السنة المالية والأرصدة المرحّلة للقراءة فقط.
     </div>
-    <?php endif; ?>
 </div>
 
 <?php include '../../includes/footer.php'; ?>

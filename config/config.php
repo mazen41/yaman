@@ -9,7 +9,7 @@ define('APP_DESCRIPTION', 'نظام إدارة شامل للأعمال التج�
 // Paths
 define('ROOT_PATH', dirname(__DIR__));
 define('INCLUDES_PATH', ROOT_PATH . '/includes');
-define('MODULES_PATH', ROOT_PATH . '/modules');
+define('MODULES_PATH', ROOT_PATH . '/yaman/modules');
 define('CONFIG_PATH', ROOT_PATH . '/config');
 
 // URL Configuration (adjust based on your setup)

@@ -144,14 +144,21 @@ try {
 $currency = $customer['currency'] ?? 'YER'; 
 
 function getSubmittedStatusDetails($status) {
+    // CENTRALIZED approval-status → Arabic label mapping.
+    // status_key is used for CSS via getStatusClass(); label is the Arabic display text.
+    // Any status NOT in this list is treated as unknown — never silently mapped to 'pending'.
     switch ($status) {
-        case 'approved':
-            return ['class' => 'bg-emerald-100 text-emerald-800 border-emerald-200', 'icon' => 'fa-check-circle', 'label' => 'تمت الموافقة'];
-        case 'rejected':
-            return ['class' => 'bg-red-100 text-red-800 border-red-200', 'icon' => 'fa-times-circle', 'label' => 'مرفوض'];
         case 'pending':
+            return ['status_key' => 'pending', 'class' => 'bg-amber-100 text-amber-800 border-amber-200', 'icon' => 'fa-clock',        'label' => 'قيد المراجعة'];
+        case 'approved':
+            return ['status_key' => 'approved', 'class' => 'bg-emerald-100 text-emerald-800 border-emerald-200', 'icon' => 'fa-check-circle', 'label' => 'تمت الموافقة'];
+        case 'rejected':
+        case 'declined':
+            return ['status_key' => 'rejected', 'class' => 'bg-red-100 text-red-800 border-red-200',     'icon' => 'fa-times-circle', 'label' => 'مرفوض'];
         default:
-            return ['class' => 'bg-amber-100 text-amber-800 border-amber-200', 'icon' => 'fa-clock', 'label' => 'قيد المراجعة'];
+            // Unknown status: log server-side, show safe Arabic fallback — never map to pending.
+            error_log("Portal: unknown order_approval status encountered: [" . $status . "]");
+            return ['status_key' => 'unknown', 'class' => 'bg-gray-100 text-gray-600 border-gray-200',   'icon' => 'fa-question-circle', 'label' => 'حالة غير معروفة'];
     }
 }
 
@@ -174,26 +181,31 @@ if ($customer['enable_create_self_order'] === 'active') {
                     (SELECT TRIM(oai.additional_link) FROM order_approval_items oai WHERE oai.approval_id = oa.id AND TRIM(COALESCE(oai.additional_link,'')) <> '' ORDER BY oai.id ASC LIMIT 1) AS display_additional_link
                 FROM order_approvals oa
                 WHERE oa.customer_id = ?
-                AND oa.status = 'pending'
                 ORDER BY oa.created_at DESC";
 
         $stmt_approvals = $db->prepare($query_approvals);
         $stmt_approvals->execute([$customer_id]);
-        $pending_approvals = $stmt_approvals->fetchAll(PDO::FETCH_ASSOC);
+        $all_approvals = $stmt_approvals->fetchAll(PDO::FETCH_ASSOC);
 
-        foreach ($pending_approvals as $approval) {
+        foreach ($all_approvals as $approval) {
             $total_discount_amount = (float)($approval['coupon_discount_amount'] ?? 0) + (float)($approval['automatic_discount_amount'] ?? 0);
             $final_amount = (float)($approval['total_after_discounts'] ?? 0) + (float)($approval['shipping_cost'] ?? 0);
             $paid_amount = (float)($approval['paid_amount'] ?? 0);
             $subtotal_amount = (float)($approval['subtotal_amount'] ?? 0);
+
+            // Use the REAL status from the database — never hardcode.
+            $raw_status = trim($approval['status'] ?? '');
+            $statusDetails = getSubmittedStatusDetails($raw_status);
+            $approval_status_key   = $statusDetails['status_key'];   // e.g. 'pending', 'approved', 'rejected', 'unknown'
+            $approval_status_label = $statusDetails['label'];        // Arabic label
 
             $orders[] = [
                 'id' => null,
                 'approval_id' => (int)$approval['id'],
                 'order_number' => 'SA-' . (int)$approval['id'],
                 'created_at' => $approval['created_at'],
-                'display_status_key' => 'under_review',
-                'display_status_label' => 'Under Review',
+                'display_status_key' => $approval_status_key,
+                'display_status_label' => $approval_status_label,
                 'total_quantity' => (float)$approval['total_quantity'],
                 'order_link' => $approval['display_order_link'],
                 'first_product_link' => $approval['display_order_link'],
@@ -206,10 +218,13 @@ if ($customer['enable_create_self_order'] === 'active') {
                 'paid_amount' => $paid_amount,
                 'notes' => $approval['notes'],
                 'is_self_order' => 1,
-                'is_pending_self_order' => 1,
+                'is_pending_self_order' => ($raw_status === 'pending') ? 1 : 0,
             ];
 
-            $order_status_options['under_review'] = 'Under Review';
+            // Register in the status filter dropdown only if not already added
+            if (!isset($order_status_options[$approval_status_key])) {
+                $order_status_options[$approval_status_key] = $approval_status_label;
+            }
             $total_customer_orders++;
             $total_quantity += (float)$approval['total_quantity'];
             $total_subtotal += $subtotal_amount;

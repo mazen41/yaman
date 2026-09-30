@@ -22,6 +22,18 @@ function formatPrice($amount) {
 }
 
 /**
+ * Get effective product stock - prioritize total_quantity, fallback to product_quantity
+ * Matches the JavaScript effectiveProductStock logic
+ */
+function getEffectiveStock($product) {
+    $total_qty = (int)($product['total_quantity'] ?? 0);
+    $product_qty = (int)($product['product_quantity'] ?? 0);
+    if ($total_qty > 0) return $total_qty;
+    if ($product_qty > 0) return $product_qty;
+    return 0;
+}
+
+/**
  * Translate order/approval status to Arabic
  */
 function translateOrderStatus($status) {

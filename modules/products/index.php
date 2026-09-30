@@ -90,7 +90,7 @@ $sort_options = [
     'created_at' => 'p.created_at',
     'name_alpha' => 'p.name',
     'price' => 'p.price',
-    'total_quantity' => 'p.total_quantity',
+    'total_quantity' => 'CASE WHEN p.total_quantity > 0 THEN p.total_quantity ELSE p.product_quantity END',
     'display_order' => 'p.display_order',
 ];
 $sort_column = $sort_options[$sort_by] ?? 'p.updated_at';
@@ -383,7 +383,11 @@ include '../../includes/header.php';
                                         <?php endif; ?>
                                     </td>
                                     <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900 text-center font-medium">
-                                        <?php echo number_format($product['total_quantity'], 0, '', ','); ?>
+                                        <?php
+                                        // Use same logic as effectiveProductStock: prioritize total_quantity, fallback to product_quantity
+                                        $display_quantity = ($product['total_quantity'] > 0) ? $product['total_quantity'] : $product['product_quantity'];
+                                        echo number_format($display_quantity, 0, '', ',');
+                                        ?>
                                     </td>
                                     <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                                         <?php if ($product['is_active']): ?>

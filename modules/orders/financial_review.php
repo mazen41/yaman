@@ -117,7 +117,7 @@ try {
     
     $baskets_query = "SELECT DISTINCT pb.id, CAST('basket' AS CHAR(50)) COLLATE utf8mb4_unicode_ci as transaction_type, CAST(pb.basket_code AS CHAR(255)) COLLATE utf8mb4_unicode_ci as transaction_number, CAST(pb.currency AS CHAR(255)) COLLATE utf8mb4_unicode_ci as reference_number, NULL as customer_id, CAST(pb.final_amount AS DECIMAL(10,2)) as amount, CAST(pb.status AS CHAR(50)) COLLATE utf8mb4_unicode_ci as status, CAST(CONCAT(COALESCE(pb.sar_amount,''), '|', COALESCE(pb.currency,'YER')) AS CHAR(100)) COLLATE utf8mb4_unicode_ci as payment_method, CAST(COALESCE(pb.review_status, 'pending') AS CHAR(50)) COLLATE utf8mb4_unicode_ci as review_status, pb.reviewed_at, pb.reviewed_by, CAST(COALESCE(pb.review_note, '') AS CHAR(1000)) COLLATE utf8mb4_unicode_ci as review_note, pb.created_at, pb.updated_at, CAST('سلة شراء' AS CHAR(255)) COLLATE utf8mb4_unicode_ci as customer_name, CAST('' AS CHAR(50)) COLLATE utf8mb4_unicode_ci as mobile_number, CAST(COALESCE(u.username, '') AS CHAR(100)) COLLATE utf8mb4_unicode_ci as reviewed_by_name, CAST(NULL AS CHAR(255)) as bank_name FROM purchase_baskets pb LEFT JOIN users u ON pb.reviewed_by = u.id";
     
-    $expenses_query = "SELECT DISTINCT e.id, CAST('expense' AS CHAR(50)) COLLATE utf8mb4_unicode_ci as transaction_type, CAST(e.expense_number AS CHAR(255)) COLLATE utf8mb4_unicode_ci as transaction_number, CAST(e.reference_number AS CHAR(255)) COLLATE utf8mb4_unicode_ci as reference_number, NULL as customer_id, CAST(e.amount AS DECIMAL(10,2)) as amount, CAST(e.status AS CHAR(50)) COLLATE utf8mb4_unicode_ci as status, CAST(COALESCE(e.payment_method, 'غير محدد') AS CHAR(100)) COLLATE utf8mb4_unicode_ci as payment_method, CAST(COALESCE(e.review_status, 'pending') AS CHAR(50)) COLLATE utf8mb4_unicode_ci as review_status, e.reviewed_at, e.reviewed_by, CAST(COALESCE(e.review_note, '') AS CHAR(1000)) COLLATE utf8mb4_unicode_ci as review_note, e.created_at, e.updated_at, CAST(COALESCE(e.vendor_name, 'مصروف') AS CHAR(255)) COLLATE utf8mb4_unicode_ci as customer_name, CAST(COALESCE(e.vendor_phone, '') AS CHAR(50)) COLLATE utf8mb4_unicode_ci as mobile_number, CAST(COALESCE(u.username, '') AS CHAR(100)) COLLATE utf8mb4_unicode_ci as reviewed_by_name, CAST(NULL AS CHAR(255)) as bank_name FROM expenses e LEFT JOIN users u ON e.reviewed_by = u.id";
+    $expenses_query = "SELECT DISTINCT e.id, CAST('expense' AS CHAR(50)) COLLATE utf8mb4_unicode_ci as transaction_type, CAST(e.expense_number AS CHAR(255)) COLLATE utf8mb4_unicode_ci as transaction_number, CAST(e.reference_number AS CHAR(255)) COLLATE utf8mb4_unicode_ci as reference_number, NULL as customer_id, CAST(e.amount AS DECIMAL(10,2)) as amount, CAST(e.status AS CHAR(50)) COLLATE utf8mb4_unicode_ci as status, CAST(COALESCE(e.payment_method, 'غير محدد') AS CHAR(100)) COLLATE utf8mb4_unicode_ci as payment_method, CAST(COALESCE(e.review_status, 'pending') AS CHAR(50)) COLLATE utf8mb4_unicode_ci as review_status, e.reviewed_at, e.reviewed_by, CAST(COALESCE(e.review_note, '') AS CHAR(1000)) COLLATE utf8mb4_unicode_ci as review_note, e.created_at, e.updated_at, CAST(COALESCE(e.vendor_name, 'مصروف') AS CHAR(255)) COLLATE utf8mb4_unicode_ci as customer_name, CAST(COALESCE(e.vendor_phone, '') AS CHAR(50)) COLLATE utf8mb4_unicode_ci as mobile_number, CAST(COALESCE(u.username, '') AS CHAR(100)) COLLATE utf8mb4_unicode_ci as reviewed_by_name, CAST(COALESCE(ba.bank_name, e.bank_name, '') AS CHAR(255)) as bank_name FROM expenses e LEFT JOIN users u ON e.reviewed_by = u.id LEFT JOIN bank_accounts ba ON e.bank_account_id = ba.id";
     
     $payments_query = "SELECT DISTINCT cp.id, CAST('payment' AS CHAR(50)) COLLATE utf8mb4_unicode_ci as transaction_type, CAST(cp.payment_number AS CHAR(255)) COLLATE utf8mb4_unicode_ci as transaction_number, CAST(cp.reference_number AS CHAR(255)) COLLATE utf8mb4_unicode_ci as reference_number, cp.customer_id, CAST(cp.amount AS DECIMAL(10,2)) as amount, CAST('paid' AS CHAR(50)) COLLATE utf8mb4_unicode_ci as status, CAST(COALESCE(cp.payment_method, 'غير محدد') AS CHAR(100)) COLLATE utf8mb4_unicode_ci as payment_method, CAST(COALESCE(cp.review_status, 'pending') AS CHAR(50)) COLLATE utf8mb4_unicode_ci as review_status, cp.reviewed_at, cp.reviewed_by, CAST(COALESCE(cp.review_note, '') AS CHAR(1000)) COLLATE utf8mb4_unicode_ci as review_note, cp.created_at, cp.updated_at, CAST(COALESCE(c.name, 'دفعة عميل') AS CHAR(255)) COLLATE utf8mb4_unicode_ci as customer_name, CAST(COALESCE(c.mobile_number, '') AS CHAR(50)) COLLATE utf8mb4_unicode_ci as mobile_number, CAST(COALESCE(u.username, '') AS CHAR(100)) COLLATE utf8mb4_unicode_ci as reviewed_by_name, CAST(COALESCE(ba.bank_name, '') AS CHAR(255)) COLLATE utf8mb4_unicode_ci as bank_name FROM customer_payments cp LEFT JOIN customers c ON cp.customer_id = c.id LEFT JOIN users u ON cp.reviewed_by = u.id LEFT JOIN bank_accounts ba ON cp.bank_account_id = ba.id";
 
@@ -240,6 +240,12 @@ try {
     $order_status_history_count = count(array_filter($main_transactions, fn($t) => $t['transaction_type'] === 'order_status_history' || $t['transaction_type'] === 'order_state_history'));
     $modified_history_count = count($modified_history_transactions);
 
+    // Financial KPI Totals (accurate sums based on active search/date/status filters)
+    $orders_total_amount   = array_sum(array_map(fn($t) => floatval($t['amount']), array_filter($main_transactions, fn($t) => $t['transaction_type'] === 'order')));
+    $baskets_total_amount  = array_sum(array_map(fn($t) => floatval($t['amount']), array_filter($main_transactions, fn($t) => $t['transaction_type'] === 'basket')));
+    $expenses_total_amount = array_sum(array_map(fn($t) => floatval($t['amount']), array_filter($main_transactions, fn($t) => $t['transaction_type'] === 'expense')));
+    $payments_total_amount = array_sum(array_map(fn($t) => floatval($t['amount']), array_filter($main_transactions, fn($t) => $t['transaction_type'] === 'payment')));
+
     $reviewed_count = count(array_filter($main_transactions, fn($t) => $t['review_status'] === 'reviewed'));
     $pending_count = count(array_filter($main_transactions, fn($t) => $t['review_status'] === 'pending'));
 
@@ -252,6 +258,14 @@ try {
     } else {
         $transactions = $main_transactions;
     }
+
+    // FIX: Apply review_status filter to displayed transactions
+    if ($review_status_filter !== 'all' && $review_status_filter !== '') {
+        $transactions = array_values(array_filter($transactions, fn($t) => ($t['review_status'] ?? 'pending') === $review_status_filter));
+    }
+
+    // Calculate total amount of all transactions currently displayed
+    $displayed_total_amount = array_sum(array_map(fn($t) => floatval($t['amount']), $transactions));
 } catch (PDOException $e) { die("Database Error: " . $e->getMessage()); }
 
 // Fetch bank accounts for the filter dropdown
@@ -264,6 +278,19 @@ try {
 }
 
 include '../../includes/header.php';
+
+// Prepare PDF Export URL preserving all active filters
+$pdf_params = http_build_query(array_filter([
+    'filter'        => $filter,
+    'q'             => $search_query,
+    'amount'        => $amount_filter,
+    'review_status' => $review_status_filter,
+    'status'        => $status_filter,
+    'bank_account'  => $bank_account_filter,
+    'date_from'     => $date_from,
+    'date_to'       => $date_to,
+]));
+$pdf_url = 'financial_review_pdf.php' . ($pdf_params ? '?' . $pdf_params : '');
 ?>
 
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
@@ -277,14 +304,15 @@ include '../../includes/header.php';
     .tab-button { background: white; border: 2px solid #e5e7eb; border-radius: 12px; padding: 1rem 1.5rem; font-weight: 600; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; gap: 0.5rem; text-decoration: none; color: #374151; }
     .tab-button.active { background: #10b981; color: white; border-color: #10b981; }
     .tab-badge { background: rgba(0, 0, 0, 0.1); padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.875rem; font-weight: 700; }
-    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
-    .stat-card { background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07); border-right: 5px solid; transition: transform 0.3s; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem; }
+    .stat-card { background: white; border-radius: 12px; padding: 1.25rem; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07); border-right: 5px solid; transition: transform 0.3s; }
     .table-card { background: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07); overflow: visible; }
     .table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; position: relative; width: 100%; display: block; }
     .data-table { width: 100%; min-width: 1200px; border-collapse: collapse; table-layout: auto; }
     .data-table thead { background: linear-gradient(135deg, #059669 0%, #10b981 100%); }
     .data-table thead th { color: white; padding: 1rem; text-align: right; font-weight: 600; font-size: 0.875rem; white-space: nowrap; position: sticky; top: 0; z-index: 10; }
     .data-table tbody td { padding: 1rem; font-size: 0.875rem; white-space: nowrap; border-bottom: 1px solid #e5e7eb; }
+    .data-table tfoot td { padding: 1rem; font-size: 0.95rem; white-space: nowrap; }
     .status-badge { display: inline-block; padding: 0.375rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
     .status-reviewed { background: #d1fae5; color: #065f46; }
     .status-pending { background: #fef3c7; color: #92400e; }
@@ -297,12 +325,20 @@ include '../../includes/header.php';
 </style>
 
 <div class="page-container">
-    <div class="header-card">
-        <h1 class="header-title"><i class="fas fa-clipboard-check ml-2"></i> المراجعة المالية الشاملة</h1>
-        <p class="text-white opacity-90 mt-2">مراجعة جميع العمليات المالية: طلبات العملاء، سلال الشراء، والمصروفات</p>
+    <div class="header-card flex flex-wrap justify-between items-center gap-4">
+        <div>
+            <h1 class="header-title"><i class="fas fa-clipboard-check ml-2"></i> المراجعة المالية الشاملة</h1>
+            <p class="text-white opacity-90 mt-2">مراجعة وتدقيق جميع العمليات المالية: طلبات العملاء، سلال الشراء، المصروفات، والدفعات</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="<?php echo htmlspecialchars($pdf_url); ?>" target="_blank" class="bg-white hover:bg-gray-100 text-emerald-800 font-bold px-6 py-3 rounded-xl shadow transition flex items-center gap-2">
+                <i class="fas fa-file-pdf text-red-600 text-lg"></i>
+                تصدير تقرير PDF
+            </a>
+        </div>
     </div>
 
-    <!-- علامات التبويب مع تمرير فلتر المبلغ الجديد -->
+    <!-- علامات التبويب مع تمرير الفلاتر النشطة -->
     <div class="tabs-container">
         <a href="?filter=all&q=<?php echo urlencode($search_query); ?>&amount=<?php echo urlencode($amount_filter); ?>&status=<?php echo urlencode($status_filter); ?>&review_status=<?php echo urlencode($review_status_filter); ?>&bank_account=<?php echo urlencode($bank_account_filter); ?>&date_from=<?php echo urlencode($date_from); ?>&date_to=<?php echo urlencode($date_to); ?>" class="tab-button <?php echo $filter === 'all' ? 'active' : ''; ?>">الكل <span class="tab-badge"><?php echo $main_transactions_count; ?></span></a>
         
@@ -319,12 +355,37 @@ include '../../includes/header.php';
         <a href="?filter=modified_history&q=<?php echo urlencode($search_query); ?>&amount=<?php echo urlencode($amount_filter); ?>&status=<?php echo urlencode($status_filter); ?>&review_status=<?php echo urlencode($review_status_filter); ?>&bank_account=<?php echo urlencode($bank_account_filter); ?>&date_from=<?php echo urlencode($date_from); ?>&date_to=<?php echo urlencode($date_to); ?>" class="tab-button <?php echo $filter === 'modified_history' ? 'active' : ''; ?>">Modified Status History <span class="tab-badge"><?php echo $modified_history_count; ?></span></a>
     </div>
 
+    <!-- بطاقات المؤشرات المالية الإجمالية (Financial KPIs) -->
     <div class="stats-grid">
-        <div class="stat-card" style="border-color: #3b82f6;"><div class="text-2xl font-bold"><?php echo $orders_count; ?></div><div class="text-gray-500">طلبات العملاء</div></div>
-        <div class="stat-card" style="border-color: #10b981;"><div class="text-2xl font-bold"><?php echo $reviewed_count; ?></div><div class="text-gray-500">تمت المراجعة</div></div>
-        <div class="stat-card" style="border-color: #f59e0b;"><div class="text-2xl font-bold"><?php echo $pending_count; ?></div><div class="text-gray-500">قيد المراجعة</div></div>
-        <div class="stat-card" style="border-color: #a855f7;"><div class="text-2xl font-bold"><?php echo $order_status_history_count; ?></div><div class="text-gray-500">سجل الحالات</div></div>
-        <div class="stat-card" style="border-color: #f97316;"><div class="text-2xl font-bold"><?php echo $modified_history_count; ?></div><div class="text-gray-500">Modified Status History</div></div>
+        <div class="stat-card" style="border-color: #2563eb;">
+            <div class="text-xs text-gray-500 font-bold mb-1">إجمالي قيمة الطلبات (<?php echo $orders_count; ?>)</div>
+            <div class="text-xl font-extrabold text-blue-700" style="direction:ltr;text-align:right;"><?php echo number_format($orders_total_amount, 2); ?> <span class="text-xs font-normal text-gray-500">ر.ي</span></div>
+        </div>
+        <div class="stat-card" style="border-color: #059669;">
+            <div class="text-xs text-gray-500 font-bold mb-1">إجمالي مقبوضات العملاء (<?php echo $payments_count; ?>)</div>
+            <div class="text-xl font-extrabold text-green-700" style="direction:ltr;text-align:right;"><?php echo number_format($payments_total_amount, 2); ?> <span class="text-xs font-normal text-gray-500">ر.ي</span></div>
+        </div>
+        <div class="stat-card" style="border-color: #7c3aed;">
+            <div class="text-xs text-gray-500 font-bold mb-1">إجمالي سلال الشراء (<?php echo $baskets_count; ?>)</div>
+            <div class="text-xl font-extrabold text-purple-700" style="direction:ltr;text-align:right;"><?php echo number_format($baskets_total_amount, 2); ?> <span class="text-xs font-normal text-gray-500">ر.ي</span></div>
+        </div>
+        <div class="stat-card" style="border-color: #dc2626;">
+            <div class="text-xs text-gray-500 font-bold mb-1">إجمالي المصروفات (<?php echo $expenses_count; ?>)</div>
+            <div class="text-xl font-extrabold text-red-700" style="direction:ltr;text-align:right;"><?php echo number_format($expenses_total_amount, 2); ?> <span class="text-xs font-normal text-gray-500">ر.ي</span></div>
+        </div>
+        <div class="stat-card" style="border-color: #d97706;">
+            <div class="text-xs text-gray-500 font-bold mb-1">المبالغ المعروضة حالياً (<?php echo count($transactions); ?>)</div>
+            <div class="text-xl font-extrabold text-amber-700" style="direction:ltr;text-align:right;"><?php echo number_format($displayed_total_amount, 2); ?> <span class="text-xs font-normal text-gray-500">ر.ي</span></div>
+        </div>
+    </div>
+
+    <!-- بطاقات أعداد العمليات وحالات المراجعة -->
+    <div class="stats-grid">
+        <div class="stat-card" style="border-color: #3b82f6;"><div class="text-2xl font-bold"><?php echo $orders_count; ?></div><div class="text-gray-500 text-sm">طلبات العملاء</div></div>
+        <div class="stat-card" style="border-color: #10b981;"><div class="text-2xl font-bold"><?php echo $reviewed_count; ?></div><div class="text-gray-500 text-sm">تمت المراجعة</div></div>
+        <div class="stat-card" style="border-color: #f59e0b;"><div class="text-2xl font-bold"><?php echo $pending_count; ?></div><div class="text-gray-500 text-sm">قيد المراجعة</div></div>
+        <div class="stat-card" style="border-color: #a855f7;"><div class="text-2xl font-bold"><?php echo $order_status_history_count; ?></div><div class="text-gray-500 text-sm">سجل الحالات</div></div>
+        <div class="stat-card" style="border-color: #f97316;"><div class="text-2xl font-bold"><?php echo $modified_history_count; ?></div><div class="text-gray-500 text-sm">Modified Status History</div></div>
     </div>
 
     <!-- فلاتر البحث -->
@@ -372,6 +433,7 @@ include '../../includes/header.php';
         </div>
         <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-5 py-2 rounded-lg text-sm flex items-center gap-2"><i class="fas fa-search"></i> بحث</button>
         <a href="?" class="bg-gray-400 hover:bg-gray-500 text-white font-semibold px-5 py-2 rounded-lg text-sm flex items-center gap-2"><i class="fas fa-times"></i> مسح</a>
+        <a href="<?php echo htmlspecialchars($pdf_url); ?>" target="_blank" class="bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-2 rounded-lg text-sm flex items-center gap-2"><i class="fas fa-file-pdf"></i> PDF</a>
     </form>
 
     <div class="table-card">
@@ -503,6 +565,19 @@ include '../../includes/header.php';
                     <?php endforeach; ?>
                     <?php endif; ?>
                 </tbody>
+                <?php if (!empty($transactions)): ?>
+                <tfoot>
+                    <tr class="bg-gray-100 font-bold border-t-2 border-gray-300">
+                        <td colspan="8" class="p-3 text-right text-gray-800 font-bold">
+                            الإجمالي للعمليات المعروضة (<?php echo count($transactions); ?> عملية)
+                        </td>
+                        <td class="p-3 text-emerald-700 text-base font-extrabold" style="direction:ltr;text-align:right;">
+                            <?php echo number_format($displayed_total_amount, 2); ?> <span class="text-xs font-normal text-gray-500">ر.ي</span>
+                        </td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+                <?php endif; ?>
             </table>
         </div>
     </div>

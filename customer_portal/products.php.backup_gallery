@@ -194,7 +194,7 @@ foreach ($products as $key => $product) {
 
         .navbar-custom-gradient { background: linear-gradient(135deg, #C7A46D, #9e7f4e); }
         .cart-item { background: #fff; border-radius: 16px; padding: 12px; display: flex; gap: 12px; border: 1px solid #f0f0ee; }
-
+        
         @keyframes bounceCart { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.3); } }
         .bounce-cart { animation: bounceCart 0.3s ease-in-out; }
     </style>
@@ -354,18 +354,6 @@ foreach ($products as $key => $product) {
             <div class="w-full md:w-5/12 bg-gray-50 relative" style="min-height:260px">
                 <img id="modal-img" src="" class="absolute inset-0 w-full h-full object-cover hidden">
                 <div id="modal-img-placeholder" class="absolute inset-0 flex items-center justify-center text-gray-300 bg-gray-100"><i class="fas fa-image text-5xl"></i></div>
-                <!-- Gallery Navigation -->
-                <div id="modal-gallery-nav" class="hidden absolute inset-0">
-                    <button onclick="navigateModalGallery(-1)" class="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/80 hover:bg-white rounded-full shadow flex items-center justify-center z-10">
-                        <i class="fas fa-chevron-right"></i>
-                    </button>
-                    <button onclick="navigateModalGallery(1)" class="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/80 hover:bg-white rounded-full shadow flex items-center justify-center z-10">
-                        <i class="fas fa-chevron-left"></i>
-                    </button>
-                    <div id="modal-gallery-counter" class="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 text-white px-3 py-1 rounded-full text-xs z-10"></div>
-                </div>
-                <!-- Thumbnails -->
-                <div id="modal-gallery-thumbnails" class="hidden absolute bottom-0 left-0 right-0 p-2 flex gap-2 justify-center bg-gradient-to-t from-gray-100 to-transparent"></div>
             </div>
             <div class="w-full md:w-7/12 p-5 sm:p-7 flex flex-col overflow-y-auto hide-scrollbar" style="max-height:60vh; md:max-height:none">
                 <p id="modal-category" class="text-xs text-[#C7A46D] font-bold mb-1 uppercase tracking-wide truncate"></p>
@@ -464,15 +452,10 @@ foreach ($products as $key => $product) {
         let currentMinPrice       = '';
         let currentMaxPrice       = '';
 
-        // Modal gallery state
-        let modalGalleryImages = [];
-        let modalGalleryIndex = 0;
-
         function init() {
             renderCart();
             renderProducts(ALL_PRODUCTS);
             document.getElementById('product-modal').addEventListener('click', function(event) { if (event.target === this) closeProductModal(event); });
-            document.getElementById('cart-edit-modal').addEventListener('click', function(event) { if (event.target === this) closeCartEditModal(event); });
             document.getElementById('search-input').addEventListener('input', debounce(applyFilters, 300));
             document.getElementById('min-price').addEventListener('input', debounce(applyFilters, 300));
             document.getElementById('max-price').addEventListener('input', debounce(applyFilters, 300));
@@ -678,10 +661,6 @@ foreach ($products as $key => $product) {
             selectedOptions = { color: null, attributes: {} };
             selectedVariant = null;
 
-            // Reset modal gallery state
-            modalGalleryImages = [];
-            modalGalleryIndex = 0;
-
             document.getElementById('modal-qty').value = 1;
             document.getElementById('modal-title').innerText = product.name;
             let categoryText = product.category_name || '';
@@ -691,49 +670,37 @@ foreach ($products as $key => $product) {
 
             updateModalPriceAndStock(product);
 
-            // Show all product images with navigation
-            const images = product.images || [];
+            // FEATURE 6: Show all product images as a scrollable gallery
+            const images = productImagesMap[product.id] || [];
             const imgEl = document.getElementById('modal-img');
             const phEl  = document.getElementById('modal-img-placeholder');
-            const navEl = document.getElementById('modal-gallery-nav');
-            const counterEl = document.getElementById('modal-gallery-counter');
-            const thumbEl = document.getElementById('modal-gallery-thumbnails');
-
-            if (images.length > 0) {
-                modalGalleryImages = images.map(img => img.image_url.startsWith('../') ? img.image_url : PRODUCT_IMG_BASE_PATH + img.image_url);
-                modalGalleryIndex = 0;
-
-                imgEl.src = modalGalleryImages[0];
-                imgEl.classList.remove('hidden');
-                phEl.classList.add('hidden');
-
-                // Show navigation if multiple images
-                if (images.length > 1) {
-                    navEl.classList.remove('hidden');
-                    updateModalGalleryCounter();
-
-                    // Show thumbnails
-                    thumbEl.innerHTML = '';
-                    modalGalleryImages.forEach((url, idx) => {
-                        const thumb = document.createElement('img');
-                        thumb.src = url;
-                        thumb.className = 'w-16 h-20 object-cover rounded-lg border-2 border-transparent cursor-pointer transition hover:border-[#C7A46D]';
-                        thumb.onclick = () => setModalGalleryImage(idx);
-                        if (idx === 0) thumb.classList.add('border-[#C7A46D]');
-                        thumbEl.appendChild(thumb);
-                    });
-                    thumbEl.classList.remove('hidden');
-                } else {
-                    navEl.classList.add('hidden');
-                    thumbEl.classList.add('hidden');
-                }
-            } else {
-                imgEl.classList.add('hidden');
-                phEl.classList.remove('hidden');
-                navEl.classList.add('hidden');
-                thumbEl.classList.add('hidden');
+            let galleryContainer = document.getElementById('modal-img-gallery');
+            if (!galleryContainer) {
+                galleryContainer = document.createElement('div');
+                galleryContainer.id = 'modal-img-gallery';
+                if (imgEl && imgEl.parentNode) imgEl.parentNode.insertBefore(galleryContainer, imgEl);
             }
-
+            galleryContainer.innerHTML = '';
+            if (images.length > 0) {
+                imgEl.classList.add('hidden'); phEl.classList.add('hidden');
+                galleryContainer.style = 'display:flex;gap:8px;overflow-x:auto;padding:8px 0;-webkit-overflow-scrolling:touch;';
+                images.forEach(img => {
+                    const url = img.image_url.startsWith('http') ? img.image_url : '../' + img.image_url;
+                    const im = document.createElement('img');
+                    im.src = url;
+                    im.style = 'width:90px;height:115px;object-fit:cover;border-radius:8px;flex-shrink:0;border:1px solid #e5e7eb;cursor:pointer;';
+                    im.onerror = function() { this.style.display='none'; };
+                    im.onclick = function() { setModalImage(url); };
+                    galleryContainer.appendChild(im);
+                });
+                // Show first image as main
+                setModalImage(images[0].image_url.startsWith('http') ? images[0].image_url : '../' + images[0].image_url);
+                imgEl.classList.remove('hidden');
+            } else {
+                galleryContainer.style = '';
+                setModalImage(product.main_image_url);
+            }
+            
             // Build options and trigger default selection logic
             buildModalOptions(product);
             
@@ -753,39 +720,6 @@ foreach ($products as $key => $product) {
             modal.classList.remove('opacity-100'); modal.classList.add('opacity-0');
             content.classList.remove('scale-100'); content.classList.add('scale-95');
             setTimeout(() => { modal.style.display = 'none'; }, 250);
-        }
-
-        function navigateModalGallery(delta) {
-            if (modalGalleryImages.length <= 1) return;
-
-            modalGalleryIndex += delta;
-            if (modalGalleryIndex < 0) modalGalleryIndex = modalGalleryImages.length - 1;
-            if (modalGalleryIndex >= modalGalleryImages.length) modalGalleryIndex = 0;
-
-            setModalGalleryImage(modalGalleryIndex);
-        }
-
-        function setModalGalleryImage(index) {
-            modalGalleryIndex = index;
-            document.getElementById('modal-img').src = modalGalleryImages[index];
-            updateModalGalleryCounter();
-
-            // Update thumbnails active state
-            const thumbs = document.getElementById('modal-gallery-thumbnails').querySelectorAll('img');
-            thumbs.forEach((thumb, idx) => {
-                if (idx === index) {
-                    thumb.classList.add('border-[#C7A46D]');
-                } else {
-                    thumb.classList.remove('border-[#C7A46D]');
-                }
-            });
-        }
-
-        function updateModalGalleryCounter() {
-            const counter = document.getElementById('modal-gallery-counter');
-            if (modalGalleryImages.length > 1) {
-                counter.textContent = `${modalGalleryIndex + 1} / ${modalGalleryImages.length}`;
-            }
         }
 
         function setModalImage(imageUrl) {
@@ -1088,11 +1022,12 @@ foreach ($products as $key => $product) {
             const totalEl             = document.getElementById('cart-total-final');
             const totalPlainEl        = document.getElementById('cart-total-final-plain');
             const checkoutBtn         = document.getElementById('checkout-btn');
-            
+
             let totalQty = 0;
-            let sumOfFinalPrices = 0;    
-            let sumOfOriginalPrices = 0; 
-            
+            let sumOfFinalPrices = 0;
+            let sumOfOriginalPrices = 0;
+            let cartModified = false;
+
             container.innerHTML = '';
 
             if (cart.length === 0) {
@@ -1107,8 +1042,36 @@ foreach ($products as $key => $product) {
             checkoutBtn.disabled = false; checkoutBtn.classList.remove('opacity-50','cursor-not-allowed');
 
             cart.forEach(item => {
+                // Validate stock for each item
+                const product = ALL_PRODUCTS.find(p => p.id == item.productId);
+                let maxStock = Infinity;
+                if (product) {
+                    const variantMatch = item.cartKey.match(/_v(\d+)$/);
+                    if (variantMatch) {
+                        const variant = product.variants.find(v => v.id == variantMatch[1]);
+                        if (variant) maxStock = parseInt(variant.quantity);
+                        else maxStock = effectiveProductStock(product);
+                    } else {
+                        maxStock = effectiveProductStock(product);
+                    }
+                }
+
+                // Adjust quantity if it exceeds current stock
+                if (item.qty > maxStock) {
+                    if (maxStock <= 0) {
+                        // Remove item if out of stock
+                        cart = cart.filter(i => i.cartKey !== item.cartKey);
+                        cartModified = true;
+                        return; // Skip rendering this item
+                    } else {
+                        // Cap quantity to available stock
+                        item.qty = maxStock;
+                        cartModified = true;
+                    }
+                }
+
                 totalQty += item.qty;
-                const itemOriginalPrice = item.originalPrice || item.price; 
+                const itemOriginalPrice = item.originalPrice || item.price;
                 sumOfFinalPrices += item.qty * item.price;
                 sumOfOriginalPrices += item.qty * itemOriginalPrice;
 
@@ -1144,7 +1107,7 @@ foreach ($products as $key => $product) {
                                 <h4 class="text-xs font-bold text-gray-800 leading-snug line-clamp-2 flex-1">${item.name}</h4>
                                 <button onclick="removeCartItem('${item.cartKey}')" class="text-gray-300 hover:text-red-500 transition flex-shrink-0 text-xs ml-1"><i class="fas fa-trash-alt"></i></button>
                             </div>
-
+                            
                             <div class="mt-1">${attributesHtml}</div>
                             ${discountHtml}
 
@@ -1159,6 +1122,14 @@ foreach ($products as $key => $product) {
                         </div>
                     </div>`;
             });
+
+            // Save cart if quantities were adjusted
+            if (cartModified) {
+                saveCart();
+                // Re-render to show updated quantities
+                renderCart();
+                return;
+            }
 
             const totalDiscountAmount = sumOfOriginalPrices - sumOfFinalPrices;
             // Pre-discount total = original subtotal + shipping (what would be paid without any discount)

@@ -257,7 +257,7 @@ try {
     ");
 
     foreach ($final_data['items'] as $key => $item_data) {
-        $qty = max(1, intval($item_data['item_count'] ?? 1));
+        $qty = intval($item_data['item_count'] ?? 1);
         $total = floatval($item_data['total'] ?? 0);
         $unit_price = ($qty > 0) ? ($total / $qty) : 0;
 
@@ -269,29 +269,15 @@ try {
             ? $prod_link_val 
             : 'منتج #' . ($key + 1);
 
-        // Insert ONE order_items row PER PHYSICAL UNIT (quantity = 1 each), the same
-        // one-piece-per-row model used by the SHEIN import path in modules/orders/create.php.
-        // This lets the SKU/sorting pages assign and track a distinct SKU per individual
-        // piece instead of one SKU covering an entire multi-unit line.
-        // Rounding note: unit_price * qty may not exactly equal $total due to division
-        // rounding, so the last unit absorbs the remainder to keep the sum exact.
-        $remaining_total = $total;
-        for ($unit_index = 1; $unit_index <= $qty; $unit_index++) {
-            $row_total = ($unit_index === $qty)
-                ? round($remaining_total, 2)
-                : round($unit_price, 2);
-            $remaining_total -= $row_total;
-
-            $item_stmt->execute([
-                $order_id,
-                $product_name,
-                1, // quantity is always 1 per row now — see note above
-                $unit_price,
-                $row_total,
-                $item_notes,
-                $prod_link_val
-            ]);
-        }
+        $item_stmt->execute([
+            $order_id,
+            $product_name,
+            $qty,
+            $unit_price,
+            $total,
+            $item_notes,
+            $prod_link_val
+        ]);
 
         $approval_item_insert_stmt->execute([
             $approval_id,

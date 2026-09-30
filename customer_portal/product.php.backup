@@ -83,16 +83,6 @@ try {
         ];
     }
 
-    // Fetch all variants for this product with stock information
-    $stmt_variants = $db->prepare("SELECT pv.id, pv.color_id, pv.attribute_value_id, pv.quantity,
-                                     c.name as color_name, av.value as attribute_value_name
-                              FROM product_variants pv
-                              LEFT JOIN colors c ON pv.color_id = c.id
-                              LEFT JOIN attribute_values av ON pv.attribute_value_id = av.id
-                              WHERE pv.product_id = ? AND pv.is_active = 1");
-    $stmt_variants->execute([$product_id]);
-    $variants = $stmt_variants->fetchAll(PDO::FETCH_ASSOC);
-
     // Shipping Cost
     if (!empty($customer_city_name)) {
         $ship_stmt = $db->prepare("SELECT shipping_cost FROM cities WHERE name = ? AND is_active = 1 LIMIT 1");
@@ -337,21 +327,17 @@ $main_image = !empty($images) ? $images[0]['image_url'] : '';
         // --- DATA INJECTION FROM PHP ---
         const PRODUCT_ID = <?php echo $product_id; ?>;
         const PRODUCT_NAME = <?php echo json_encode($product['name']); ?>;
-
+        
         // Passing both prices for discount logic
         const PRODUCT_FINAL_PRICE = <?php echo $final_price; ?>;
         const PRODUCT_ORIGINAL_PRICE = <?php echo $base_price; ?>;
-
-        // Stock: use total_quantity if available, otherwise product_quantity
-        const PRODUCT_STOCK = <?php echo ($product['total_quantity'] > 0) ? $product['total_quantity'] : $product['product_quantity']; ?>;
-
+        
         const PRODUCT_IMG = "<?php echo $main_image; ?>";
-
+        
         const ALL_COLORS = <?php echo json_encode($colors); ?>;
         const ALL_ATTRIBUTES = <?php echo json_encode($attributes); ?>;
         const ALL_ATTRIBUTE_VALUES = <?php echo json_encode($attribute_values); ?>;
-        const ALL_VARIANTS = <?php echo json_encode($variants); ?>;
-
+        
         const SHIPPING_COST = <?php echo $shipping_cost; ?>;
         const CURRENCY = "<?php echo $customer_currency; ?>";
         const CUSTOMER_ID = <?php echo $customer_id; ?>;
@@ -414,29 +400,7 @@ $main_image = !empty($images) ? $images[0]['image_url'] : '';
         function changeQty(delta) {
             const input = document.getElementById('product-qty');
             let val = parseInt(input.value) + delta;
-
             if (val < 1) val = 1;
-
-            // Stock validation - check variant stock if selected
-            let maxStock = PRODUCT_STOCK || 0;
-            if (selectedOptions.color || Object.keys(selectedOptions.attributes).length > 0) {
-                const matchingVariant = ALL_VARIANTS.find(v => {
-                    const colorMatch = (!selectedOptions.color && !v.color_id) || (v.color_id == selectedOptions.color);
-                    const attrMatch = (!selectedOptions.attributes || Object.keys(selectedOptions.attributes).length === 0) ||
-                                     (v.attribute_value_id == selectedOptions.attributes[Object.keys(selectedOptions.attributes)[0]]);
-                    return colorMatch && attrMatch;
-                });
-
-                if (matchingVariant && matchingVariant.quantity !== null && matchingVariant.quantity !== undefined) {
-                    maxStock = parseInt(matchingVariant.quantity);
-                }
-            }
-
-            if (val > maxStock) {
-                alert(`الحد الأقصى للكمية المتاحة هو ${maxStock}.`);
-                val = maxStock;
-            }
-
             input.value = val;
         }
 
@@ -477,33 +441,10 @@ $main_image = !empty($images) ? $images[0]['image_url'] : '';
 
             const qty = parseInt(document.getElementById('product-qty').value);
 
-            // Stock validation
-            let maxStock = PRODUCT_STOCK || 0;
-
-            // Check if this is a variant and get its specific stock
-            if (selectedOptions.color || Object.keys(selectedOptions.attributes).length > 0) {
-                // Find matching variant
-                const matchingVariant = ALL_VARIANTS.find(v => {
-                    const colorMatch = (!selectedOptions.color && !v.color_id) || (v.color_id == selectedOptions.color);
-                    const attrMatch = (!selectedOptions.attributes || Object.keys(selectedOptions.attributes).length === 0) ||
-                                     (v.attribute_value_id == selectedOptions.attributes[Object.keys(selectedOptions.attributes)[0]]);
-                    return colorMatch && attrMatch;
-                });
-
-                if (matchingVariant && matchingVariant.quantity !== null && matchingVariant.quantity !== undefined) {
-                    maxStock = parseInt(matchingVariant.quantity);
-                }
-            }
-
-            if (maxStock <= 0) {
-                alert('هذا المنتج غير متوفر حالياً.');
-                return;
-            }
-
             // 2. Create Unique Cart Key
             let keyParts = [PRODUCT_ID];
             if(selectedOptions.color) keyParts.push(`c${selectedOptions.color}`);
-
+            
             Object.keys(selectedOptions.attributes).sort().forEach(attrId => {
                 keyParts.push(`a${attrId}v${selectedOptions.attributes[attrId]}`);
             });
@@ -522,17 +463,8 @@ $main_image = !empty($images) ? $images[0]['image_url'] : '';
             }
             const variantText = variantLabelParts.join(' / ');
 
-            // 4. Check stock including existing cart quantity
+            // 4. Add to Array
             const existingItemIndex = cart.findIndex(item => item.cartKey === cartKey);
-            const existingQty = existingItemIndex > -1 ? cart[existingItemIndex].qty : 0;
-            const potentialTotal = existingQty + qty;
-
-            if (potentialTotal > maxStock) {
-                alert(`الكمية المطلوبة تتجاوز المخزون المتاح. الحد الأقصى هو ${maxStock}.`);
-                return;
-            }
-
-            // 5. Add to Array
             if(existingItemIndex > -1) {
                 cart[existingItemIndex].qty += qty;
             } else {
@@ -585,9 +517,8 @@ $main_image = !empty($images) ? $images[0]['image_url'] : '';
             const checkoutBtn        = document.getElementById('checkout-btn');
 
             let totalQty = 0;
-            let sumOfFinalPrices = 0;
-            let sumOfOriginalPrices = 0;
-            let cartModified = false;
+            let sumOfFinalPrices = 0;    
+            let sumOfOriginalPrices = 0; 
 
             container.innerHTML = '';
 
@@ -601,19 +532,8 @@ $main_image = !empty($images) ? $images[0]['image_url'] : '';
             checkoutBtn.disabled = false; checkoutBtn.classList.remove('opacity-50','cursor-not-allowed');
 
             cart.forEach(item => {
-                // Validate stock for each item
-                let maxStock = Infinity;
-                // For product.php, we need to fetch current stock from server
-                // Since we don't have ALL_PRODUCTS array here, we'll validate on checkout
-                // But we can still check if quantity is 0 or negative
-                if (item.qty <= 0) {
-                    cart = cart.filter(i => i.cartKey !== item.cartKey);
-                    cartModified = true;
-                    return;
-                }
-
                 totalQty += item.qty;
-                const itemOriginalPrice = item.originalPrice || item.price;
+                const itemOriginalPrice = item.originalPrice || item.price; 
                 sumOfFinalPrices += item.qty * item.price;
                 sumOfOriginalPrices += item.qty * itemOriginalPrice;
 
@@ -663,14 +583,6 @@ $main_image = !empty($images) ? $images[0]['image_url'] : '';
                         </div>
                     </div>`;
             });
-
-            // Save cart if quantities were adjusted
-            if (cartModified) {
-                saveCart();
-                // Re-render to show updated quantities
-                renderCart();
-                return;
-            }
 
             const totalDiscountAmount = sumOfOriginalPrices - sumOfFinalPrices;
 

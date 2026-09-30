@@ -62,31 +62,8 @@ try {
 // END: REPLACEMENT LOGIC
 // ===================================================================
 
-// --- EDITED SECTION START ---
-// Fetch individual orders that have a credit balance (customer has overpaid)
-try {
-    $stmt = $db->query("
-        SELECT
-            co.id AS order_id, 
-            co.order_number,
-            c.id AS customer_id,
-            c.name AS customer_name,
-            -- Calculate the credit amount for each order (how much the customer has overpaid)
-            (co.paid_amount - co.final_amount) AS credit_amount
-        FROM customer_orders co
-        JOIN customers c ON co.customer_id = c.id
-        -- Filter for orders where the paid amount is greater than the final amount
-        WHERE (co.paid_amount - co.final_amount) > 0.01
-          AND co.status NOT IN ('cancelled', 'returned') -- Exclude cancelled/returned orders
-        ORDER BY c.name, co.order_date DESC
-    ");
-    $orders_with_credit = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-} catch (PDOException $e) {
-    $orders_with_credit = [];
-    error_log("Database error fetching orders with credit: " . $e->getMessage());
-}
-// --- EDITED SECTION END ---
+// --- Orders with credit are now fetched via AJAX search (ajax_search_orders.php) ---
+// No need to load all 587+ orders upfront.
 
 
 // Handle form submission
@@ -418,36 +395,52 @@ include '../../includes/header.php';
                         </select>
                     </div>
 
-                    <!-- EDITED: Order Selection for Refund (Conditional) -->
+                    <!-- Order Selection for Refund (Conditional) — searchable -->
                     <div class="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg" id="customer-refund-wrapper" style="display:none;">
                         <input type="hidden" name="is_customer_refund" id="is_customer_refund" value="0">
                         <input type="hidden" name="customer_id" id="refund_customer_id" value="">
-                        
+                        <input type="hidden" name="refund_order_id" id="refund_order_id" value="">
+
                         <label class="block text-sm font-bold text-amber-800 mb-2">
-                            <i class="fas fa-undo-alt ml-1"></i>
-                            اختر الطلب لرد المبلغ المدفوع زيادة <span class="text-red-500">*</span>
+                            <i class="fas fa-search ml-1"></i>
+                            ابحث عن الطلب باسم العميل أو رقم الطلب <span class="text-red-500">*</span>
                         </label>
-                        <select name="refund_order_id" id="refund_order_id"
-                                class="w-full px-4 py-3 rounded-lg border border-amber-300 bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none transition-all">
-                            <?php if (!empty($orders_with_credit)): ?>
-                                <option value="">-- اختر الطلب --</option>
-                                <?php foreach ($orders_with_credit as $order): ?>
-                                    <option value="<?php echo $order['order_id']; ?>"
-                                            data-credit-amount="<?php echo $order['credit_amount']; ?>"
-                                            data-customer-id="<?php echo $order['customer_id']; ?>"
-                                            data-customer-name="<?php echo htmlspecialchars($order['customer_name']); ?>">
-                                        <?php echo htmlspecialchars($order['order_number']); ?> -
-                                        <?php echo htmlspecialchars($order['customer_name']); ?>
-                                        (مستحق له: <?php echo number_format($order['credit_amount'], 0); ?> ريال)
-                                    </option>
-                                <?php endforeach; ?>
-                            <?php else: ?>
-                                <option value="" disabled>لا يوجد طلبات برصيد دائن حالياً</option>
-                            <?php endif; ?>
-                        </select>
+
+                        <!-- Search input -->
+                        <div class="relative" id="order-search-container">
+                            <input type="text" id="order_search_input"
+                                   placeholder="اكتب اسم العميل أو رقم الطلب..."
+                                   autocomplete="off"
+                                   class="w-full px-4 py-3 pr-10 rounded-lg border border-amber-300 bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none transition-all">
+                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400" id="order-search-icon">
+                                <i class="fas fa-search"></i>
+                            </span>
+                            <!-- Loading spinner (hidden by default) -->
+                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-amber-500 hidden" id="order-search-spinner">
+                                <i class="fas fa-spinner fa-spin"></i>
+                            </span>
+
+                            <!-- Results dropdown -->
+                            <div id="order-search-results"
+                                 class="absolute z-50 w-full mt-1 bg-white border border-amber-200 rounded-lg shadow-xl max-h-64 overflow-y-auto hidden"
+                                 style="direction:rtl;">
+                            </div>
+                        </div>
+
+                        <!-- Selected order display -->
+                        <div id="selected-order-display" class="hidden mt-3 p-3 bg-white border border-green-300 rounded-lg flex items-center justify-between">
+                            <div>
+                                <span class="text-sm font-bold text-green-800" id="selected-order-text"></span>
+                            </div>
+                            <button type="button" id="clear-selected-order"
+                                    class="text-red-400 hover:text-red-600 transition-colors text-sm px-2 py-1 rounded hover:bg-red-50">
+                                <i class="fas fa-times"></i> تغيير
+                            </button>
+                        </div>
+
                         <p class="text-xs text-amber-700 mt-2">
                             <i class="fas fa-info-circle"></i>
-                            هذا الحقل يعرض فقط الطلبات التي المبلغ المدفوع فيها أكبر من المبلغ النهائي.
+                            ابحث باسم العميل أو رقم الطلب — يعرض فقط الطلبات التي المبلغ المدفوع فيها أكبر من المبلغ النهائي.
                         </p>
                     </div>
                     
@@ -488,15 +481,26 @@ document.addEventListener('DOMContentLoaded', function () {
     const categorySelect = document.getElementById('category_id');
     const customerRefundWrapper = document.getElementById('customer-refund-wrapper');
     const vendorNameWrapper = document.getElementById('vendor-name-wrapper');
-    const refundOrderSelect = document.getElementById('refund_order_id');
     const vendorNameInput = document.getElementById('vendor_name');
     const amountInput = document.querySelector('input[name="amount"]');
     const isCustomerRefundInput = document.getElementById('is_customer_refund');
     const refundCustomerIdInput = document.getElementById('refund_customer_id');
+    const refundOrderIdInput = document.getElementById('refund_order_id');
 
+    // Search elements
+    const orderSearchInput = document.getElementById('order_search_input');
+    const orderSearchResults = document.getElementById('order-search-results');
+    const orderSearchIcon = document.getElementById('order-search-icon');
+    const orderSearchSpinner = document.getElementById('order-search-spinner');
+    const selectedOrderDisplay = document.getElementById('selected-order-display');
+    const selectedOrderText = document.getElementById('selected-order-text');
+    const clearSelectedOrder = document.getElementById('clear-selected-order');
 
+    let searchTimeout = null;
+
+    // ─── Bank field toggle ───────────────────────────────────────────────
     function toggleBankField() {
-        if (paymentSelect.value === 'bank_transfer') { 
+        if (paymentSelect.value === 'bank_transfer') {
             bankWrapper.style.display = 'block';
             bankSelect.required = true;
         } else {
@@ -507,67 +511,198 @@ document.addEventListener('DOMContentLoaded', function () {
     paymentSelect.addEventListener('change', toggleBankField);
     toggleBankField();
 
+    // ─── Category toggle (show/hide refund section) ─────────────────────
     function toggleRefundField() {
         const selectedOption = categorySelect.options[categorySelect.selectedIndex];
         const categoryCode = selectedOption ? selectedOption.getAttribute('data-code') : '';
         const categoryName = selectedOption ? selectedOption.text.toLowerCase() : '';
-        const isRefundCategory = (categoryCode && (categoryCode.toUpperCase() === 'DAMAGED' || categoryCode.toUpperCase() === 'REFUND')) || 
-                                 categoryName.includes('تالف') || 
-                                 categoryName.includes('توالف') || 
+        const isRefundCategory = (categoryCode && (categoryCode.toUpperCase() === 'DAMAGED' || categoryCode.toUpperCase() === 'REFUND')) ||
+                                 categoryName.includes('تالف') ||
+                                 categoryName.includes('توالف') ||
                                  categoryName.includes('استرداد') ||
                                  categoryName.includes('رد');
 
         if (isRefundCategory) {
             customerRefundWrapper.style.display = 'block';
-            refundOrderSelect.required = true;
             vendorNameWrapper.style.display = 'none';
             vendorNameInput.required = false;
             isCustomerRefundInput.value = '1';
         } else {
             customerRefundWrapper.style.display = 'none';
-            refundOrderSelect.required = false;
             vendorNameWrapper.style.display = 'block';
-            vendorNameInput.required = false; 
+            vendorNameInput.required = false;
             isCustomerRefundInput.value = '0';
-            
+
             // Clear refund-specific fields
-            refundOrderSelect.value = '';
+            clearOrderSelection();
             vendorNameInput.value = '';
-            refundCustomerIdInput.value = '';
             if (amountInput) amountInput.value = '';
         }
     }
     categorySelect.addEventListener('change', toggleRefundField);
     toggleRefundField();
 
-    refundOrderSelect.addEventListener('change', function() {
-        const selectedOption = this.options[this.selectedIndex];
-        // Ensure amountInput is selected before using it
-        const amountInput = document.querySelector('input[name="amount"]');
-        
-        if (selectedOption && selectedOption.value) {
-            const customerName = selectedOption.getAttribute('data-customer-name');
-            const creditAmount = selectedOption.getAttribute('data-credit-amount');
-            const customerId = selectedOption.getAttribute('data-customer-id');
-            
-            // Set vendor name based on customer name (will be overridden on submission for consistency)
-            vendorNameInput.value = `رد مبلغ/تسوية للعميل - ${customerName}`;
-            
-            // FIX: Ensure the amount field populates the credit amount
-            if (creditAmount && amountInput) {
-                amountInput.value = parseFloat(creditAmount).toFixed(2);
-            }
-            if (customerId) {
-                refundCustomerIdInput.value = customerId;
+    // ─── Order search via AJAX ──────────────────────────────────────────
+    if (orderSearchInput) {
+        orderSearchInput.addEventListener('input', function () {
+            const query = this.value.trim();
+            clearTimeout(searchTimeout);
+
+            if (query.length < 1) {
+                orderSearchResults.classList.add('hidden');
+                orderSearchResults.innerHTML = '';
+                return;
             }
 
-        } else {
-            // Reset fields if 'Choose Order' is selected
-            vendorNameInput.value = '';
-            if (amountInput) amountInput.value = '';
-            refundCustomerIdInput.value = '';
+            // Debounce 300ms
+            searchTimeout = setTimeout(() => {
+                performSearch(query);
+            }, 300);
+        });
+
+        // Close results when clicking outside
+        document.addEventListener('click', function (e) {
+            if (!e.target.closest('#order-search-container')) {
+                orderSearchResults.classList.add('hidden');
+            }
+        });
+
+        // Re-open results on focus if there's text
+        orderSearchInput.addEventListener('focus', function () {
+            if (this.value.trim().length >= 1 && orderSearchResults.innerHTML.trim()) {
+                orderSearchResults.classList.remove('hidden');
+            }
+        });
+    }
+
+    function performSearch(query) {
+        // Show spinner, hide icon
+        orderSearchIcon.classList.add('hidden');
+        orderSearchSpinner.classList.remove('hidden');
+
+        fetch('ajax_search_orders.php?q=' + encodeURIComponent(query))
+            .then(res => res.json())
+            .then(data => {
+                orderSearchSpinner.classList.add('hidden');
+                orderSearchIcon.classList.remove('hidden');
+                renderResults(data);
+            })
+            .catch(err => {
+                console.error('Search error:', err);
+                orderSearchSpinner.classList.add('hidden');
+                orderSearchIcon.classList.remove('hidden');
+                orderSearchResults.innerHTML = '<div class="px-4 py-3 text-red-500 text-sm text-center">حدث خطأ في البحث</div>';
+                orderSearchResults.classList.remove('hidden');
+            });
+    }
+
+    function renderResults(data) {
+        orderSearchResults.innerHTML = '';
+
+        if (!data || data.length === 0) {
+            orderSearchResults.innerHTML =
+                '<div class="px-4 py-3 text-gray-400 text-sm text-center">' +
+                '<i class="fas fa-inbox ml-1"></i> لا توجد نتائج مطابقة' +
+                '</div>';
+            orderSearchResults.classList.remove('hidden');
+            return;
         }
-    });
+
+        data.forEach(function (order) {
+            const item = document.createElement('div');
+            item.className = 'px-4 py-3 hover:bg-amber-50 cursor-pointer border-b border-gray-100 transition-colors';
+            item.innerHTML =
+                '<div class="flex justify-between items-center">' +
+                '  <div>' +
+                '    <span class="font-bold text-gray-800 text-sm">' + escapeHtml(order.customer_name) + '</span>' +
+                (order.customer_code ? ' <span class="text-xs text-gray-400">(' + escapeHtml(order.customer_code) + ')</span>' : '') +
+                '    <div class="text-xs text-gray-500 mt-0.5">طلب رقم: <span class="font-mono font-bold">' + escapeHtml(order.order_number) + '</span></div>' +
+                '  </div>' +
+                '  <div class="text-left">' +
+                '    <span class="inline-block bg-green-100 text-green-800 text-xs font-bold px-2 py-1 rounded">' +
+                      Number(order.credit_amount).toLocaleString('en') + ' ريال' +
+                '    </span>' +
+                '  </div>' +
+                '</div>';
+
+            item.addEventListener('click', function () {
+                selectOrder(order);
+            });
+
+            orderSearchResults.appendChild(item);
+        });
+
+        orderSearchResults.classList.remove('hidden');
+    }
+
+    function selectOrder(order) {
+        // Fill hidden fields
+        refundOrderIdInput.value = order.order_id;
+        refundCustomerIdInput.value = order.customer_id;
+
+        // Fill amount
+        if (amountInput) {
+            amountInput.value = parseFloat(order.credit_amount).toFixed(2);
+        }
+
+        // Fill vendor name
+        vendorNameInput.value = 'رد مبلغ/تسوية للعميل - ' + order.customer_name;
+
+        // Show selected order display
+        selectedOrderText.innerHTML =
+            '<i class="fas fa-check-circle text-green-500 ml-1"></i> ' +
+            escapeHtml(order.customer_name) +
+            ' — طلب ' + escapeHtml(order.order_number) +
+            ' — <span class="text-green-600">' + Number(order.credit_amount).toLocaleString('en') + ' ريال</span>';
+        selectedOrderDisplay.classList.remove('hidden');
+
+        // Hide search input and results
+        orderSearchInput.value = '';
+        orderSearchResults.classList.add('hidden');
+        orderSearchInput.closest('#order-search-container').style.display = 'none';
+    }
+
+    function clearOrderSelection() {
+        refundOrderIdInput.value = '';
+        refundCustomerIdInput.value = '';
+        if (amountInput) amountInput.value = '';
+        vendorNameInput.value = '';
+        selectedOrderDisplay.classList.add('hidden');
+        selectedOrderText.innerHTML = '';
+        orderSearchInput.value = '';
+        orderSearchResults.classList.add('hidden');
+        orderSearchResults.innerHTML = '';
+
+        const container = document.getElementById('order-search-container');
+        if (container) container.style.display = '';
+    }
+
+    // Clear button
+    if (clearSelectedOrder) {
+        clearSelectedOrder.addEventListener('click', function () {
+            clearOrderSelection();
+            orderSearchInput.focus();
+        });
+    }
+
+    // ─── Form validation ────────────────────────────────────────────────
+    const form = document.querySelector('form');
+    if (form) {
+        form.addEventListener('submit', function (e) {
+            if (isCustomerRefundInput.value === '1' && !refundOrderIdInput.value) {
+                e.preventDefault();
+                alert('يرجى اختيار الطلب أولاً بالبحث عن اسم العميل أو رقم الطلب.');
+                orderSearchInput.focus();
+            }
+        });
+    }
+
+    // ─── Utility ────────────────────────────────────────────────────────
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
 });
 </script>
 
