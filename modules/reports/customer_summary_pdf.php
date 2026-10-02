@@ -242,14 +242,7 @@ body {
 .pdf-header .sub { font-size:9px;color:#64748b; }
 .pdf-header .filters { font-size:9px;color:#475569;background:#f1f5f9;padding:3px 8px;border-radius:4px;display:inline-block;margin-top:4px; }
 table.main-tbl { width:100%;border-collapse:collapse;font-size:10px; }
-table.main-tbl thead tr.hd1 { background:#1e293b;color:#ffffff; }
-table.main-tbl thead tr.hd2 { background:#334155;color:#e2e8f0; }
 table.main-tbl thead th { padding:6px 5px;font-size:9px;font-weight:700;white-space:nowrap;border:1px solid #475569; }
-table.main-tbl thead th.hd-delivered { background:#1a3a5c; }
-table.main-tbl thead th.hd-ready     { background:#14532d; }
-table.main-tbl thead th.hd-other     { background:#4c1d95; }
-table.main-tbl thead th.sub-rem      { color:#fca5a5;font-weight:800; }
-table.main-tbl thead th.sub-paid     { color:#86efac;font-weight:700; }
 table.main-tbl tbody td { padding:5px 5px;border:1px solid #e2e8f0;vertical-align:middle; }
 table.main-tbl tfoot td { padding:6px 5px;border:1px solid #e2e8f0;font-weight:700; }
 </style>
@@ -266,23 +259,23 @@ table.main-tbl tfoot td { padding:6px 5px;border:1px solid #e2e8f0;font-weight:7
 
 <table class="main-tbl">
 <thead>
-    <tr class="hd1">
-        <th rowspan="2" style="width:26px;">م</th>
-        <th rowspan="2" style="min-width:100px;text-align:right;">الاسم</th>
-        <th rowspan="2" style="width:60px;">الموقع</th>
-        <th rowspan="2" style="min-width:70px;text-align:right;">جميع الأرقام</th>
-        <th colspan="2" class="hd-delivered">تم الاستلام</th>
-        <th colspan="2" class="hd-ready">جاهز للتوصيل</th>
-        <th colspan="2" class="hd-other">باقي الحالات</th>
-        <th rowspan="2" style="min-width:70px;">ملاحظات</th>
+    <tr>
+        <th rowspan="2" style="width:26px;background:#1e293b;color:#ffffff;">م</th>
+        <th rowspan="2" style="min-width:100px;text-align:right;background:#1e293b;color:#ffffff;">الاسم</th>
+        <th rowspan="2" style="width:60px;background:#1e293b;color:#ffffff;">الموقع</th>
+        <th rowspan="2" style="min-width:70px;text-align:right;background:#1e293b;color:#ffffff;">جميع الأرقام</th>
+        <th colspan="2" style="background:#1a3a5c;color:#ffffff;text-align:center;">تم الاستلام</th>
+        <th colspan="2" style="background:#14532d;color:#ffffff;text-align:center;">جاهز للتوصيل</th>
+        <th colspan="2" style="background:#4c1d95;color:#ffffff;text-align:center;">باقي الحالات</th>
+        <th rowspan="2" style="min-width:70px;background:#1e293b;color:#ffffff;">ملاحظات</th>
     </tr>
-    <tr class="hd2">
-        <th class="hd-delivered sub-paid"  style="width:58px;">مدفوع</th>
-        <th class="hd-delivered sub-rem"   style="width:58px;">متبقي</th>
-        <th class="hd-ready sub-paid"      style="width:58px;">مدفوع</th>
-        <th class="hd-ready sub-rem"       style="width:58px;">متبقي</th>
-        <th class="hd-other sub-paid"      style="width:58px;">مدفوع</th>
-        <th class="hd-other sub-rem"       style="width:58px;">متبقي</th>
+    <tr>
+        <th style="width:58px;background:#1a3a5c;color:#86efac;">مدفوع</th>
+        <th style="width:58px;background:#1a3a5c;color:#fca5a5;font-weight:800;">متبقي</th>
+        <th style="width:58px;background:#14532d;color:#86efac;">مدفوع</th>
+        <th style="width:58px;background:#14532d;color:#fca5a5;font-weight:800;">متبقي</th>
+        <th style="width:58px;background:#4c1d95;color:#86efac;">مدفوع</th>
+        <th style="width:58px;background:#4c1d95;color:#fca5a5;font-weight:800;">متبقي</th>
     </tr>
 </thead>
 <tbody>
