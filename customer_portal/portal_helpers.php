@@ -4,21 +4,11 @@
  */
 
 /**
- * BUG 5 FIX: Format price — remove trailing .00, keep .50, add thousands separator.
- * Examples: 150.00 → "150", 15000.00 → "15,000", 150.50 → "150.50"
+ * Format price for customer portal — comma thousands separator, NO decimals.
+ * Examples: 20000 → "20,000", 25000.00 → "25,000", 1250000 → "1,250,000", 20000.50 → "20,001"
  */
 function formatPrice($amount) {
-    $amount = (float)$amount;
-    // If integer value (no meaningful decimals), format without decimal
-    if ($amount == floor($amount)) {
-        return number_format($amount, 0, '.', ',');
-    }
-    // Otherwise keep 2 decimal places but strip trailing zeros
-    $formatted = number_format($amount, 2, '.', ',');
-    // Remove trailing zero after decimal: 150.50 → "150.50", 150.10 → "150.1" (keep at least 1 decimal)
-    $formatted = rtrim($formatted, '0');
-    $formatted = rtrim($formatted, '.');
-    return $formatted;
+    return number_format(round((float)$amount), 0, '.', ',');
 }
 
 /**

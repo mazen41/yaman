@@ -329,9 +329,8 @@ $main_image = !empty($images) ? $images[0]['image_url'] : '';
     <script>
         // --- PRICE FORMATTER ---
         function formatPrice(value) {
-            const number = Number(value);
-            if (!Number.isFinite(number)) return '0';
-            return number.toFixed(2).replace(/\.?0+$/, '');
+            const number = Math.round(Number(value) || 0);
+            return number.toLocaleString('en-US');
         }
 
         // --- DATA INJECTION FROM PHP ---

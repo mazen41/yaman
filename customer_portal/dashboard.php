@@ -8,6 +8,7 @@ if (!isset($_SESSION['customer_id'])) {
 
 require_once '../config/database.php';
 require_once '../includes/status_helpers.php';
+require_once __DIR__ . '/portal_helpers.php';
 
 $customer_id = $_SESSION['customer_id'];
 
@@ -129,7 +130,7 @@ try {
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-gray-500 text-sm">إجمالي المبلغ</p>
-                        <p class="text-3xl font-bold text-gray-800"><?php echo number_format($stats['total_amount'], 0, '', ''); ?></p>
+                        <p class="text-3xl font-bold text-gray-800"><?php echo formatPrice($stats['total_amount']); ?></p>
                         <p class="text-xs text-gray-500">ريال</p>
                     </div>
                     <div class="bg-green-100 p-4 rounded-full">
@@ -211,7 +212,7 @@ try {
                                     <?php echo date('Y-m-d', strtotime($order['created_at'])); ?>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    <?php echo number_format($order['final_amount'], 0, '', ''); ?> ريال
+                                    <?php echo formatPrice($order['final_amount']); ?> ريال
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <?php
@@ -273,7 +274,7 @@ try {
                                     <?php echo date('Y-m-d', strtotime($invoice['created_at'])); ?>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    <?php echo number_format($invoice['total_amount'], 0, '', ''); ?> ريال
+                                    <?php echo formatPrice($invoice['total_amount']); ?> ريال
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <?php
@@ -327,7 +328,7 @@ try {
                                     <?php echo date('Y-m-d', strtotime($payment['payment_date'])); ?>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    <?php echo number_format($payment['amount'], 0, '', ''); ?> ريال
+                                    <?php echo formatPrice($payment['amount']); ?> ريال
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     <?php echo htmlspecialchars((string)($payment['payment_method'] ?? '')); ?>

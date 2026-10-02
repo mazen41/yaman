@@ -1,4 +1,8 @@
 <?php
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+
 session_start();
 require_once '../../config/database.php';
 require_once '../../includes/check_permissions.php';
@@ -8,34 +12,112 @@ if (!hasPermission($user_id, 'reports', 'view')) {
     header('Location: ../../index.php'); exit();
 }
 
-$search        = trim($_GET['search']        ?? '');
-$group         = trim($_GET['group']         ?? '');
-$city          = trim($_GET['city']          ?? '');
-$ctype         = trim($_GET['ctype']         ?? '');
-$currency      = trim($_GET['currency']      ?? '');
-$has_remaining = trim($_GET['has_remaining'] ?? '');
-$sort          = trim($_GET['sort']          ?? 'name');
+// ── Fetch data for filters (SAME as customers/index.php) ─────────────────────
+try {
+    $customer_types = $db->query("SELECT id, name FROM customer_types WHERE is_active = 1 ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
+    $cities = $db->query("SELECT id, name FROM cities WHERE is_active = 1 ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    $customer_types = [];
+    $cities = [];
+}
 
-$groups = $db->query("SELECT DISTINCT customer_group FROM customers WHERE customer_group IS NOT NULL AND customer_group!='' ORDER BY customer_group")->fetchAll(PDO::FETCH_COLUMN);
-$cities = $db->query("SELECT DISTINCT city_name FROM customers WHERE city_name IS NOT NULL AND city_name!='' ORDER BY city_name")->fetchAll(PDO::FETCH_COLUMN);
+// ── Get Filter and Sort Parameters (SAME names & defaults as customers/index.php) ──
+$search               = $_GET['search']               ?? '';
+$filter_type          = $_GET['filter_type']          ?? '';
+$filter_city          = $_GET['filter_city']          ?? '';
+$filter_date_from     = $_GET['filter_date_from']     ?? '';
+$filter_date_to       = $_GET['filter_date_to']       ?? '';
+$filter_status        = $_GET['filter_status']        ?? 'active'; // active, inactive, all — default: active
+$filter_remaining_from = $_GET['filter_remaining_from'] ?? '';
 
-$where  = ['1=1'];
+// Sorting (SAME whitelist as customers/index.php, adapted column aliases for this report's query)
+$sort_options = [
+    'updated_at'       => 'c.updated_at',
+    'total_amount'     => 'total_amount',
+    'total_orders'     => 'total_orders',
+    'remaining_amount' => 'total_remaining',
+    'name_alpha'       => 'c.name',
+];
+$sort_by = $_GET['sort_by'] ?? 'updated_at';
+$sort_column = $sort_options[$sort_by] ?? 'c.updated_at';
+
+$sort_dir_options = ['DESC' => 'DESC', 'ASC' => 'ASC'];
+$sort_dir = $_GET['sort_dir'] ?? 'DESC';
+$sort_direction = $sort_dir_options[$sort_dir] ?? 'DESC';
+
+// Determine if any advanced filter is active (SAME logic as customers/index.php)
+$advanced_filters_active = !empty($filter_type) ||
+                           !empty($filter_city) ||
+                           !empty($filter_date_from) ||
+                           !empty($filter_date_to) ||
+                           !empty($filter_remaining_from) ||
+                           ($sort_by != 'updated_at') ||
+                           ($sort_dir != 'DESC') ||
+                           ($filter_status != 'active');
+
+// ── Build WHERE conditions (SAME logic as customers/index.php) ───────────────
+$where_clauses = ["1=1"];
 $params = [];
-if ($search)   { $where[]='(c.name LIKE ? OR c.mobile_number LIKE ? OR c.customer_code LIKE ?)'; $params[]="%$search%"; $params[]="%$search%"; $params[]="%$search%"; }
-if ($group)    { $where[]='c.customer_group = ?'; $params[]=$group; }
-if ($city)     { $where[]='c.city_name = ?';      $params[]=$city; }
-if ($ctype)    { $where[]='c.customer_type = ?';  $params[]=$ctype; }
-if ($currency) { $where[]='c.currency = ?';       $params[]=$currency; }
-$where_sql = implode(' AND ', $where);
+$having_clauses = [];
+$having_params = [];
 
-$allowed = ['name','total_orders','total_remaining','total_paid','total_amount'];
-if (!in_array($sort,$allowed)) $sort='name';
-$sort_dir = $sort==='name' ? 'ASC' : 'DESC';
-$having   = $has_remaining==='1' ? 'HAVING total_remaining > 0' : ($has_remaining==='0' ? 'HAVING total_remaining <= 0' : '');
+// Apply status filter (SAME as customers/index.php)
+if ($filter_status == 'active') {
+    $where_clauses[] = "c.is_active = 1";
+} elseif ($filter_status == 'inactive') {
+    $where_clauses[] = "c.is_active = 0";
+}
+// 'all' → no condition added (same behavior)
 
+// Search filter (SAME fields as customers/index.php: name, customer_code, mobile_number)
+if ($search) {
+    $where_clauses[] = "(c.name LIKE ? OR c.customer_code LIKE ? OR c.mobile_number LIKE ?)";
+    $search_param = "%$search%";
+    $params[] = $search_param;
+    $params[] = $search_param;
+    $params[] = $search_param;
+}
+
+// Customer type filter (SAME: c.customer_type_id FK)
+if ($filter_type) {
+    $where_clauses[] = "c.customer_type_id = ?";
+    $params[] = $filter_type;
+}
+
+// City filter (SAME: c.city_id FK)
+if ($filter_city) {
+    $where_clauses[] = "c.city_id = ?";
+    $params[] = $filter_city;
+}
+
+// Date range filters (SAME: DATE(c.created_at))
+if ($filter_date_from) {
+    $where_clauses[] = "DATE(c.created_at) >= ?";
+    $params[] = $filter_date_from;
+}
+if ($filter_date_to) {
+    $where_clauses[] = "DATE(c.created_at) <= ?";
+    $params[] = $filter_date_to;
+}
+
+// Remaining amount HAVING filter (SAME as customers/index.php)
+if ($filter_remaining_from !== '' && is_numeric($filter_remaining_from)) {
+    $having_clauses[] = "COALESCE(SUM(co.final_amount - co.paid_amount), 0) >= ?";
+    $having_params[] = $filter_remaining_from;
+}
+
+$where_sql = implode(" AND ", $where_clauses);
+$having_sql = empty($having_clauses) ? '' : 'HAVING ' . implode(" AND ", $having_clauses);
+$all_query_params = array_merge($params, $having_params);
+
+// ── Execute the report query ─────────────────────────────────────────────────
+// Note: This query preserves the report's original calculations (order status breakdown,
+// last_order_number, etc.) while applying the synchronized WHERE/HAVING conditions.
 $stmt = $db->prepare("
-    SELECT c.id, c.name, c.city_name, c.customer_group, c.mobile_number,
-           c.customer_code, c.customer_type, c.currency, c.current_balance,
+    SELECT c.id, c.name,
+           ct.name AS customer_type_name,
+           city.name AS city_name,
+           c.customer_code, c.mobile_number,
            COUNT(DISTINCT co.id) AS total_orders,
            COALESCE(SUM(CASE WHEN co.status='delivered' THEN 1 ELSE 0 END),0) AS delivered_count,
            COALESCE(SUM(CASE WHEN co.status IN('ready','ready_to_deliver','جاهز للتسليم') THEN 1 ELSE 0 END),0) AS ready_count,
@@ -46,12 +128,15 @@ $stmt = $db->prepare("
            (SELECT co2.order_number FROM customer_orders co2 WHERE co2.customer_id=c.id ORDER BY co2.created_at DESC LIMIT 1) AS last_order_number,
            (SELECT co2.final_amount  FROM customer_orders co2 WHERE co2.customer_id=c.id ORDER BY co2.created_at DESC LIMIT 1) AS last_order_amount
     FROM customers c
-    LEFT JOIN customer_orders co ON co.customer_id=c.id
+    LEFT JOIN customer_types ct ON c.customer_type_id = ct.id
+    LEFT JOIN cities city ON c.city_id = city.id
+    LEFT JOIN customer_orders co ON co.customer_id = c.id
     WHERE $where_sql
-    GROUP BY c.id $having
-    ORDER BY $sort $sort_dir
+    GROUP BY c.id
+    $having_sql
+    ORDER BY $sort_column $sort_direction, c.created_at DESC
 ");
-$stmt->execute($params);
+$stmt->execute($all_query_params);
 $customers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $ttl_orders    = array_sum(array_column($customers,'total_orders'));
@@ -135,20 +220,27 @@ include '../../includes/header.php';
     <!-- Top bar -->
     <div class="cs-topbar no-print">
         <h2><i class="fas fa-users"></i> ملخص العملاء <span class="badge"><?= count($customers) ?></span></h2>
-        <div style="display:flex;gap:8px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
             <?php
-            // Build PDF URL carrying all active filter parameters
+            // Build PDF URL carrying all active filter parameters (same names)
             $pdf_params = http_build_query(array_filter([
-                'search'        => $search,
-                'group'         => $group,
-                'city'          => $city,
-                'ctype'         => $ctype,
-                'currency'      => $currency,
-                'has_remaining' => $has_remaining,
-                'sort'          => ($sort !== 'name') ? $sort : '',
+                'search'               => $search,
+                'filter_type'          => $filter_type,
+                'filter_city'          => $filter_city,
+                'filter_date_from'     => $filter_date_from,
+                'filter_date_to'       => $filter_date_to,
+                'filter_status'        => ($filter_status !== 'active') ? $filter_status : '',
+                'filter_remaining_from' => $filter_remaining_from,
+                'sort_by'              => ($sort_by !== 'updated_at') ? $sort_by : '',
+                'sort_dir'             => ($sort_dir !== 'DESC') ? $sort_dir : '',
             ]));
             $pdf_url = 'customer_summary_pdf.php' . ($pdf_params ? '?' . $pdf_params : '');
             ?>
+            <button type="button" id="toggleAdvancedFiltersBtn"
+                class="cs-btn" style="background:#475569;color:#fff">
+                <i class="fas fa-filter"></i>
+                <span id="toggleText"><?php echo $advanced_filters_active ? 'إخفاء الفلاتر المتقدمة' : 'إظهار الفلاتر المتقدمة'; ?></span>
+            </button>
             <a href="<?= htmlspecialchars($pdf_url) ?>" class="cs-btn cs-btn-success" target="_blank">
                 <i class="fas fa-file-pdf"></i> تصدير PDF
             </a>
@@ -156,77 +248,94 @@ include '../../includes/header.php';
         </div>
     </div>
 
-    <!-- Filters -->
+    <!-- Filters (SAME structure and parameter names as customers/index.php) -->
     <div class="cs-filter no-print">
         <form method="GET">
-            <div class="cs-filter-grid">
-
-                <div class="cs-filter-item" style="min-width:200px">
-                    <label>بحث (اسم / موبايل / كود)</label>
-                    <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="اكتب للبحث...">
+            <!-- Always visible: Search -->
+            <div class="cs-filter-grid" style="margin-bottom:12px">
+                <div class="cs-filter-item" style="min-width:250px;flex-grow:1">
+                    <label>بحث (اسم، كود، جوال)</label>
+                    <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="ابحث بالاسم, الكود, الجوال...">
                 </div>
-
-                <div class="cs-filter-item">
-                    <label>المجموعة</label>
-                    <select name="group">
-                        <option value="">الكل</option>
-                        <?php foreach($groups as $g): ?>
-                        <option value="<?= htmlspecialchars($g) ?>" <?= $group===$g?'selected':'' ?>><?= htmlspecialchars($g) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-
-                <div class="cs-filter-item">
-                    <label>المدينة</label>
-                    <select name="city">
-                        <option value="">الكل</option>
-                        <?php foreach($cities as $ct): ?>
-                        <option value="<?= htmlspecialchars($ct) ?>" <?= $city===$ct?'selected':'' ?>><?= htmlspecialchars($ct) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-
-                <div class="cs-filter-item">
-                    <label>نوع العميل</label>
-                    <select name="ctype">
-                        <option value="">الكل</option>
-                        <option value="individual" <?= $ctype==='individual'?'selected':'' ?>>فرد</option>
-                        <option value="company"    <?= $ctype==='company'?'selected':'' ?>>شركة</option>
-                    </select>
-                </div>
-
-                <div class="cs-filter-item">
-                    <label>العملة</label>
-                    <select name="currency">
-                        <option value="">الكل</option>
-                        <option value="YER" <?= $currency==='YER'?'selected':'' ?>>ريال يمني</option>
-                        <option value="SAR" <?= $currency==='SAR'?'selected':'' ?>>ريال سعودي</option>
-                    </select>
-                </div>
-
-                <div class="cs-filter-item">
-                    <label>المتبقي</label>
-                    <select name="has_remaining">
-                        <option value="">الكل</option>
-                        <option value="1" <?= $has_remaining==='1'?'selected':'' ?>>عليهم متبقي</option>
-                        <option value="0" <?= $has_remaining==='0'?'selected':'' ?>>لا يوجد متبقي</option>
-                    </select>
-                </div>
-
-                <div class="cs-filter-item">
-                    <label>الترتيب حسب</label>
-                    <select name="sort">
-                        <option value="name"            <?= $sort==='name'?'selected':'' ?>>الاسم</option>
-                        <option value="total_orders"    <?= $sort==='total_orders'?'selected':'' ?>>عدد الطلبات</option>
-                        <option value="total_remaining" <?= $sort==='total_remaining'?'selected':'' ?>>المتبقي</option>
-                        <option value="total_paid"      <?= $sort==='total_paid'?'selected':'' ?>>المدفوع</option>
-                        <option value="total_amount"    <?= $sort==='total_amount'?'selected':'' ?>>إجمالي الطلبات</option>
-                    </select>
-                </div>
-
-                <div class="cs-filter-actions">
+                <div class="cs-filter-actions" style="padding-top:18px">
                     <button type="submit" class="cs-btn cs-btn-primary"><i class="fas fa-search"></i> بحث</button>
                     <a href="?" class="cs-btn cs-btn-secondary">مسح</a>
+                </div>
+            </div>
+
+            <!-- Collapsible Advanced Filters -->
+            <div id="advancedFilters" style="display: <?php echo $advanced_filters_active ? 'block' : 'none'; ?>;">
+                <div class="cs-filter-grid">
+                    <!-- Customer Type Filter (SAME as customers/index.php: filter_type → customer_type_id) -->
+                    <div class="cs-filter-item">
+                        <label>نوع العميل</label>
+                        <select name="filter_type">
+                            <option value="">الكل</option>
+                            <?php foreach ($customer_types as $type): ?>
+                                <option value="<?php echo $type['id']; ?>" <?php if ($filter_type == $type['id']) echo 'selected'; ?>><?php echo htmlspecialchars($type['name']); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <!-- City Filter (SAME as customers/index.php: filter_city → city_id) -->
+                    <div class="cs-filter-item">
+                        <label>المحافظة</label>
+                        <select name="filter_city">
+                            <option value="">الكل</option>
+                            <?php foreach ($cities as $c_item): ?>
+                                <option value="<?php echo $c_item['id']; ?>" <?php if ($filter_city == $c_item['id']) echo 'selected'; ?>><?php echo htmlspecialchars($c_item['name']); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <!-- Date From Filter (SAME as customers/index.php) -->
+                    <div class="cs-filter-item">
+                        <label>من تاريخ</label>
+                        <input type="date" name="filter_date_from" value="<?= htmlspecialchars($filter_date_from) ?>">
+                    </div>
+
+                    <!-- Date To Filter (SAME as customers/index.php) -->
+                    <div class="cs-filter-item">
+                        <label>إلى تاريخ</label>
+                        <input type="date" name="filter_date_to" value="<?= htmlspecialchars($filter_date_to) ?>">
+                    </div>
+
+                    <!-- Remaining Amount Filter (SAME as customers/index.php: filter_remaining_from) -->
+                    <div class="cs-filter-item">
+                        <label>المتبقي يبدأ من</label>
+                        <input type="number" name="filter_remaining_from" placeholder="0" value="<?= htmlspecialchars($filter_remaining_from) ?>">
+                    </div>
+
+                    <!-- Sort By (SAME options as customers/index.php) -->
+                    <div class="cs-filter-item">
+                        <label>ترتيب حسب</label>
+                        <select name="sort_by">
+                            <option value="updated_at" <?php if ($sort_by == 'updated_at') echo 'selected'; ?>>آخر تعديل</option>
+                            <option value="name_alpha" <?php if ($sort_by == 'name_alpha') echo 'selected'; ?>>الاسم بالأبجدية</option>
+                            <option value="total_amount" <?php if ($sort_by == 'total_amount') echo 'selected'; ?>>إجمالي المبلغ</option>
+                            <option value="remaining_amount" <?php if ($sort_by == 'remaining_amount') echo 'selected'; ?>>المبلغ المتبقي</option>
+                            <option value="total_orders" <?php if ($sort_by == 'total_orders') echo 'selected'; ?>>عدد الطلبات</option>
+                        </select>
+                    </div>
+
+                    <!-- Sort Direction (SAME as customers/index.php) -->
+                    <div class="cs-filter-item">
+                        <label>الاتجاه</label>
+                        <select name="sort_dir">
+                            <option value="DESC" <?php if ($sort_dir == 'DESC') echo 'selected'; ?>>تنازلي</option>
+                            <option value="ASC" <?php if ($sort_dir == 'ASC') echo 'selected'; ?>>تصاعدي</option>
+                        </select>
+                    </div>
+
+                    <!-- Status Filter (SAME as customers/index.php: default='active') -->
+                    <div class="cs-filter-item">
+                        <label>الحالة</label>
+                        <select name="filter_status">
+                            <option value="active" <?php if ($filter_status == 'active') echo 'selected'; ?>>نشط</option>
+                            <option value="inactive" <?php if ($filter_status == 'inactive') echo 'selected'; ?>>معطل</option>
+                            <option value="all" <?php if ($filter_status == 'all') echo 'selected'; ?>>الكل</option>
+                        </select>
+                    </div>
                 </div>
             </div>
         </form>
@@ -260,8 +369,8 @@ include '../../includes/header.php';
                 <tr>
                     <th style="width:40px">#</th>
                     <th style="text-align:right">الاسم</th>
-                    <th style="text-align:right">الموقع</th>
-                    <th style="text-align:right">المجموعة</th>
+                    <th style="text-align:right">المحافظة</th>
+                    <th style="text-align:right">الفئة</th>
                     <th style="text-align:center">جميع الطلبات</th>
                     <th style="text-align:center">تم الاستلام</th>
                     <th style="text-align:center">جاهز للتوصيل</th>
@@ -286,7 +395,7 @@ include '../../includes/header.php';
                         </div>
                     </td>
                     <td><?= $c['city_name'] ? '<span class="tag tag-gray">'.htmlspecialchars($c['city_name']).'</span>' : '<span style="color:#cbd5e1">—</span>' ?></td>
-                    <td><?= $c['customer_group'] ? '<span class="tag tag-blue">'.htmlspecialchars($c['customer_group']).'</span>' : '<span style="color:#cbd5e1">—</span>' ?></td>
+                    <td><?= $c['customer_type_name'] ? '<span class="tag tag-blue">'.htmlspecialchars($c['customer_type_name']).'</span>' : '<span style="color:#cbd5e1">—</span>' ?></td>
                     <td style="text-align:center;font-weight:700;font-size:15px"><?= $c['total_orders'] ?></td>
                     <td style="text-align:center"><span class="tag tag-green"><?= $c['delivered_count'] ?></span></td>
                     <td style="text-align:center"><span class="tag" style="background:#fef3c7;color:#92400e"><?= $c['ready_count'] ?></span></td>
@@ -326,4 +435,34 @@ include '../../includes/header.php';
     </div>
 
 </div>
+
+<!-- Advanced Filters Toggle Script (SAME behavior as customers/index.php) -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const toggleBtn = document.getElementById('toggleAdvancedFiltersBtn');
+        const filtersDiv = document.getElementById('advancedFilters');
+        const toggleText = document.getElementById('toggleText');
+
+        const advancedFiltersActive = <?php echo $advanced_filters_active ? 'true' : 'false'; ?>;
+
+        if (advancedFiltersActive) {
+             filtersDiv.style.display = 'block';
+             toggleText.textContent = 'إخفاء الفلاتر المتقدمة';
+        } else {
+             filtersDiv.style.display = 'none';
+             toggleText.textContent = 'إظهار الفلاتر المتقدمة';
+        }
+
+        toggleBtn.addEventListener('click', function() {
+            const isHidden = filtersDiv.style.display === 'none';
+            if (isHidden) {
+                filtersDiv.style.display = 'block';
+                toggleText.textContent = 'إخفاء الفلاتر المتقدمة';
+            } else {
+                filtersDiv.style.display = 'none';
+                toggleText.textContent = 'إظهار الفلاتر المتقدمة';
+            }
+        });
+    });
+</script>
 <?php include '../../includes/footer.php'; ?>

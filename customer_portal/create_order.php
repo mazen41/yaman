@@ -103,9 +103,9 @@ function getTieredCustomerDiscount($db, $customer_type_id, $amount, $currency = 
 
     if ($applicable_tier) {
         $discount_percentage = floatval($applicable_tier['discount_percentage']);
-        $min_display = number_format($applicable_tier['min_amount'], 2);
+        $min_display = number_format(round($applicable_tier['min_amount']), 0);
         $max_val_display = $applicable_tier['max_amount'];
-        $max_display = ($max_val_display !== null && $max_val_display !== '' && floatval($max_val_display) > 0) ? number_format($max_val_display, 2) : 'غير محدود';
+        $max_display = ($max_val_display !== null && $max_val_display !== '' && floatval($max_val_display) > 0) ? number_format(round($max_val_display), 0) : 'غير محدود';
         
         $tier_info = "خصم {$discount_percentage}% (الطلب بين {$min_display} و {$max_display} {$currency})";
     }
@@ -710,6 +710,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         updateTotals();
     }
 
+    function fmt(value) {
+        return Math.round(Number(value) || 0).toLocaleString('en-US');
+    }
+
     async function updateTotals() {
         let subtotal = 0;
         document.querySelectorAll('.item-total-input').forEach(input => {
@@ -765,23 +769,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 }
                 
                 const reqEl = document.getElementById('requiredPayment');
-                if(reqEl) reqEl.textContent = requiredPayment.toFixed(0);
+                if(reqEl) reqEl.textContent = fmt(requiredPayment);
             }
         }
 
         const remainingVal = finalAmount - paidVal;
 
-        document.getElementById('subtotalDisplay').textContent = subtotal.toFixed(0);
-        document.getElementById('automaticDiscountDisplay').textContent = automaticDiscountAmount.toFixed(0);
-        document.getElementById('discountPercentDisplay').textContent = automaticDiscountPercentage.toFixed(0);
-        document.getElementById('finalTotal').textContent = finalAmount.toFixed(0);
-        document.getElementById('paidDisplay').textContent = paidVal.toFixed(0);
-        document.getElementById('remainingDisplay').textContent = remainingVal.toFixed(0);
+        document.getElementById('subtotalDisplay').textContent = fmt(subtotal);
+        document.getElementById('automaticDiscountDisplay').textContent = fmt(automaticDiscountAmount);
+        document.getElementById('discountPercentDisplay').textContent = Math.round(automaticDiscountPercentage);
+        document.getElementById('finalTotal').textContent = fmt(finalAmount);
+        document.getElementById('paidDisplay').textContent = fmt(paidVal);
+        document.getElementById('remainingDisplay').textContent = fmt(remainingVal);
         
         const couponRow = document.getElementById('couponDiscountRow');
         if (currentCouponDiscountAmount > 0) {
             couponRow.classList.remove('hidden');
-            document.getElementById('couponDiscountDisplayAmount').textContent = currentCouponDiscountAmount.toFixed(0);
+            document.getElementById('couponDiscountDisplayAmount').textContent = fmt(currentCouponDiscountAmount);
             document.getElementById('couponDiscountDisplayPercent').textContent = currentCouponDisplayPercentage ? `(${currentCouponDisplayPercentage})` : '';
         } else {
             couponRow.classList.add('hidden');

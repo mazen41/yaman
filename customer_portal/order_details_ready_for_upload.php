@@ -9,6 +9,7 @@ ini_set('display_errors', 1);
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/status_helpers.php';
+require_once __DIR__ . '/portal_helpers.php';
 
 // Get token and order_id from URL
 $token = $_GET['token'] ?? '';
@@ -339,7 +340,7 @@ function translateHistoryNote($note) {
                                 <tr>
                                     <td class="px-4 py-2 text-sm"><?php echo htmlspecialchars($invoice['invoice_number']); ?></td>
                                     <td class="px-4 py-2 text-sm text-gray-500"><?php echo date('Y-m-d', strtotime($invoice['created_at'])); ?></td>
-                                    <td class="px-4 py-2 text-sm font-bold"><?php echo number_format($invoice['amount'], 0, '.', ''); ?> ريال</td>
+                                    <td class="px-4 py-2 text-sm font-bold"><?php echo formatPrice($invoice['amount']); ?> ريال</td>
                                     <td class="px-4 py-2 text-sm"><?php echo getInvoiceStatusBadge($invoice['status']); ?></td>
                                     <td class="px-4 py-2 text-sm no-print">
                                         <a href="print_invoice.php?id=<?php echo $invoice['id']; ?>&token=<?php echo $token; ?>" target="_blank" class="text-blue-600 hover:underline">طباعة</a>
@@ -389,7 +390,7 @@ function translateHistoryNote($note) {
                                 ?>
                                 <tr>
                                     <td class="px-4 py-2 text-sm text-gray-600 break-all"><?php echo htmlspecialchars($reference); ?></td>
-                                    <td class="px-4 py-2 text-sm font-bold text-green-600 dir-ltr"><?php echo number_format($payment['amount'], 0, '.', ''); ?> ريال</td>
+                                    <td class="px-4 py-2 text-sm font-bold text-green-600 dir-ltr"><?php echo formatPrice($payment['amount']); ?> ريال</td>
                                     <td class="px-4 py-2 text-sm"><?php echo htmlspecialchars($type_label); ?></td>
                                     <td class="px-4 py-2 text-sm text-gray-500"><?php echo date('Y-m-d', strtotime($payment['payment_date'])); ?></td>
                                 </tr>
@@ -426,38 +427,38 @@ function translateHistoryNote($note) {
                     <div class="space-y-3 text-sm">
                         <div class="flex justify-between">
                             <span class="text-gray-600">المبلغ الأصلي</span>
-                            <span class="font-semibold"><?php echo number_format($original_amount, 0, '.', ''); ?> ريال</span>
+                            <span class="font-semibold"><?php echo formatPrice($original_amount); ?> ريال</span>
                         </div>
 
                         <div class="flex justify-between text-green-600">
                             <span>الخصم</span>
-                            <span class="dir-ltr">-<?php echo number_format($total_discount, 0, '.', ''); ?> ريال</span>
+                            <span class="dir-ltr">-<?php echo formatPrice($total_discount); ?> ريال</span>
                         </div>
 
                         <div class="flex justify-between text-amber-600">
                             <span>نسبة الخصم</span>
-                            <span><?php echo $discount_percent > 0 ? number_format($discount_percent, 0, '', '') . '%' : '0.0%'; ?></span>
+                            <span><?php echo $discount_percent > 0 ? number_format(round($discount_percent), 0) . '%' : '0%'; ?></span>
                         </div>
 
                         <div class="flex justify-between text-red-600">
                             <span>مبلغ التوالف</span>
-                            <span class="dir-ltr">-<?php echo number_format($damaged_total, 0, '.', ''); ?> ريال</span>
+                            <span class="dir-ltr">-<?php echo formatPrice($damaged_total); ?> ريال</span>
                         </div>
 
                         <div class="border-t my-2"></div>
 
                         <div class="flex justify-between">
                             <span class="text-gray-600">المبلغ النهائي</span>
-                            <span class="font-bold text-blue-600"><?php echo number_format($final_amount, 0, '.', ''); ?> ريال</span>
+                            <span class="font-bold text-blue-600"><?php echo formatPrice($final_amount); ?> ريال</span>
                         </div>
 
                         <div class="flex justify-between text-green-600 text-xs font-semibold mt-1">
                             <span>المدفوع</span>
-                            <span><?php echo number_format($paid_amount, 0, '.', ''); ?> ريال</span>
+                            <span><?php echo formatPrice($paid_amount); ?> ريال</span>
                         </div>
                         <div class="flex justify-between text-red-600 text-xs font-semibold mt-1">
                             <span>المتبقي</span>
-                            <span><?php echo number_format($remaining_amount, 0, '.', ''); ?> ريال</span>
+                            <span><?php echo formatPrice($remaining_amount); ?> ريال</span>
                         </div>
                     </div>
                 </div>

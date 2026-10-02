@@ -3,6 +3,7 @@
  * Payment Receipt Print Page for Customer Portal
  */
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/portal_helpers.php';
 
 // Get payment ID and token
 $payment_id = $_GET['id'] ?? 0;
@@ -134,7 +135,7 @@ try {
         <!-- Amount Box -->
         <div class="amount-box">
             <div class="label">المبلغ المدفوع</div>
-            <div class="amount"><?php echo number_format($payment['amount'], 0, '', ''); ?> ريال</div>
+            <div class="amount"><?php echo formatPrice($payment['amount']); ?> ريال</div>
         </div>
 
         <!-- Paid Stamp -->

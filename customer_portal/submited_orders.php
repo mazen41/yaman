@@ -288,7 +288,7 @@ try {
                                     </div>
                                 </td>
                                 <td class="px-6 py-4">
-                                    <div class="font-bold text-gray-900"><?php echo number_format($approval['paid_amount'], 2); ?> <small class="text-gray-500 font-normal"><?php echo $currency; ?></small></div>
+                                    <div class="font-bold text-gray-900"><?php echo number_format(round($approval['paid_amount'])); ?> <small class="text-gray-500 font-normal"><?php echo $currency; ?></small></div>
                                     <div class="text-xs text-gray-400 mt-0.5">الشحن: <?php echo number_format($approval['shipping_cost']); ?></div>
                                 </td>
                                 <td class="px-6 py-4 text-center">

@@ -4,6 +4,7 @@
  */
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/status_helpers.php';
+require_once __DIR__ . '/portal_helpers.php';
 
 // Get invoice ID and token
 $invoice_id = $_GET['id'] ?? 0;
@@ -120,32 +121,32 @@ try {
             <table>
                 <tr>
                     <td class="label">المبلغ الأساسي</td>
-                    <td class="amount"><?php echo number_format($invoice['amount'], 0, '', ''); ?> ريال</td>
+                    <td class="amount"><?php echo formatPrice($invoice['amount']); ?> ريال</td>
                 </tr>
                 <?php if ($invoice['discount_amount'] > 0): ?>
                 <tr>
                     <td class="label">الخصم</td>
-                    <td class="amount" style="color: green;">-<?php echo number_format($invoice['discount_amount'], 0, '', ''); ?> ريال</td>
+                    <td class="amount" style="color: green;">-<?php echo formatPrice($invoice['discount_amount']); ?> ريال</td>
                 </tr>
                 <?php endif; ?>
                 <?php if ($invoice['tax_amount'] > 0): ?>
                 <tr>
                     <td class="label">الضريبة</td>
-                    <td class="amount"><?php echo number_format($invoice['tax_amount'], 0, '', ''); ?> ريال</td>
+                    <td class="amount"><?php echo formatPrice($invoice['tax_amount']); ?> ريال</td>
                 </tr>
                 <?php endif; ?>
                 <tr class="final">
                     <td class="label">المبلغ الإجمالي</td>
-                    <td class="amount"><?php echo number_format($invoice['total_amount'], 0, '', ''); ?> ريال</td>
+                    <td class="amount"><?php echo formatPrice($invoice['total_amount']); ?> ريال</td>
                 </tr>
                 <tr>
                     <td class="label">المدفوع</td>
-                    <td class="amount" style="color: green;"><?php echo number_format($invoice['paid_amount'] ?? 0, 0, '', ''); ?> ريال</td>
+                    <td class="amount" style="color: green;"><?php echo formatPrice($invoice['paid_amount'] ?? 0); ?> ريال</td>
                 </tr>
                 <tr>
                     <td class="label">المتبقي</td>
                     <td class="amount" style="color: <?php echo $invoice['remaining_amount'] > 0 ? 'red' : 'green'; ?>;">
-                        <?php echo number_format($invoice['remaining_amount'] ?? 0, 0, '', ''); ?> ريال
+                        <?php echo formatPrice($invoice['remaining_amount'] ?? 0); ?> ريال
                     </td>
                 </tr>
             </table>

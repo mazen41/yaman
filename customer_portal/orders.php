@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/portal_helpers.php';
 
 $token = $_GET['token'] ?? '';
 
@@ -114,7 +115,7 @@ $orders = $orders_stmt->fetchAll(PDO::FETCH_ASSOC);
                                     </span>
                                 </td>
                                 <td class="p-4 font-black text-gray-900 text-sm">
-                                    <?php echo number_format($order['total_amount'], 2); ?> <span class="text-[10px] text-gray-400 font-normal"><?php echo $currency; ?></span>
+                                    <?php echo formatPrice($order['total_amount']); ?> <span class="text-[10px] text-gray-400 font-normal"><?php echo $currency; ?></span>
                                 </td>
                                 <td class="p-4 text-center">
                                     <button onclick="toggleDetails('<?php echo $order['id']; ?>')" class="text-blue-500 hover:text-blue-700 font-bold text-sm flex items-center justify-center gap-1 w-full">
@@ -144,7 +145,7 @@ $orders = $orders_stmt->fetchAll(PDO::FETCH_ASSOC);
                                                         <span class="text-gray-400 mx-2">× <?php echo $item['quantity']; ?></span>
                                                     </div>
                                                     <div class="font-bold text-gray-600">
-                                                        <?php echo number_format($item['total_price'], 2); ?>
+                                                        <?php echo formatPrice($item['total_price']); ?>
                                                     </div>
                                                 </div>
                                             <?php endforeach; ?>
@@ -154,15 +155,15 @@ $orders = $orders_stmt->fetchAll(PDO::FETCH_ASSOC);
                                         <div class="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-4 text-center border-t pt-4">
                                             <div>
                                                 <p class="text-[10px] text-gray-400">المجموع</p>
-                                                <p class="font-bold text-xs"><?php echo number_format($order['subtotal'], 2); ?></p>
+                                                <p class="font-bold text-xs"><?php echo formatPrice($order['subtotal']); ?></p>
                                             </div>
                                             <div>
                                                 <p class="text-[10px] text-gray-400">الشحن</p>
-                                                <p class="font-bold text-xs"><?php echo number_format($order['shipping_fee'], 2); ?></p>
+                                                <p class="font-bold text-xs"><?php echo formatPrice($order['shipping_fee']); ?></p>
                                             </div>
                                             <div>
                                                 <p class="text-[10px] text-gray-400">الخصم</p>
-                                                <p class="font-bold text-xs text-red-500">-<?php echo number_format($order['discount_amount'], 2); ?></p>
+                                                <p class="font-bold text-xs text-red-500">-<?php echo formatPrice($order['discount_amount']); ?></p>
                                             </div>
                                             <div>
                                                 <p class="text-[10px] text-gray-400">إيصال الدفع</p>

@@ -6,6 +6,9 @@
  *
  * Called via: customer_summary_pdf.php?[same GET params as customer_summary.php]
  * Outputs:    application/pdf download (customer_summary.pdf)
+ *
+ * IMPORTANT: Filter parameters are synchronized with modules/customers/index.php
+ * to ensure the same customer population is selected.
  */
 
 session_start();
@@ -27,47 +30,105 @@ if (!file_exists($autoload)) {
 }
 require_once $autoload;
 
-// ── Filters (mirror customer_summary.php) ────────────────────────────────────
-$search        = trim($_GET['search']        ?? '');
-$group         = trim($_GET['group']         ?? '');
-$city          = trim($_GET['city']          ?? '');
-$ctype         = trim($_GET['ctype']         ?? '');
-$currency      = trim($_GET['currency']      ?? '');
-$has_remaining = trim($_GET['has_remaining'] ?? '');
-$sort          = trim($_GET['sort']          ?? 'name');
+// ── Fetch data for filter label resolution ────────────────────────────────────
+try {
+    $customer_types_map = $db->query("SELECT id, name FROM customer_types WHERE is_active = 1")->fetchAll(PDO::FETCH_KEY_PAIR);
+    $cities_map = $db->query("SELECT id, name FROM cities WHERE is_active = 1")->fetchAll(PDO::FETCH_KEY_PAIR);
+} catch (PDOException $e) {
+    $customer_types_map = [];
+    $cities_map = [];
+}
 
-$where  = ['1=1'];
+// ── Filters (SAME parameter names & logic as customer_summary.php / customers/index.php) ──
+$search               = $_GET['search']               ?? '';
+$filter_type          = $_GET['filter_type']          ?? '';
+$filter_city          = $_GET['filter_city']          ?? '';
+$filter_date_from     = $_GET['filter_date_from']     ?? '';
+$filter_date_to       = $_GET['filter_date_to']       ?? '';
+$filter_status        = $_GET['filter_status']        ?? 'active';
+$filter_remaining_from = $_GET['filter_remaining_from'] ?? '';
+
+$sort_options = [
+    'updated_at'       => 'c.updated_at',
+    'total_amount'     => 'total_amount',
+    'total_orders'     => 'total_orders',
+    'remaining_amount' => 'total_remaining',
+    'name_alpha'       => 'c.name',
+];
+$sort_by = $_GET['sort_by'] ?? 'updated_at';
+$sort_column = $sort_options[$sort_by] ?? 'c.updated_at';
+
+$sort_dir_options = ['DESC' => 'DESC', 'ASC' => 'ASC'];
+$sort_dir = $_GET['sort_dir'] ?? 'DESC';
+$sort_direction = $sort_dir_options[$sort_dir] ?? 'DESC';
+
+// ── Build WHERE conditions (SAME as customer_summary.php) ─────────────────────
+$where_clauses = ["1=1"];
 $params = [];
-if ($search)   { $where[] = '(c.name LIKE ? OR c.mobile_number LIKE ? OR c.customer_code LIKE ?)'; $params[] = "%$search%"; $params[] = "%$search%"; $params[] = "%$search%"; }
-if ($group)    { $where[] = 'c.customer_group = ?'; $params[] = $group; }
-if ($city)     { $where[] = 'c.city_name = ?';      $params[] = $city; }
-if ($ctype)    { $where[] = 'c.customer_type = ?';  $params[] = $ctype; }
-if ($currency) { $where[] = 'c.currency = ?';       $params[] = $currency; }
-$where_sql = implode(' AND ', $where);
+$having_clauses = [];
+$having_params = [];
 
-$allowed  = ['name', 'total_orders', 'total_remaining', 'total_paid', 'total_amount'];
-if (!in_array($sort, $allowed)) $sort = 'name';
-$sort_dir = $sort === 'name' ? 'ASC' : 'DESC';
-$having   = $has_remaining === '1' ? 'HAVING total_remaining > 0' : ($has_remaining === '0' ? 'HAVING total_remaining <= 0' : '');
+if ($filter_status == 'active') {
+    $where_clauses[] = "c.is_active = 1";
+} elseif ($filter_status == 'inactive') {
+    $where_clauses[] = "c.is_active = 0";
+}
 
-// ── Query ─────────────────────────────────────────────────────────────────────
+if ($search) {
+    $where_clauses[] = "(c.name LIKE ? OR c.customer_code LIKE ? OR c.mobile_number LIKE ?)";
+    $search_param = "%$search%";
+    $params[] = $search_param;
+    $params[] = $search_param;
+    $params[] = $search_param;
+}
+if ($filter_type) {
+    $where_clauses[] = "c.customer_type_id = ?";
+    $params[] = $filter_type;
+}
+if ($filter_city) {
+    $where_clauses[] = "c.city_id = ?";
+    $params[] = $filter_city;
+}
+if ($filter_date_from) {
+    $where_clauses[] = "DATE(c.created_at) >= ?";
+    $params[] = $filter_date_from;
+}
+if ($filter_date_to) {
+    $where_clauses[] = "DATE(c.created_at) <= ?";
+    $params[] = $filter_date_to;
+}
+if ($filter_remaining_from !== '' && is_numeric($filter_remaining_from)) {
+    $having_clauses[] = "COALESCE(SUM(co.final_amount - co.paid_amount), 0) >= ?";
+    $having_params[] = $filter_remaining_from;
+}
+
+$where_sql = implode(" AND ", $where_clauses);
+$having_sql = empty($having_clauses) ? '' : 'HAVING ' . implode(" AND ", $having_clauses);
+$all_query_params = array_merge($params, $having_params);
+
+// ── Query (SAME structure as customer_summary.php) ────────────────────────────
 $stmt = $db->prepare("
-    SELECT c.id, c.name, c.city_name, c.customer_group, c.mobile_number,
-           c.customer_code, c.customer_type, c.currency, c.current_balance,
+    SELECT c.id, c.name,
+           ct.name AS customer_type_name,
+           city.name AS city_name,
+           c.customer_code, c.mobile_number,
            COUNT(DISTINCT co.id) AS total_orders,
-           COALESCE(SUM(CASE WHEN co.status='delivered' THEN 1 ELSE 0 END),0)                                                                     AS delivered_count,
-           COALESCE(SUM(CASE WHEN co.status IN('ready','ready_to_deliver','جاهز للتسليم') THEN 1 ELSE 0 END),0)                                   AS ready_count,
-           COALESCE(SUM(CASE WHEN co.status NOT IN('delivered','cancelled','ready_to_deliver','ready','جاهز للتسليم') THEN 1 ELSE 0 END),0)       AS other_count,
-           COALESCE(SUM(co.final_amount),0)                  AS total_amount,
-           COALESCE(SUM(co.paid_amount),0)                   AS total_paid,
+           COALESCE(SUM(CASE WHEN co.status='delivered' THEN 1 ELSE 0 END),0) AS delivered_count,
+           COALESCE(SUM(CASE WHEN co.status IN('ready','ready_to_deliver','جاهز للتسليم') THEN 1 ELSE 0 END),0) AS ready_count,
+           COALESCE(SUM(CASE WHEN co.status NOT IN('delivered','cancelled','ready_to_deliver','ready','جاهز للتسليم') THEN 1 ELSE 0 END),0) AS other_count,
+           COALESCE(SUM(co.final_amount),0) AS total_amount,
+           COALESCE(SUM(co.paid_amount),0)  AS total_paid,
            COALESCE(SUM(co.final_amount - co.paid_amount),0) AS total_remaining
     FROM customers c
+    LEFT JOIN customer_types ct ON c.customer_type_id = ct.id
+    LEFT JOIN cities city ON c.city_id = city.id
     LEFT JOIN customer_orders co ON co.customer_id = c.id
     WHERE $where_sql
-    GROUP BY c.id $having
-    ORDER BY $sort $sort_dir
+    GROUP BY c.id
+    $having_sql
+    ORDER BY $sort_column $sort_direction, c.created_at DESC
 ");
-$stmt->execute($params);
+$stmt->execute($all_query_params);
 $customers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // ── Totals ────────────────────────────────────────────────────────────────────
@@ -79,14 +140,17 @@ $count         = count($customers);
 
 // ── Build active-filter description ──────────────────────────────────────────
 $filter_parts = [];
-if ($search)        $filter_parts[] = 'بحث: ' . $search;
-if ($group)         $filter_parts[] = 'المجموعة: ' . $group;
-if ($city)          $filter_parts[] = 'المدينة: ' . $city;
-if ($ctype)         $filter_parts[] = 'النوع: ' . ($ctype === 'individual' ? 'فرد' : 'شركة');
-if ($currency)      $filter_parts[] = 'العملة: ' . $currency;
-if ($has_remaining === '1') $filter_parts[] = 'عليهم متبقي فقط';
-if ($has_remaining === '0') $filter_parts[] = 'لا يوجد متبقي فقط';
-$filter_text = $filter_parts ? implode(' | ', $filter_parts) : 'جميع العملاء';
+if ($search)             $filter_parts[] = 'بحث: ' . $search;
+if ($filter_type)        $filter_parts[] = 'نوع العميل: ' . ($customer_types_map[$filter_type] ?? $filter_type);
+if ($filter_city)        $filter_parts[] = 'المحافظة: ' . ($cities_map[$filter_city] ?? $filter_city);
+if ($filter_date_from)   $filter_parts[] = 'من تاريخ: ' . $filter_date_from;
+if ($filter_date_to)     $filter_parts[] = 'إلى تاريخ: ' . $filter_date_to;
+if ($filter_status == 'active')   $filter_parts[] = 'الحالة: نشط';
+if ($filter_status == 'inactive') $filter_parts[] = 'الحالة: معطل';
+if ($filter_status == 'all')      $filter_parts[] = 'الحالة: الكل';
+if ($filter_remaining_from !== '' && is_numeric($filter_remaining_from))
+    $filter_parts[] = 'المتبقي يبدأ من: ' . number_format($filter_remaining_from);
+$filter_text = $filter_parts ? implode(' | ', $filter_parts) : 'جميع العملاء (نشط)';
 
 // ── Helper: safe HTML-encode ──────────────────────────────────────────────────
 function h($str) { return htmlspecialchars((string)$str, ENT_QUOTES, 'UTF-8'); }
@@ -106,10 +170,10 @@ foreach ($customers as $i => $c) {
         ? n($c['total_remaining'])
         : '✓';
 
-    $city_val  = h($c['city_name']       ?: '—');
-    $group_val = h($c['customer_group']  ?: '—');
+    $city_val  = h($c['city_name']            ?: '—');
+    $type_val  = h($c['customer_type_name']   ?: '—');
     $name_val  = h($c['name']);
-    $mobile    = h($c['mobile_number']   ?: '');
+    $mobile    = h($c['mobile_number']        ?: '');
     $code      = $c['customer_code'] ? ' · ' . h($c['customer_code']) : '';
 
     $bg = ($i % 2 === 0) ? '#ffffff' : '#f8fafc';
@@ -122,7 +186,7 @@ foreach ($customers as $i => $c) {
             <br><span style=\"font-size:9px;color:#64748b;\">{$mobile}{$code}</span>
         </td>
         <td style=\"text-align:center;\">{$city_val}</td>
-        <td style=\"text-align:center;\">{$group_val}</td>
+        <td style=\"text-align:center;\">{$type_val}</td>
         <td style=\"text-align:center;font-weight:bold;\">" . n($c['total_orders']) . "</td>
         <td style=\"text-align:center;color:#15803d;\">" . n($c['delivered_count']) . "</td>
         <td style=\"text-align:center;color:#92400e;\">" . n($c['ready_count']) . "</td>
@@ -264,8 +328,8 @@ $html = '
         <tr>
             <th style="width:28px;">#</th>
             <th style="text-align:right;min-width:90px;">الاسم</th>
-            <th style="text-align:center;width:60px;">المدينة</th>
-            <th style="text-align:center;width:55px;">المجموعة</th>
+            <th style="text-align:center;width:60px;">المحافظة</th>
+            <th style="text-align:center;width:55px;">الفئة</th>
             <th style="text-align:center;width:40px;">الطلبات</th>
             <th style="text-align:center;width:40px;">تسليم</th>
             <th style="text-align:center;width:40px;">جاهز</th>

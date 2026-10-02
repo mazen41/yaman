@@ -492,9 +492,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_order'])) {
         const SHIPPING_COST = <?php echo $shipping_cost; ?>;
 
         function formatPrice(value) {
-            const number = Number(value);
-            if (!Number.isFinite(number)) return '0';
-            return number.toFixed(2).replace(/\.?0+$/, '');
+            const number = Math.round(Number(value) || 0);
+            return number.toLocaleString('en-US');
         }
         function fmt(n) { return formatPrice(n); }
         

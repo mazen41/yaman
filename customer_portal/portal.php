@@ -10,6 +10,7 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/portal_helpers.php';
 
 $token = $_GET['token'] ?? '';
 
@@ -547,7 +548,7 @@ if ($customer['enable_create_self_order'] === 'active') {
                     <div class="grid grid-cols-2 gap-4 text-sm">
                         <div>
                             <p class="text-gray-500 mb-1">الرصيد الحالي:</p>
-                            <p class="font-bold text-green-600"><?php echo number_format($card['current_balance'], 2); ?> ريال</p>
+                            <p class="font-bold text-green-600"><?php echo formatPrice($card['current_balance']); ?> ريال</p>
                         </div>
                         <div>
                             <p class="text-gray-500 mb-1">تاريخ الانتهاء:</p>
@@ -821,9 +822,9 @@ if ($customer['enable_create_self_order'] === 'active') {
                                             <?php endif; ?>
                                         </td>
                                         <!-- 7. المبلغ الأصلي -->
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm font-bold text-blue-500"><?php echo number_format($approval['subtotal_amount'], 2); ?></td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm font-bold text-blue-500"><?php echo formatPrice($approval['subtotal_amount']); ?></td>
                                         <!-- 8. الخصم -->
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm font-bold text-green-500"><?php echo number_format($total_discount_amount, 2); ?></td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm font-bold text-green-500"><?php echo formatPrice($total_discount_amount); ?></td>
                                         <!-- 9. نسبة الخصم -->
                                         <td class="px-4 py-3 whitespace-nowrap text-sm font-semibold text-center text-amber-600">
                                             <?php 
@@ -840,14 +841,14 @@ if ($customer['enable_create_self_order'] === 'active') {
                                         <!-- 10. تالف / منتهي -->
                                         <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">-</td>
                                         <!-- 11. المبلغ النهائي -->
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm font-bold text-emerald-600"><?php echo number_format($total_payable_approval, 2); ?></td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm font-bold text-emerald-600"><?php echo formatPrice($total_payable_approval); ?></td>
                                         <!-- 12. المدفوع -->
                                         <td class="px-4 py-3 whitespace-nowrap text-sm font-bold text-blue-600">
-                                            <?php echo number_format($approval['paid_amount'], 2); ?>
-                                            <div class="text-xs text-gray-400 mt-0.5 font-normal">شحن: <?php echo number_format($approval['shipping_cost'], 2); ?></div>
+                                            <?php echo formatPrice($approval['paid_amount']); ?>
+                                            <div class="text-xs text-gray-400 mt-0.5 font-normal">شحن: <?php echo formatPrice($approval['shipping_cost']); ?></div>
                                         </td>
                                         <!-- 13. المتبقي -->
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm font-bold <?php echo $remaining_approval > 0.01 ? 'text-red-600' : 'text-green-600'; ?>"><?php echo number_format($remaining_approval, 2); ?></td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm font-bold <?php echo $remaining_approval > 0.01 ? 'text-red-600' : 'text-green-600'; ?>"><?php echo formatPrice($remaining_approval); ?></td>
                                         <!-- 14. رقم الفاتورة -->
                                         <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">-</td>
                                         <!-- 15. الإجراءات / ملاحظات -->
