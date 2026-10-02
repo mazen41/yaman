@@ -121,7 +121,7 @@ $stmt = $db->prepare("
            COALESCE(c.notes, '') AS notes,
            ct.name AS customer_type_name,
            city.name AS city_name,
-           c.customer_code, c.mobile_number,
+           c.customer_code, c.mobile_number, c.phone, c.alternative_number,
            COUNT(DISTINCT co.id) AS total_orders,
            COALESCE(SUM(CASE WHEN co.status='delivered' THEN 1 ELSE 0 END),0) AS delivered_count,
            COALESCE(SUM(CASE WHEN co.status IN('ready','ready_to_deliver','جاهز للتسليم') THEN 1 ELSE 0 END),0) AS ready_count,
@@ -592,8 +592,13 @@ include '../../includes/header.php';
                 $fin['other_paid']          = max(0, (float)($fin['other_paid'] ?? 0));
                 $fin['other_remaining']     = max(0, (float)($fin['other_remaining'] ?? 0));
 
-                // Build "جميع الارقام" — show mobile number
-                $all_numbers_str = !empty($c['mobile_number']) ? $c['mobile_number'] : '—';
+                // Build phones string — all numbers the customer has
+                $phones = array_filter([
+                    $c['mobile_number'] ?? '',
+                    $c['phone'] ?? '',
+                    $c['alternative_number'] ?? '',
+                ]);
+                $all_numbers_str = !empty($phones) ? implode(' / ', $phones) : '—';
 
                 // Notes — show فارغة if empty
                 $notes_val = trim($c['notes'] ?? '');

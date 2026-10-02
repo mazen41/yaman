@@ -72,7 +72,7 @@ $stmt = $db->prepare("
            COALESCE(c.notes, '') AS notes,
            ct.name AS customer_type_name,
            city.name AS city_name,
-           c.customer_code, c.mobile_number,
+           c.customer_code, c.mobile_number, c.phone, c.alternative_number,
            COUNT(DISTINCT co.id) AS total_orders,
            COALESCE(SUM(CASE WHEN co.status='delivered' THEN 1 ELSE 0 END),0) AS delivered_count,
            COALESCE(SUM(CASE WHEN co.status IN('ready','ready_to_deliver','جاهز للتسليم') THEN 1 ELSE 0 END),0) AS ready_count,
@@ -139,8 +139,13 @@ foreach ($customers as $i => $c) {
     foreach (['delivered_paid','delivered_remaining','ready_paid','ready_remaining','other_paid','other_remaining'] as $k)
         $fin[$k] = max(0, (float)($fin[$k] ?? 0));
 
-    // Phone number column
-    $phone_str = !empty($c['mobile_number']) ? h($c['mobile_number']) : '—';
+    // All phone numbers
+    $phones = array_filter([
+        $c['mobile_number'] ?? '',
+        $c['phone'] ?? '',
+        $c['alternative_number'] ?? '',
+    ]);
+    $phone_str = !empty($phones) ? h(implode(' / ', $phones)) : '—';
 
     $bg    = ($i % 2 === 0) ? '#ffffff' : '#e8edf2';
     $notes = trim($c['notes'] ?? '');
