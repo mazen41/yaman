@@ -7,6 +7,9 @@ session_start();
 require_once '../../config/database.php';
 require_once '../../includes/check_permissions.php';
 
+// ── Debug: ensure PDO throws visible exceptions ──
+$db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
 $user_id = $_SESSION['user_id'] ?? 0;
 if (!hasPermission($user_id, 'reports', 'view')) {
     header('Location: ../../index.php'); exit();
