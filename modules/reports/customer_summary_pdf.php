@@ -1,28 +1,16 @@
 <?php
 /**
- * customer_summary_pdf.php
- * Server-side PDF generation for the Customer Summary report.
- * Uses mPDF (mpdf/mpdf) for proper Arabic/RTL support.
- *
- * Called via: customer_summary_pdf.php?[same GET params as customer_summary.php]
- * Outputs:    application/pdf download (customer_summary.pdf)
- *
- * IMPORTANT: Filter parameters are synchronized with modules/customers/index.php
- * to ensure the same customer population is selected.
+ * customer_summary_pdf.php — Matches customer_summary.php exactly
  */
-
 session_start();
 require_once '../../config/database.php';
 require_once '../../includes/check_permissions.php';
 
-// ── Auth ──────────────────────────────────────────────────────────────────────
 $user_id = $_SESSION['user_id'] ?? 0;
 if (!hasPermission($user_id, 'reports', 'view')) {
-    http_response_code(403);
-    exit('غير مصرح');
+    http_response_code(403); exit('غير مصرح');
 }
 
-// ── mPDF autoloader ───────────────────────────────────────────────────────────
 $autoload = __DIR__ . '/../../vendor/autoload.php';
 if (!file_exists($autoload)) {
     http_response_code(500);
@@ -30,85 +18,58 @@ if (!file_exists($autoload)) {
 }
 require_once $autoload;
 
-// ── Fetch data for filter label resolution ────────────────────────────────────
+$db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+// ── Fetch filter labels ───────────────────────────────────────────────────────
 try {
     $customer_types_map = $db->query("SELECT id, name FROM customer_types WHERE is_active = 1")->fetchAll(PDO::FETCH_KEY_PAIR);
-    $cities_map = $db->query("SELECT id, name FROM cities WHERE is_active = 1")->fetchAll(PDO::FETCH_KEY_PAIR);
+    $cities_map         = $db->query("SELECT id, name FROM cities WHERE is_active = 1")->fetchAll(PDO::FETCH_KEY_PAIR);
 } catch (PDOException $e) {
-    $customer_types_map = [];
-    $cities_map = [];
+    $customer_types_map = []; $cities_map = [];
 }
 
-// ── Filters (SAME parameter names & logic as customer_summary.php / customers/index.php) ──
-$search               = $_GET['search']               ?? '';
-$filter_type          = $_GET['filter_type']          ?? '';
-$filter_city          = $_GET['filter_city']          ?? '';
-$filter_date_from     = $_GET['filter_date_from']     ?? '';
-$filter_date_to       = $_GET['filter_date_to']       ?? '';
-$filter_status        = $_GET['filter_status']        ?? 'active';
+// ── Filters (same as customer_summary.php) ───────────────────────────────────
+$search                = $_GET['search']                ?? '';
+$filter_type           = $_GET['filter_type']           ?? '';
+$filter_city           = $_GET['filter_city']           ?? '';
+$filter_date_from      = $_GET['filter_date_from']      ?? '';
+$filter_date_to        = $_GET['filter_date_to']        ?? '';
+$filter_status         = $_GET['filter_status']         ?? 'active';
 $filter_remaining_from = $_GET['filter_remaining_from'] ?? '';
 
-$sort_options = [
-    'updated_at'       => 'c.updated_at',
-    'total_amount'     => 'total_amount',
-    'total_orders'     => 'total_orders',
-    'remaining_amount' => 'total_remaining',
-    'name_alpha'       => 'c.name',
-];
-$sort_by = $_GET['sort_by'] ?? 'updated_at';
-$sort_column = $sort_options[$sort_by] ?? 'c.updated_at';
+$sort_options  = ['updated_at'=>'c.updated_at','total_amount'=>'total_amount','total_orders'=>'total_orders','remaining_amount'=>'total_remaining','name_alpha'=>'c.name'];
+$sort_by       = $_GET['sort_by']  ?? 'updated_at';
+$sort_column   = $sort_options[$sort_by] ?? 'c.updated_at';
+$sort_dir      = $_GET['sort_dir'] ?? 'DESC';
+$sort_direction = ($sort_dir === 'ASC') ? 'ASC' : 'DESC';
 
-$sort_dir_options = ['DESC' => 'DESC', 'ASC' => 'ASC'];
-$sort_dir = $_GET['sort_dir'] ?? 'DESC';
-$sort_direction = $sort_dir_options[$sort_dir] ?? 'DESC';
+// ── WHERE / HAVING ────────────────────────────────────────────────────────────
+$where_clauses = ["1=1"]; $params = []; $having_clauses = []; $having_params = [];
 
-// ── Build WHERE conditions (SAME as customer_summary.php) ─────────────────────
-$where_clauses = ["1=1"];
-$params = [];
-$having_clauses = [];
-$having_params = [];
-
-if ($filter_status == 'active') {
-    $where_clauses[] = "c.is_active = 1";
-} elseif ($filter_status == 'inactive') {
-    $where_clauses[] = "c.is_active = 0";
-}
+if ($filter_status == 'active')   { $where_clauses[] = "c.is_active = 1"; }
+elseif ($filter_status == 'inactive') { $where_clauses[] = "c.is_active = 0"; }
 
 if ($search) {
     $where_clauses[] = "(c.name LIKE ? OR c.customer_code LIKE ? OR c.mobile_number LIKE ?)";
-    $search_param = "%$search%";
-    $params[] = $search_param;
-    $params[] = $search_param;
-    $params[] = $search_param;
+    $sp = "%$search%"; $params[] = $sp; $params[] = $sp; $params[] = $sp;
 }
-if ($filter_type) {
-    $where_clauses[] = "c.customer_type_id = ?";
-    $params[] = $filter_type;
-}
-if ($filter_city) {
-    $where_clauses[] = "c.city_id = ?";
-    $params[] = $filter_city;
-}
-if ($filter_date_from) {
-    $where_clauses[] = "DATE(c.created_at) >= ?";
-    $params[] = $filter_date_from;
-}
-if ($filter_date_to) {
-    $where_clauses[] = "DATE(c.created_at) <= ?";
-    $params[] = $filter_date_to;
-}
+if ($filter_type)  { $where_clauses[] = "c.customer_type_id = ?"; $params[] = $filter_type; }
+if ($filter_city)  { $where_clauses[] = "c.city_id = ?";          $params[] = $filter_city; }
+if ($filter_date_from) { $where_clauses[] = "DATE(c.created_at) >= ?"; $params[] = $filter_date_from; }
+if ($filter_date_to)   { $where_clauses[] = "DATE(c.created_at) <= ?"; $params[] = $filter_date_to; }
 if ($filter_remaining_from !== '' && is_numeric($filter_remaining_from)) {
     $having_clauses[] = "COALESCE(SUM(co.final_amount - co.paid_amount), 0) >= ?";
-    $having_params[] = $filter_remaining_from;
+    $having_params[]  = $filter_remaining_from;
 }
 
-$where_sql = implode(" AND ", $where_clauses);
-$having_sql = empty($having_clauses) ? '' : 'HAVING ' . implode(" AND ", $having_clauses);
+$where_sql       = implode(" AND ", $where_clauses);
+$having_sql      = empty($having_clauses) ? '' : 'HAVING ' . implode(" AND ", $having_clauses);
 $all_query_params = array_merge($params, $having_params);
 
-// ── Query (SAME structure as customer_summary.php) ────────────────────────────
+// ── Main query (same as customer_summary.php) ─────────────────────────────────
 $stmt = $db->prepare("
     SELECT c.id, c.name,
+           COALESCE(c.notes, '') AS notes,
            ct.name AS customer_type_name,
            city.name AS city_name,
            c.customer_code, c.mobile_number,
@@ -131,264 +92,238 @@ $stmt = $db->prepare("
 $stmt->execute($all_query_params);
 $customers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// ── Totals ────────────────────────────────────────────────────────────────────
 $ttl_orders    = array_sum(array_column($customers, 'total_orders'));
 $ttl_paid      = array_sum(array_column($customers, 'total_paid'));
 $ttl_remaining = array_sum(array_column($customers, 'total_remaining'));
-$ttl_amount    = array_sum(array_column($customers, 'total_amount'));
 $count         = count($customers);
+$generated_at  = date('Y/m/d H:i:s');
 
-// ── Build active-filter description ──────────────────────────────────────────
-$filter_parts = [];
-if ($search)             $filter_parts[] = 'بحث: ' . $search;
-if ($filter_type)        $filter_parts[] = 'نوع العميل: ' . ($customer_types_map[$filter_type] ?? $filter_type);
-if ($filter_city)        $filter_parts[] = 'المحافظة: ' . ($cities_map[$filter_city] ?? $filter_city);
-if ($filter_date_from)   $filter_parts[] = 'من تاريخ: ' . $filter_date_from;
-if ($filter_date_to)     $filter_parts[] = 'إلى تاريخ: ' . $filter_date_to;
-if ($filter_status == 'active')   $filter_parts[] = 'الحالة: نشط';
-if ($filter_status == 'inactive') $filter_parts[] = 'الحالة: معطل';
-if ($filter_status == 'all')      $filter_parts[] = 'الحالة: الكل';
-if ($filter_remaining_from !== '' && is_numeric($filter_remaining_from))
-    $filter_parts[] = 'المتبقي يبدأ من: ' . number_format($filter_remaining_from);
-$filter_text = $filter_parts ? implode(' | ', $filter_parts) : 'جميع العملاء (نشط)';
-
-// ── Helper: safe HTML-encode ──────────────────────────────────────────────────
-function h($str) { return htmlspecialchars((string)$str, ENT_QUOTES, 'UTF-8'); }
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function h($s) { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 function n($v, $d = 0) { return number_format((float)$v, $d); }
 
-// ── Build the HTML for the PDF ────────────────────────────────────────────────
-$generated_at = date('Y-m-d H:i:s');
+// ── Filter description ────────────────────────────────────────────────────────
+$fp = [];
+if ($search)             $fp[] = 'بحث: ' . $search;
+if ($filter_type)        $fp[] = 'نوع العميل: ' . ($customer_types_map[$filter_type] ?? $filter_type);
+if ($filter_city)        $fp[] = 'المحافظة: ' . ($cities_map[$filter_city] ?? $filter_city);
+if ($filter_date_from)   $fp[] = 'من: ' . $filter_date_from;
+if ($filter_date_to)     $fp[] = 'إلى: ' . $filter_date_to;
+if ($filter_status == 'active')   $fp[] = 'الحالة: نشط';
+if ($filter_status == 'inactive') $fp[] = 'الحالة: معطل';
+if ($filter_status == 'all')      $fp[] = 'الحالة: الكل';
+if ($filter_remaining_from !== '' && is_numeric($filter_remaining_from)) $fp[] = 'المتبقي من: ' . n($filter_remaining_from);
+$filter_text = $fp ? implode(' | ', $fp) : 'جميع العملاء النشطين';
 
-// ── Table rows ────────────────────────────────────────────────────────────────
+// ── Build table rows ──────────────────────────────────────────────────────────
 $rows_html = '';
 foreach ($customers as $i => $c) {
-    $rem_style = $c['total_remaining'] > 0
-        ? 'color:#b91c1c;font-weight:bold;'
-        : 'color:#15803d;';
 
-    $rem_val = $c['total_remaining'] > 0
-        ? n($c['total_remaining'])
-        : '✓';
+    // Per-status financials (same sub-query as customer_summary.php)
+    try {
+        $fin_stmt = $db->prepare("
+            SELECT
+                SUM(CASE WHEN status='delivered' THEN paid_amount ELSE 0 END) AS delivered_paid,
+                SUM(CASE WHEN status='delivered' THEN (final_amount - paid_amount) ELSE 0 END) AS delivered_remaining,
+                SUM(CASE WHEN status IN('ready','ready_to_deliver','جاهز للتسليم') THEN paid_amount ELSE 0 END) AS ready_paid,
+                SUM(CASE WHEN status IN('ready','ready_to_deliver','جاهز للتسليم') THEN (final_amount - paid_amount) ELSE 0 END) AS ready_remaining,
+                SUM(CASE WHEN status NOT IN('delivered','cancelled','ready_to_deliver','ready','جاهز للتسليم') THEN paid_amount ELSE 0 END) AS other_paid,
+                SUM(CASE WHEN status NOT IN('delivered','cancelled','ready_to_deliver','ready','جاهز للتسليم') THEN (final_amount - paid_amount) ELSE 0 END) AS other_remaining
+            FROM customer_orders WHERE customer_id = ?
+        ");
+        $fin_stmt->execute([$c['id']]);
+        $fin = $fin_stmt->fetch(PDO::FETCH_ASSOC);
+    } catch (Exception $e) {
+        $fin = ['delivered_paid'=>0,'delivered_remaining'=>0,'ready_paid'=>0,'ready_remaining'=>0,'other_paid'=>0,'other_remaining'=>0];
+    }
+    foreach (['delivered_paid','delivered_remaining','ready_paid','ready_remaining','other_paid','other_remaining'] as $k)
+        $fin[$k] = max(0, (float)($fin[$k] ?? 0));
 
-    $city_val  = h($c['city_name']            ?: '—');
-    $type_val  = h($c['customer_type_name']   ?: '—');
-    $name_val  = h($c['name']);
-    $mobile    = h($c['mobile_number']        ?: '');
-    $code      = $c['customer_code'] ? ' · ' . h($c['customer_code']) : '';
+    // All order numbers
+    try {
+        $on_stmt = $db->prepare("SELECT order_number FROM customer_orders WHERE customer_id = ? ORDER BY created_at DESC LIMIT 20");
+        $on_stmt->execute([$c['id']]);
+        $order_numbers   = $on_stmt->fetchAll(PDO::FETCH_COLUMN);
+        $all_numbers_str = !empty($order_numbers) ? implode('، ', $order_numbers) : '—';
+    } catch (Exception $e) {
+        $all_numbers_str = $c['total_orders'] > 0 ? $c['total_orders'] . ' طلب' : '—';
+    }
 
-    $bg = ($i % 2 === 0) ? '#ffffff' : '#f8fafc';
+    $bg    = ($i % 2 === 0) ? '#ffffff' : '#f8fafc';
+    $notes = trim($c['notes'] ?? '');
+
+    // delivered_remaining cell
+    $d_rem = $fin['delivered_remaining'] > 0
+        ? '<span style="color:#b91c1c;font-weight:800;">' . n($fin['delivered_remaining']) . '</span>'
+        : '<span style="color:#10b981;">✓</span>';
+
+    // ready_remaining cell
+    $r_rem = $fin['ready_remaining'] > 0
+        ? '<span style="color:#b91c1c;font-weight:800;">' . n($fin['ready_remaining']) . '</span>'
+        : '<span style="color:#10b981;">✓</span>';
+
+    // other_remaining cell
+    $o_rem = $fin['other_remaining'] > 0
+        ? '<span style="color:#b91c1c;font-weight:800;">' . n($fin['other_remaining']) . '</span>'
+        : '<span style="color:#10b981;">✓</span>';
+
+    $d_paid = $fin['delivered_paid'] > 0 ? '<span style="color:#059669;font-weight:700;">' . n($fin['delivered_paid']) . '</span>' : '<span style="color:#94a3b8;">—</span>';
+    $r_paid = $fin['ready_paid']     > 0 ? '<span style="color:#059669;font-weight:700;">' . n($fin['ready_paid'])     . '</span>' : '<span style="color:#94a3b8;">—</span>';
+    $o_paid = $fin['other_paid']     > 0 ? '<span style="color:#059669;font-weight:700;">' . n($fin['other_paid'])     . '</span>' : '<span style="color:#94a3b8;">—</span>';
 
     $rows_html .= "
     <tr style=\"background:{$bg};\">
-        <td style=\"text-align:center;color:#94a3b8;font-size:10px;\">" . ($i + 1) . "</td>
-        <td>
-            <strong style=\"font-size:12px;\">{$name_val}</strong>
-            <br><span style=\"font-size:9px;color:#64748b;\">{$mobile}{$code}</span>
+        <td style=\"text-align:center;color:#94a3b8;font-size:9px;\">" . ($i + 1) . "</td>
+        <td style=\"text-align:right;\">
+            <strong style=\"font-size:11px;color:#1e293b;\">" . h($c['name']) . "</strong>
+            " . ($c['mobile_number'] ? '<br><span style="font-size:9px;color:#64748b;direction:ltr;">' . h($c['mobile_number']) . '</span>' : '') . "
         </td>
-        <td style=\"text-align:center;\">{$city_val}</td>
-        <td style=\"text-align:center;\">{$type_val}</td>
-        <td style=\"text-align:center;font-weight:bold;\">" . n($c['total_orders']) . "</td>
-        <td style=\"text-align:center;color:#15803d;\">" . n($c['delivered_count']) . "</td>
-        <td style=\"text-align:center;color:#92400e;\">" . n($c['ready_count']) . "</td>
-        <td style=\"text-align:center;color:#5b21b6;\">" . n($c['other_count']) . "</td>
-        <td style=\"text-align:center;color:#059669;font-weight:600;\">" . n($c['total_paid']) . "</td>
-        <td style=\"text-align:center;{$rem_style}\">{$rem_val}</td>
+        <td style=\"text-align:center;\">" . ($c['city_name'] ? h($c['city_name']) : '—') . "</td>
+        <td style=\"text-align:right;font-size:9px;color:#475569;line-height:1.4;\">" . h($all_numbers_str) . "</td>
+        <td style=\"text-align:center;\">" . $d_paid . "</td>
+        <td style=\"text-align:center;\">" . $d_rem  . "</td>
+        <td style=\"text-align:center;\">" . $r_paid . "</td>
+        <td style=\"text-align:center;\">" . $r_rem  . "</td>
+        <td style=\"text-align:center;\">" . $o_paid . "</td>
+        <td style=\"text-align:center;\">" . $o_rem  . "</td>
+        <td style=\"text-align:right;font-size:9px;color:#475569;\">" . ($notes ? h($notes) : '<span style="color:#94a3b8;font-style:italic;">فارغة</span>') . "</td>
     </tr>\n";
 }
 
-// ── Totals row ────────────────────────────────────────────────────────────────
-$totals_html = "
-    <tr style=\"background:#1e293b;color:#ffffff;font-weight:bold;\">
-        <td colspan=\"4\" style=\"text-align:right;\">الإجمالي ({$count} عميل)</td>
-        <td style=\"text-align:center;\">" . n($ttl_orders) . "</td>
-        <td></td><td></td><td></td>
-        <td style=\"text-align:center;color:#6ee7b7;\">" . n($ttl_paid) . "</td>
-        <td style=\"text-align:center;color:#fca5a5;\">" . n($ttl_remaining) . "</td>
-    </tr>";
-
-// ── Summary cards row ─────────────────────────────────────────────────────────
-$summary_html = "
-<table width=\"100%\" cellpadding=\"8\" cellspacing=\"0\" style=\"margin-bottom:14px;border-collapse:collapse;\">
+// ── Summary cards ─────────────────────────────────────────────────────────────
+$summary_html = '
+<table width="100%" cellpadding="10" cellspacing="0" style="margin-bottom:14px;border-collapse:separate;border-spacing:6px;">
 <tr>
-    <td width=\"25%\" style=\"background:#dbeafe;border-radius:6px;text-align:center;border:1px solid #bfdbfe;\">
-        <div style=\"font-size:9px;color:#1d4ed8;font-weight:700;\">عدد العملاء</div>
-        <div style=\"font-size:18px;font-weight:900;color:#1e3a8a;\">{$count}</div>
+    <td style="background:#dbeafe;border-radius:6px;text-align:center;border:1px solid #bfdbfe;width:25%;">
+        <div style="font-size:9px;color:#1d4ed8;font-weight:700;">عدد العملاء</div>
+        <div style="font-size:18px;font-weight:900;color:#1e3a8a;">' . $count . '</div>
     </td>
-    <td width=\"5%\"></td>
-    <td width=\"25%\" style=\"background:#fef3c7;border-radius:6px;text-align:center;border:1px solid #fde68a;\">
-        <div style=\"font-size:9px;color:#92400e;font-weight:700;\">إجمالي الطلبات</div>
-        <div style=\"font-size:18px;font-weight:900;color:#78350f;\">" . n($ttl_orders) . "</div>
+    <td style="background:#fef3c7;border-radius:6px;text-align:center;border:1px solid #fde68a;width:25%;">
+        <div style="font-size:9px;color:#92400e;font-weight:700;">إجمالي الطلبات</div>
+        <div style="font-size:18px;font-weight:900;color:#78350f;">' . n($ttl_orders) . '</div>
     </td>
-    <td width=\"5%\"></td>
-    <td width=\"25%\" style=\"background:#d1fae5;border-radius:6px;text-align:center;border:1px solid #a7f3d0;\">
-        <div style=\"font-size:9px;color:#065f46;font-weight:700;\">إجمالي المدفوع</div>
-        <div style=\"font-size:18px;font-weight:900;color:#064e3b;\">" . n($ttl_paid) . "</div>
+    <td style="background:#d1fae5;border-radius:6px;text-align:center;border:1px solid #a7f3d0;width:25%;">
+        <div style="font-size:9px;color:#065f46;font-weight:700;">إجمالي المدفوع</div>
+        <div style="font-size:18px;font-weight:900;color:#064e3b;">' . n($ttl_paid) . '</div>
     </td>
-    <td width=\"5%\"></td>
-    <td width=\"25%\" style=\"background:#fee2e2;border-radius:6px;text-align:center;border:1px solid #fecaca;\">
-        <div style=\"font-size:9px;color:#991b1b;font-weight:700;\">إجمالي المتبقي</div>
-        <div style=\"font-size:18px;font-weight:900;color:#7f1d1d;\">" . n($ttl_remaining) . "</div>
+    <td style="background:#fee2e2;border-radius:6px;text-align:center;border:1px solid #fecaca;width:25%;">
+        <div style="font-size:9px;color:#991b1b;font-weight:700;">إجمالي المتبقي</div>
+        <div style="font-size:18px;font-weight:900;color:#7f1d1d;">' . n($ttl_remaining) . '</div>
     </td>
 </tr>
-</table>";
+</table>';
 
-// ── Complete HTML document ────────────────────────────────────────────────────
-$html = '
-<!DOCTYPE html>
+// ── Totals row ────────────────────────────────────────────────────────────────
+$totals_html = '
+<tr style="background:#1e293b;color:#ffffff;font-weight:bold;">
+    <td colspan="3" style="text-align:right;">الإجمالي (' . $count . ' عميل)</td>
+    <td style="text-align:center;">' . n($ttl_orders) . '</td>
+    <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+</tr>';
+
+// ── Full HTML ─────────────────────────────────────────────────────────────────
+$html = '<!DOCTYPE html>
 <html dir="rtl" lang="ar">
-<head>
-<meta charset="UTF-8">
+<head><meta charset="UTF-8">
 <style>
-    * { box-sizing: border-box; }
-    body {
-        font-family: "XB Zar", "DejaVu Sans", sans-serif;
-        font-size: 11px;
-        color: #1e293b;
-        direction: rtl;
-    }
-
-    /* ── Page header (repeated on every page via mPDF @page) ── */
-    .pdf-header {
-        text-align: center;
-        border-bottom: 3px solid #1e293b;
-        padding-bottom: 8px;
-        margin-bottom: 12px;
-    }
-    .pdf-header h1 {
-        font-size: 18px;
-        font-weight: 900;
-        color: #1e293b;
-        margin: 0 0 2px 0;
-    }
-    .pdf-header .sub {
-        font-size: 10px;
-        color: #64748b;
-    }
-    .pdf-header .filters {
-        font-size: 9px;
-        color: #475569;
-        margin-top: 4px;
-        background: #f1f5f9;
-        padding: 3px 8px;
-        border-radius: 4px;
-        display: inline-block;
-    }
-
-    /* ── Main table ── */
-    table.main-tbl {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 10px;
-    }
-    table.main-tbl thead tr {
-        background: #1e293b;
-        color: #ffffff;
-    }
-    table.main-tbl thead th {
-        padding: 7px 6px;
-        font-size: 10px;
-        font-weight: 700;
-        white-space: nowrap;
-    }
-    table.main-tbl tbody td {
-        padding: 6px 6px;
-        border-bottom: 1px solid #e2e8f0;
-        vertical-align: middle;
-    }
-    table.main-tbl tfoot td {
-        padding: 7px 6px;
-        font-weight: 700;
-    }
-
-    /* ── Page footer ── */
-    .pdf-footer {
-        text-align: center;
-        font-size: 9px;
-        color: #94a3b8;
-        border-top: 1px solid #e2e8f0;
-        padding-top: 4px;
-    }
+* { box-sizing:border-box; }
+body {
+    font-family:"XB Zar","DejaVu Sans",sans-serif;
+    font-size:11px;
+    color:#1e293b;
+    direction:rtl;
+}
+.pdf-header {
+    text-align:center;
+    border-bottom:3px solid #1e293b;
+    padding-bottom:8px;
+    margin-bottom:12px;
+}
+.pdf-header h1 { font-size:17px;font-weight:900;color:#1e293b;margin:0 0 2px 0; }
+.pdf-header .sub { font-size:9px;color:#64748b; }
+.pdf-header .filters { font-size:9px;color:#475569;background:#f1f5f9;padding:3px 8px;border-radius:4px;display:inline-block;margin-top:4px; }
+table.main-tbl { width:100%;border-collapse:collapse;font-size:10px; }
+table.main-tbl thead tr.hd1 { background:#1e293b;color:#ffffff; }
+table.main-tbl thead tr.hd2 { background:#334155;color:#e2e8f0; }
+table.main-tbl thead th { padding:6px 5px;font-size:9px;font-weight:700;white-space:nowrap;border:1px solid #475569; }
+table.main-tbl thead th.hd-delivered { background:#1a3a5c; }
+table.main-tbl thead th.hd-ready     { background:#14532d; }
+table.main-tbl thead th.hd-other     { background:#4c1d95; }
+table.main-tbl thead th.sub-rem      { color:#fca5a5;font-weight:800; }
+table.main-tbl thead th.sub-paid     { color:#86efac;font-weight:700; }
+table.main-tbl tbody td { padding:5px 5px;border:1px solid #e2e8f0;vertical-align:middle; }
+table.main-tbl tfoot td { padding:6px 5px;border:1px solid #e2e8f0;font-weight:700; }
 </style>
 </head>
 <body>
 
-<!-- Page Header -->
 <div class="pdf-header">
     <h1>ملخص العملاء</h1>
-    <div class="sub">Yaman Accounting Calculator &nbsp;|&nbsp; تاريخ التقرير: ' . h($generated_at) . '</div>
+    <div class="sub">تاريخ التقرير: ' . h($generated_at) . '</div>
     <div class="filters">الفلتر: ' . h($filter_text) . '</div>
 </div>
 
-<!-- Summary Cards -->
 ' . $summary_html . '
 
-<!-- Data Table -->
 <table class="main-tbl">
-    <thead>
-        <tr>
-            <th style="width:28px;">#</th>
-            <th style="text-align:right;min-width:90px;">الاسم</th>
-            <th style="text-align:center;width:60px;">المحافظة</th>
-            <th style="text-align:center;width:55px;">الفئة</th>
-            <th style="text-align:center;width:40px;">الطلبات</th>
-            <th style="text-align:center;width:40px;">تسليم</th>
-            <th style="text-align:center;width:40px;">جاهز</th>
-            <th style="text-align:center;width:40px;">أخرى</th>
-            <th style="text-align:center;width:65px;">مدفوع</th>
-            <th style="text-align:center;width:65px;color:#fca5a5;">متبقي</th>
-        </tr>
-    </thead>
-    <tbody>
-        ' . ($rows_html ?: '<tr><td colspan="10" style="text-align:center;padding:20px;color:#94a3b8;">لا توجد بيانات</td></tr>') . '
-    </tbody>
-    ' . ($count ? '<tfoot>' . $totals_html . '</tfoot>' : '') . '
+<thead>
+    <tr class="hd1">
+        <th rowspan="2" style="width:26px;">م</th>
+        <th rowspan="2" style="min-width:100px;text-align:right;">الاسم</th>
+        <th rowspan="2" style="width:60px;">الموقع</th>
+        <th rowspan="2" style="min-width:70px;text-align:right;">جميع الأرقام</th>
+        <th colspan="2" class="hd-delivered">تم الاستلام</th>
+        <th colspan="2" class="hd-ready">جاهز للتوصيل</th>
+        <th colspan="2" class="hd-other">باقي الحالات</th>
+        <th rowspan="2" style="min-width:70px;">ملاحظات</th>
+    </tr>
+    <tr class="hd2">
+        <th class="hd-delivered sub-paid"  style="width:58px;">مدفوع</th>
+        <th class="hd-delivered sub-rem"   style="width:58px;">متبقي</th>
+        <th class="hd-ready sub-paid"      style="width:58px;">مدفوع</th>
+        <th class="hd-ready sub-rem"       style="width:58px;">متبقي</th>
+        <th class="hd-other sub-paid"      style="width:58px;">مدفوع</th>
+        <th class="hd-other sub-rem"       style="width:58px;">متبقي</th>
+    </tr>
+</thead>
+<tbody>
+    ' . ($rows_html ?: '<tr><td colspan="11" style="text-align:center;padding:20px;color:#94a3b8;">لا توجد بيانات</td></tr>') . '
+</tbody>
+' . ($count ? '<tfoot>' . $totals_html . '</tfoot>' : '') . '
 </table>
 
-</body>
-</html>
-';
+</body></html>';
 
-// ── Generate PDF with mPDF ────────────────────────────────────────────────────
+// ── mPDF ──────────────────────────────────────────────────────────────────────
 use Mpdf\Mpdf;
-use Mpdf\Config\ConfigVariables;
-use Mpdf\Config\FontVariables;
 
-// Temp dir for mPDF (inside the project so it's writable on XAMPP)
 $mpdf_temp = __DIR__ . '/../../temp/mpdf';
-if (!is_dir($mpdf_temp)) {
-    mkdir($mpdf_temp, 0755, true);
-}
+if (!is_dir($mpdf_temp)) mkdir($mpdf_temp, 0755, true);
 
 $mpdf = new Mpdf([
-    'mode'              => 'utf-8',
-    'format'            => 'A4',
-    'orientation'       => 'L',          // Landscape — 10 columns fit comfortably
-    'margin_top'        => 10,
-    'margin_bottom'     => 14,
-    'margin_left'       => 10,
-    'margin_right'      => 10,
-    'autoScriptToLang'  => true,
-    'autoLangToFont'    => true,
-    'tempDir'           => $mpdf_temp,
+    'mode'             => 'utf-8',
+    'format'           => 'A4',
+    'orientation'      => 'L',
+    'margin_top'       => 10,
+    'margin_bottom'    => 14,
+    'margin_left'      => 8,
+    'margin_right'     => 8,
+    'autoScriptToLang' => true,
+    'autoLangToFont'   => true,
+    'tempDir'          => $mpdf_temp,
 ]);
 
-// ── RTL direction ─────────────────────────────────────────────────────────────
 $mpdf->SetDirectionality('rtl');
 
-// ── Page numbering in footer ──────────────────────────────────────────────────
 $mpdf->SetHTMLFooter('
 <table width="100%" style="font-size:8px;color:#94a3b8;border-top:1px solid #e2e8f0;">
-    <tr>
-        <td style="text-align:right;">Yaman Accounting Calculator — ملخص العملاء</td>
-        <td style="text-align:center;">' . h($generated_at) . '</td>
-        <td style="text-align:left;">صفحة {PAGENO} من {nbpg}</td>
-    </tr>
-</table>
-');
+<tr>
+    <td style="text-align:right;">ملخص العملاء</td>
+    <td style="text-align:center;">' . h($generated_at) . '</td>
+    <td style="text-align:left;">صفحة {PAGENO} من {nbpg}</td>
+</tr>
+</table>');
 
-// ── Write HTML & output ───────────────────────────────────────────────────────
 $mpdf->WriteHTML($html);
-
-$filename = 'customer_summary_' . date('Y-m-d_H-i-s') . '.pdf';
-$mpdf->Output($filename, \Mpdf\Output\Destination::DOWNLOAD);
+$mpdf->Output('customer_summary_' . date('Y-m-d_H-i-s') . '.pdf', \Mpdf\Output\Destination::DOWNLOAD);
 exit;
