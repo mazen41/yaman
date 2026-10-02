@@ -118,6 +118,7 @@ $all_query_params = array_merge($params, $having_params);
 // last_order_number, etc.) while applying the synchronized WHERE/HAVING conditions.
 $stmt = $db->prepare("
     SELECT c.id, c.name,
+           COALESCE(c.notes, '') AS notes,
            ct.name AS customer_type_name,
            city.name AS city_name,
            c.customer_code, c.mobile_number,
@@ -150,72 +151,208 @@ $ttl_amount    = array_sum(array_column($customers,'total_amount'));
 $page_title = 'ملخص العملاء';
 include '../../includes/header.php';
 ?>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 /* ── Reset & base ── */
-*{box-sizing:border-box}
-.cs-wrap{direction:rtl;padding:18px;font-family:'Segoe UI',Tahoma,Arial,sans-serif}
+*, *::before, *::after { box-sizing: border-box; }
+
+.cs-wrap {
+    direction: rtl;
+    padding: 18px;
+    font-family: 'Cairo', 'Segoe UI', Tahoma, Arial, sans-serif;
+}
 
 /* ── Header bar ── */
-.cs-topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px}
-.cs-topbar h2{margin:0;font-size:20px;font-weight:700;color:#1e293b;display:flex;align-items:center;gap:8px}
-.cs-topbar h2 span.badge{background:#3b82f6;color:#fff;border-radius:20px;font-size:13px;padding:2px 10px}
-.cs-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:7px;border:none;cursor:pointer;font-size:13px;font-weight:600;text-decoration:none;transition:opacity .15s}
-.cs-btn-primary{background:#3b82f6;color:#fff}
-.cs-btn-secondary{background:#e2e8f0;color:#475569}
-.cs-btn-success{background:#10b981;color:#fff}
-.cs-btn-warning{background:#f59e0b;color:#fff}
-.cs-btn:hover{opacity:.85}
+.cs-topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:10px; }
+.cs-topbar h2 { margin:0; font-size:20px; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:8px; }
+.cs-topbar h2 span.badge { background:#3b82f6; color:#fff; border-radius:20px; font-size:13px; padding:2px 10px; }
+.cs-btn { display:inline-flex; align-items:center; gap:6px; padding:7px 16px; border-radius:7px; border:none; cursor:pointer; font-size:13px; font-weight:700; text-decoration:none; transition:opacity .15s; font-family:'Cairo',sans-serif; }
+.cs-btn-primary  { background:#3b82f6; color:#fff; }
+.cs-btn-secondary{ background:#e2e8f0; color:#475569; }
+.cs-btn-success  { background:#10b981; color:#fff; }
+.cs-btn-warning  { background:#f59e0b; color:#fff; }
+.cs-btn:hover { opacity:.85; }
 
 /* ── Filter card ── */
-.cs-filter{background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:16px 20px;margin-bottom:16px}
-.cs-filter-grid{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}
-.cs-filter-item{display:flex;flex-direction:column;gap:4px;min-width:140px}
-.cs-filter-item label{font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.4px}
+.cs-filter { background:#fff; border-radius:10px; box-shadow:0 1px 4px rgba(0,0,0,.08); padding:16px 20px; margin-bottom:16px; }
+.cs-filter-grid { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end; }
+.cs-filter-item { display:flex; flex-direction:column; gap:4px; min-width:140px; }
+.cs-filter-item label { font-size:11px; font-weight:700; color:#64748b; }
 .cs-filter-item select,
-.cs-filter-item input{border:1px solid #cbd5e1;border-radius:7px;padding:7px 10px;font-size:13px;color:#1e293b;outline:none;background:#f8fafc;transition:border .15s}
+.cs-filter-item input { border:1px solid #cbd5e1; border-radius:7px; padding:7px 10px; font-size:13px; color:#1e293b; outline:none; background:#f8fafc; transition:border .15s; font-family:'Cairo',sans-serif; }
 .cs-filter-item select:focus,
-.cs-filter-item input:focus{border-color:#3b82f6;background:#fff}
-.cs-filter-actions{display:flex;gap:8px;align-items:center;padding-top:18px}
+.cs-filter-item input:focus { border-color:#3b82f6; background:#fff; }
+.cs-filter-actions { display:flex; gap:8px; align-items:center; padding-top:18px; }
 
 /* ── Summary cards ── */
-.cs-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px}
-.cs-card{background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:14px 18px;border-top:4px solid}
-.cs-card.blue{border-color:#3b82f6}.cs-card.green{border-color:#10b981}.cs-card.red{border-color:#ef4444}.cs-card.gold{border-color:#f59e0b}
-.cs-card .lbl{font-size:11px;color:#64748b;font-weight:600;margin-bottom:4px}
-.cs-card .val{font-size:20px;font-weight:800;color:#1e293b}
+.cs-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-bottom:16px; }
+.cs-card { background:#fff; border-radius:10px; box-shadow:0 1px 4px rgba(0,0,0,.08); padding:14px 18px; border-top:4px solid; }
+.cs-card.blue  { border-color:#3b82f6; } .cs-card.green { border-color:#10b981; }
+.cs-card.red   { border-color:#ef4444; } .cs-card.gold  { border-color:#f59e0b; }
+.cs-card .lbl  { font-size:11px; color:#64748b; font-weight:600; margin-bottom:4px; }
+.cs-card .val  { font-size:20px; font-weight:800; color:#1e293b; }
 
-/* ── Table ── */
-.cs-table-wrap{background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.08);overflow:hidden}
-.cs-table{width:100%;border-collapse:collapse;font-size:13px}
-.cs-table thead tr{background:#1e293b;color:#fff}
-.cs-table thead th{padding:11px 10px;white-space:nowrap;font-weight:600;font-size:12px}
-.cs-table thead th a{color:#94a3b8;text-decoration:none;font-size:10px;margin-right:3px}
-.cs-table thead th a:hover{color:#fff}
-.cs-table tbody tr{border-bottom:1px solid #f1f5f9;transition:background .1s}
-.cs-table tbody tr:hover{background:#f8fafc}
-.cs-table tbody tr:nth-child(even){background:#f9fafb}
-.cs-table tbody tr:nth-child(even):hover{background:#f1f5f9}
-.cs-table td{padding:9px 10px;vertical-align:middle}
-.cs-table tfoot tr{background:#f1f5f9;font-weight:700;border-top:2px solid #e2e8f0}
-.cs-table tfoot td{padding:10px}
-
-/* badges */
-.tag{display:inline-block;border-radius:5px;padding:2px 8px;font-size:11px;font-weight:600}
-.tag-blue{background:#dbeafe;color:#1d4ed8}
-.tag-green{background:#d1fae5;color:#065f46}
-.tag-gray{background:#f1f5f9;color:#475569}
-.tag-red{background:#fee2e2;color:#991b1b}
-
-/* print */
-@media print{
-    .no-print{display:none!important}
-    .cs-wrap{padding:0}
-    .cs-cards{grid-template-columns:repeat(4,1fr)}
-    .cs-table{font-size:11px}
-    .cs-table thead tr{background:#1e293b!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    .cs-table tbody tr:nth-child(even){background:#f9fafb!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    .cs-card{box-shadow:none;border:1px solid #e2e8f0}
+/* ── Redesigned Report Table ── */
+.cs-table-wrap {
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    overflow: hidden;
 }
+
+.cs-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    direction: rtl;
+    font-family: 'Cairo', 'Segoe UI', Tahoma, Arial, sans-serif;
+}
+
+/* ── Main header row (row 1) ── */
+.cs-table thead tr.hd-row-1 th {
+    background: #1e293b;
+    color: #fff;
+    padding: 10px 8px;
+    text-align: center;
+    font-weight: 700;
+    font-size: 12px;
+    white-space: nowrap;
+    border: 1px solid #334155;
+}
+
+/* ── Sub-header row (row 2) ── */
+.cs-table thead tr.hd-row-2 th {
+    background: #334155;
+    color: #e2e8f0;
+    padding: 7px 8px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 11px;
+    white-space: nowrap;
+    border: 1px solid #475569;
+}
+
+/* متبقي sub-header highlighted */
+.cs-table thead tr.hd-row-2 th.sub-remaining {
+    color: #fca5a5;
+    font-weight: 800;
+}
+
+/* مدفوع sub-header */
+.cs-table thead tr.hd-row-2 th.sub-paid {
+    color: #86efac;
+    font-weight: 700;
+}
+
+/* ── Body rows ── */
+.cs-table tbody tr {
+    border-bottom: 1px solid #f1f5f9;
+    transition: background .12s;
+}
+.cs-table tbody tr:hover            { background: #f0f9ff; }
+.cs-table tbody tr:nth-child(even)  { background: #f8fafc; }
+.cs-table tbody tr:nth-child(even):hover { background: #e0f2fe; }
+
+.cs-table td {
+    padding: 9px 8px;
+    vertical-align: middle;
+    border: 1px solid #e2e8f0;
+    text-align: center;
+}
+
+/* name cell align right */
+.cs-table td.td-name { text-align: right; }
+
+/* ── Foot ── */
+.cs-table tfoot tr { background: #f1f5f9; font-weight: 800; border-top: 2px solid #cbd5e1; }
+.cs-table tfoot td { padding: 10px 8px; border: 1px solid #e2e8f0; font-weight: 800; }
+
+/* ── Number formatting in cells ── */
+.num-remaining { color: #dc2626; font-weight: 800; }
+.num-paid      { color: #059669; font-weight: 700; }
+.num-zero      { color: #10b981; }
+
+/* ── Badges / tags ── */
+.tag { display:inline-block; border-radius:5px; padding:2px 8px; font-size:11px; font-weight:700; }
+.tag-blue  { background:#dbeafe; color:#1d4ed8; }
+.tag-green { background:#d1fae5; color:#065f46; }
+.tag-gray  { background:#f1f5f9; color:#475569; }
+.tag-red   { background:#fee2e2; color:#991b1b; }
+.tag-gold  { background:#fef3c7; color:#92400e; }
+.tag-purple{ background:#ede9fe; color:#5b21b6; }
+
+/* ── "فارغة" note style ── */
+.note-empty { color: #94a3b8; font-style: italic; font-size: 11px; }
+
+/* ════════════════════════════════════════════════
+   PRINT RULES
+   ════════════════════════════════════════════════ */
+@media print {
+    /* Hide all no-print elements */
+    .no-print { display: none !important; }
+
+    /* Hide المجموعة column (col index 4 when counting from right in RTL = 4th <td>) */
+    /* We use a class .col-group on both th and td for المجموعة */
+    .col-group { display: none !important; }
+
+    /* Hide مدفوع sub-column under تم الاستلام only */
+    /* Class .col-delivered-paid on both th and td */
+    .col-delivered-paid { display: none !important; }
+
+    /* Page setup */
+    @page { margin: 1cm; size: A4 landscape; }
+
+    body, .cs-wrap { padding: 0; font-size: 11px; }
+
+    .cs-cards { grid-template-columns: repeat(4,1fr); }
+
+    .cs-table-wrap {
+        box-shadow: none;
+        border-radius: 0;
+        border: 1px solid #ccc;
+    }
+
+    .cs-table { font-size: 10px; }
+
+    /* Force dark header colors to print */
+    .cs-table thead tr.hd-row-1 th {
+        background: #1e293b !important;
+        color: #fff !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    .cs-table thead tr.hd-row-2 th {
+        background: #334155 !important;
+        color: #e2e8f0 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    .cs-table thead tr.hd-row-2 th.sub-remaining {
+        color: #fca5a5 !important;
+    }
+
+    /* Force zebra stripes */
+    .cs-table tbody tr:nth-child(even) {
+        background: #f9fafb !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .cs-card { box-shadow: none; border: 1px solid #e2e8f0; }
+
+    /* Print title */
+    .print-title-bar {
+        display: block !important;
+        text-align: center;
+        font-size: 15px;
+        font-weight: 800;
+        margin-bottom: 10px;
+        color: #1e293b;
+    }
+}
+
+/* Hide print title on screen */
+.print-title-bar { display: none; }
 </style>
 
 <div class="cs-wrap">
@@ -247,6 +384,9 @@ include '../../includes/header.php';
             <a href="<?= htmlspecialchars($pdf_url) ?>" class="cs-btn cs-btn-success" target="_blank">
                 <i class="fas fa-file-pdf"></i> تصدير PDF
             </a>
+            <button type="button" onclick="window.print()" class="cs-btn" style="background:#7c3aed;color:#fff">
+                <i class="fas fa-print"></i> طباعة
+            </button>
             <a href="?" class="cs-btn cs-btn-secondary"><i class="fas fa-redo"></i> مسح الفلاتر</a>
         </div>
     </div>
@@ -364,72 +504,233 @@ include '../../includes/header.php';
         </div>
     </div>
 
+    <!-- Print-only title -->
+    <div class="print-title-bar">ملخص العملاء — تاريخ الطباعة: <?= date('Y/m/d') ?></div>
+
     <!-- Table -->
     <div class="cs-table-wrap">
         <div style="overflow-x:auto">
         <table class="cs-table">
             <thead>
-                <tr>
-                    <th style="width:40px">#</th>
-                    <th style="text-align:right">الاسم</th>
-                    <th style="text-align:right">المحافظة</th>
-                    <th style="text-align:right">الفئة</th>
-                    <th style="text-align:center">جميع الطلبات</th>
-                    <th style="text-align:center">تم الاستلام</th>
-                    <th style="text-align:center">جاهز للتوصيل</th>
-                    <th style="text-align:center">باقي الحالات</th>
-                    <th style="text-align:center">مدفوع</th>
-                    <th style="text-align:center;color:#fca5a5">متبقي</th>
-                    <th style="text-align:right" class="no-print">آخر طلب</th>
+                <!--
+                    Column layout (RTL right→left):
+                    1. م         (rowspan 2)
+                    2. الاسم      (rowspan 2)
+                    3. الموقع     (rowspan 2)
+                    4. المجموعة   (rowspan 2) — screen only, hidden on print
+                    5. جميع الارقام (rowspan 2)
+                    6. تم الاستلام  (colspan 2) → مدفوع [print-hidden] | متبقي
+                    7. جاهز للتوصيل (colspan 2) → مدفوع | متبقي
+                    8. باقي الحالات (colspan 2) → مدفوع | متبقي
+                    9. ملاحظات    (rowspan 2)
+                -->
+                <tr class="hd-row-1">
+                    <th rowspan="2" style="width:36px">م</th>
+                    <th rowspan="2" style="min-width:130px; text-align:right">الاسم</th>
+                    <th rowspan="2" style="min-width:80px">الموقع</th>
+                    <th rowspan="2" class="col-group no-print" style="min-width:90px">المجموعة</th>
+                    <th rowspan="2" style="min-width:80px">جميع<br>الارقام</th>
+                    <th colspan="2" style="background:#1a3a5c; border-bottom:1px solid #2563eb">تم الاستلام</th>
+                    <th colspan="2" style="background:#14532d; border-bottom:1px solid #16a34a">جاهز للتوصيل</th>
+                    <th colspan="2" style="background:#4c1d95; border-bottom:1px solid #7c3aed">باقي الحالات</th>
+                    <th rowspan="2" style="min-width:90px">ملاحظات</th>
+                </tr>
+                <tr class="hd-row-2">
+                    <!-- تم الاستلام sub-cols -->
+                    <th class="sub-paid   col-delivered-paid" style="background:#1a3a5c; width:72px">مدفوع</th>
+                    <th class="sub-remaining"                 style="background:#1a3a5c; width:72px">متبقي</th>
+                    <!-- جاهز للتوصيل sub-cols -->
+                    <th class="sub-paid"  style="background:#14532d; width:72px">مدفوع</th>
+                    <th class="sub-remaining" style="background:#14532d; width:72px">متبقي</th>
+                    <!-- باقي الحالات sub-cols -->
+                    <th class="sub-paid"  style="background:#4c1d95; width:72px">مدفوع</th>
+                    <th class="sub-remaining" style="background:#4c1d95; width:72px">متبقي</th>
                 </tr>
             </thead>
             <tbody>
             <?php if (empty($customers)): ?>
-                <tr><td colspan="11" style="text-align:center;padding:40px;color:#94a3b8;font-size:15px"><i class="fas fa-inbox" style="font-size:30px;display:block;margin-bottom:8px"></i>لا توجد نتائج</td></tr>
-            <?php else: ?>
-            <?php foreach ($customers as $i => $c): ?>
                 <tr>
-                    <td style="color:#94a3b8;font-size:12px"><?= $i+1 ?></td>
-                    <td>
-                        <div style="font-weight:700;color:#1e293b"><?= htmlspecialchars($c['name']) ?></div>
-                        <div style="font-size:11px;color:#64748b;margin-top:2px">
-                            <?= htmlspecialchars($c['mobile_number'] ?? '') ?>
-                            <?php if($c['customer_code']): ?> &nbsp;·&nbsp; <span style="color:#94a3b8"><?= htmlspecialchars($c['customer_code']) ?></span><?php endif; ?>
-                        </div>
+                    <td colspan="12" style="text-align:center;padding:40px;color:#94a3b8;font-size:15px">
+                        <i class="fas fa-inbox" style="font-size:30px;display:block;margin-bottom:8px"></i>
+                        لا توجد نتائج مطابقة للفلاتر
                     </td>
-                    <td><?= $c['city_name'] ? '<span class="tag tag-gray">'.htmlspecialchars($c['city_name']).'</span>' : '<span style="color:#cbd5e1">—</span>' ?></td>
-                    <td><?= $c['customer_type_name'] ? '<span class="tag tag-blue">'.htmlspecialchars($c['customer_type_name']).'</span>' : '<span style="color:#cbd5e1">—</span>' ?></td>
-                    <td style="text-align:center;font-weight:700;font-size:15px"><?= $c['total_orders'] ?></td>
-                    <td style="text-align:center"><span class="tag tag-green"><?= $c['delivered_count'] ?></span></td>
-                    <td style="text-align:center"><span class="tag" style="background:#fef3c7;color:#92400e"><?= $c['ready_count'] ?></span></td>
-                    <td style="text-align:center"><span class="tag" style="background:#ede9fe;color:#5b21b6"><?= $c['other_count'] ?></span></td>
-                    <td style="text-align:center;color:#059669;font-weight:600"><?= number_format($c['total_paid'],0) ?></td>
-                    <td style="text-align:center">
-                        <?php if($c['total_remaining'] > 0): ?>
-                            <span style="color:#dc2626;font-weight:800"><?= number_format($c['total_remaining'],0) ?></span>
-                        <?php else: ?>
-                            <span style="color:#10b981;font-weight:600">✓</span>
+                </tr>
+            <?php else: ?>
+            <?php foreach ($customers as $i => $c):
+                // ── Compute per-status financials ──────────────────────────
+                // We need delivered / ready / other paid+remaining
+                // The main query only returns counts; we do a quick sub-query per customer
+                // to get per-status paid/remaining
+                try {
+                    $fin_stmt = $db->prepare("
+                        SELECT
+                            SUM(CASE WHEN status='delivered'
+                                     THEN paid_amount ELSE 0 END) AS delivered_paid,
+                            SUM(CASE WHEN status='delivered'
+                                     THEN (final_amount - paid_amount) ELSE 0 END) AS delivered_remaining,
+                            SUM(CASE WHEN status IN('ready','ready_to_deliver','جاهز للتسليم')
+                                     THEN paid_amount ELSE 0 END) AS ready_paid,
+                            SUM(CASE WHEN status IN('ready','ready_to_deliver','جاهز للتسليم')
+                                     THEN (final_amount - paid_amount) ELSE 0 END) AS ready_remaining,
+                            SUM(CASE WHEN status NOT IN('delivered','cancelled','ready_to_deliver','ready','جاهز للتسليم')
+                                     THEN paid_amount ELSE 0 END) AS other_paid,
+                            SUM(CASE WHEN status NOT IN('delivered','cancelled','ready_to_deliver','ready','جاهز للتسليم')
+                                     THEN (final_amount - paid_amount) ELSE 0 END) AS other_remaining
+                        FROM customer_orders
+                        WHERE customer_id = ?
+                    ");
+                    $fin_stmt->execute([$c['id']]);
+                    $fin = $fin_stmt->fetch(PDO::FETCH_ASSOC);
+                } catch (Exception $e) {
+                    $fin = ['delivered_paid'=>0,'delivered_remaining'=>0,'ready_paid'=>0,'ready_remaining'=>0,'other_paid'=>0,'other_remaining'=>0];
+                }
+
+                $fin['delivered_paid']      = max(0, (float)($fin['delivered_paid'] ?? 0));
+                $fin['delivered_remaining'] = max(0, (float)($fin['delivered_remaining'] ?? 0));
+                $fin['ready_paid']          = max(0, (float)($fin['ready_paid'] ?? 0));
+                $fin['ready_remaining']     = max(0, (float)($fin['ready_remaining'] ?? 0));
+                $fin['other_paid']          = max(0, (float)($fin['other_paid'] ?? 0));
+                $fin['other_remaining']     = max(0, (float)($fin['other_remaining'] ?? 0));
+
+                // Build "جميع الارقام" string: list all order numbers
+                try {
+                    $on_stmt = $db->prepare("SELECT order_number FROM customer_orders WHERE customer_id = ? ORDER BY created_at DESC LIMIT 20");
+                    $on_stmt->execute([$c['id']]);
+                    $order_numbers = $on_stmt->fetchAll(PDO::FETCH_COLUMN);
+                    $all_numbers_str = !empty($order_numbers) ? implode('، ', $order_numbers) : '—';
+                } catch (Exception $e) {
+                    $all_numbers_str = $c['total_orders'] > 0 ? $c['total_orders'] . ' طلب' : '—';
+                }
+
+                // Notes — show فارغة if empty
+                $notes_val = trim($c['notes'] ?? '');
+            ?>
+                <tr>
+                    <!-- م -->
+                    <td style="color:#94a3b8; font-size:12px; font-weight:700"><?= $i + 1 ?></td>
+
+                    <!-- الاسم -->
+                    <td class="td-name">
+                        <div style="font-weight:800; color:#1e293b; font-size:13px"><?= htmlspecialchars($c['name']) ?></div>
+                        <?php if (!empty($c['mobile_number'])): ?>
+                        <div style="font-size:10px; color:#64748b; margin-top:2px; direction:ltr; text-align:right">
+                            <?= htmlspecialchars($c['mobile_number']) ?>
+                        </div>
                         <?php endif; ?>
                     </td>
-                    <td class="no-print" style="font-size:12px;color:#64748b">
-                        <?php if($c['last_order_number']): ?>
-                            <div><?= htmlspecialchars($c['last_order_number']) ?></div>
-                            <div style="color:#10b981;font-size:11px"><?= number_format($c['last_order_amount'],0) ?></div>
-                        <?php else: ?><span style="color:#cbd5e1">—</span><?php endif; ?>
+
+                    <!-- الموقع -->
+                    <td>
+                        <?= $c['city_name']
+                            ? '<span class="tag tag-gray">'.htmlspecialchars($c['city_name']).'</span>'
+                            : '<span style="color:#cbd5e1">—</span>' ?>
+                    </td>
+
+                    <!-- المجموعة — screen only -->
+                    <td class="col-group no-print">
+                        <?= $c['customer_type_name']
+                            ? '<span class="tag tag-blue">'.htmlspecialchars($c['customer_type_name']).'</span>'
+                            : '<span style="color:#cbd5e1">—</span>' ?>
+                    </td>
+
+                    <!-- جميع الارقام -->
+                    <td style="font-size:10px; color:#475569; line-height:1.5; text-align:right; max-width:120px; word-break:break-word">
+                        <?= htmlspecialchars($all_numbers_str) ?>
+                    </td>
+
+                    <!-- تم الاستلام: مدفوع [print-hidden] -->
+                    <td class="col-delivered-paid">
+                        <?php if ($fin['delivered_paid'] > 0): ?>
+                            <span class="num-paid"><?= number_format($fin['delivered_paid'], 0) ?></span>
+                        <?php else: ?>
+                            <span class="num-zero">—</span>
+                        <?php endif; ?>
+                    </td>
+
+                    <!-- تم الاستلام: متبقي -->
+                    <td>
+                        <?php if ($fin['delivered_remaining'] > 0): ?>
+                            <span class="num-remaining"><?= number_format($fin['delivered_remaining'], 0) ?></span>
+                        <?php else: ?>
+                            <span class="num-zero" style="font-size:14px">✓</span>
+                        <?php endif; ?>
+                    </td>
+
+                    <!-- جاهز للتوصيل: مدفوع -->
+                    <td>
+                        <?php if ($fin['ready_paid'] > 0): ?>
+                            <span class="num-paid"><?= number_format($fin['ready_paid'], 0) ?></span>
+                        <?php else: ?>
+                            <span class="num-zero">—</span>
+                        <?php endif; ?>
+                    </td>
+
+                    <!-- جاهز للتوصيل: متبقي -->
+                    <td>
+                        <?php if ($fin['ready_remaining'] > 0): ?>
+                            <span class="num-remaining"><?= number_format($fin['ready_remaining'], 0) ?></span>
+                        <?php else: ?>
+                            <span class="num-zero" style="font-size:14px">✓</span>
+                        <?php endif; ?>
+                    </td>
+
+                    <!-- باقي الحالات: مدفوع -->
+                    <td>
+                        <?php if ($fin['other_paid'] > 0): ?>
+                            <span class="num-paid"><?= number_format($fin['other_paid'], 0) ?></span>
+                        <?php else: ?>
+                            <span class="num-zero">—</span>
+                        <?php endif; ?>
+                    </td>
+
+                    <!-- باقي الحالات: متبقي -->
+                    <td>
+                        <?php if ($fin['other_remaining'] > 0): ?>
+                            <span class="num-remaining"><?= number_format($fin['other_remaining'], 0) ?></span>
+                        <?php else: ?>
+                            <span class="num-zero" style="font-size:14px">✓</span>
+                        <?php endif; ?>
+                    </td>
+
+                    <!-- ملاحظات -->
+                    <td style="text-align:right; font-size:11px; color:#475569; max-width:120px; word-break:break-word">
+                        <?php if (!empty($notes_val)): ?>
+                            <?= htmlspecialchars($notes_val) ?>
+                        <?php else: ?>
+                            <span class="note-empty">فارغة</span>
+                        <?php endif; ?>
                     </td>
                 </tr>
             <?php endforeach; ?>
             <?php endif; ?>
             </tbody>
+
             <?php if (!empty($customers)): ?>
             <tfoot>
                 <tr>
-                    <td colspan="4" style="text-align:right;color:#475569">الإجمالي (<?= count($customers) ?> عميل)</td>
-                    <td style="text-align:center"><?= number_format($ttl_orders) ?></td>
-                    <td></td><td></td><td></td>
-                    <td style="text-align:center;color:#059669"><?= number_format($ttl_paid) ?></td>
-                    <td style="text-align:center;color:#dc2626"><?= number_format($ttl_remaining) ?></td>
-                    <td class="no-print"></td>
+                    <td colspan="2" style="text-align:right; color:#475569">
+                        الإجمالي <span style="color:#3b82f6">(<?= count($customers) ?> عميل)</span>
+                    </td>
+                    <!-- الموقع -->
+                    <td></td>
+                    <!-- المجموعة -->
+                    <td class="col-group no-print"></td>
+                    <!-- جميع الارقام -->
+                    <td style="font-weight:800; color:#1e293b"><?= number_format($ttl_orders) ?></td>
+                    <!-- تم الاستلام: مدفوع [print-hidden] -->
+                    <td class="col-delivered-paid num-paid">—</td>
+                    <!-- تم الاستلام: متبقي -->
+                    <td></td>
+                    <!-- جاهز للتوصيل: مدفوع -->
+                    <td></td>
+                    <!-- جاهز للتوصيل: متبقي -->
+                    <td></td>
+                    <!-- باقي الحالات: مدفوع -->
+                    <td class="num-paid"><?= number_format($ttl_paid) ?></td>
+                    <!-- باقي الحالات: متبقي -->
+                    <td class="num-remaining"><?= number_format($ttl_remaining) ?></td>
+                    <!-- ملاحظات -->
+                    <td></td>
                 </tr>
             </tfoot>
             <?php endif; ?>
