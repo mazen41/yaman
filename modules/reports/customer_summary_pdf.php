@@ -139,17 +139,10 @@ foreach ($customers as $i => $c) {
     foreach (['delivered_paid','delivered_remaining','ready_paid','ready_remaining','other_paid','other_remaining'] as $k)
         $fin[$k] = max(0, (float)($fin[$k] ?? 0));
 
-    // All order numbers
-    try {
-        $on_stmt = $db->prepare("SELECT order_number FROM customer_orders WHERE customer_id = ? ORDER BY created_at DESC LIMIT 20");
-        $on_stmt->execute([$c['id']]);
-        $order_numbers   = $on_stmt->fetchAll(PDO::FETCH_COLUMN);
-        $all_numbers_str = !empty($order_numbers) ? implode('، ', $order_numbers) : '—';
-    } catch (Exception $e) {
-        $all_numbers_str = $c['total_orders'] > 0 ? $c['total_orders'] . ' طلب' : '—';
-    }
+    // Phone number column
+    $phone_str = !empty($c['mobile_number']) ? h($c['mobile_number']) : '—';
 
-    $bg    = ($i % 2 === 0) ? '#ffffff' : '#f8fafc';
+    $bg    = ($i % 2 === 0) ? '#ffffff' : '#e8edf2';
     $notes = trim($c['notes'] ?? '');
 
     // delivered_remaining cell
@@ -167,26 +160,27 @@ foreach ($customers as $i => $c) {
         ? '<span style="color:#b91c1c;font-weight:800;">' . n($fin['other_remaining']) . '</span>'
         : '<span style="color:#10b981;">✓</span>';
 
-    $d_paid = $fin['delivered_paid'] > 0 ? '<span style="color:#059669;font-weight:700;">' . n($fin['delivered_paid']) . '</span>' : '<span style="color:#94a3b8;">—</span>';
-    $r_paid = $fin['ready_paid']     > 0 ? '<span style="color:#059669;font-weight:700;">' . n($fin['ready_paid'])     . '</span>' : '<span style="color:#94a3b8;">—</span>';
-    $o_paid = $fin['other_paid']     > 0 ? '<span style="color:#059669;font-weight:700;">' . n($fin['other_paid'])     . '</span>' : '<span style="color:#94a3b8;">—</span>';
+    // مدفوع columns — keep column but empty
+    $d_paid = '&nbsp;';
+    $r_paid = '&nbsp;';
+    $o_paid = '&nbsp;';
 
     $rows_html .= "
     <tr style=\"background:{$bg};\">
-        <td style=\"text-align:center;color:#94a3b8;font-size:9px;\">" . ($i + 1) . "</td>
+        <td style=\"text-align:center;color:#1e293b;font-size:9px;font-weight:700;\">" . ($i + 1) . "</td>
         <td style=\"text-align:right;\">
             <strong style=\"font-size:11px;color:#1e293b;\">" . h($c['name']) . "</strong>
-            " . ($c['mobile_number'] ? '<br><span style="font-size:9px;color:#64748b;direction:ltr;">' . h($c['mobile_number']) . '</span>' : '') . "
+            " . ($c['mobile_number'] ? '<br><span style="font-size:9px;color:#475569;direction:ltr;">' . h($c['mobile_number']) . '</span>' : '') . "
         </td>
-        <td style=\"text-align:center;\">" . ($c['city_name'] ? h($c['city_name']) : '—') . "</td>
-        <td style=\"text-align:right;font-size:9px;color:#475569;line-height:1.4;\">" . h($all_numbers_str) . "</td>
+        <td style=\"text-align:center;color:#1e293b;\">" . ($c['city_name'] ? h($c['city_name']) : '—') . "</td>
+        <td style=\"text-align:center;font-size:10px;color:#1e293b;direction:ltr;\">{$phone_str}</td>
         <td style=\"text-align:center;\">" . $d_paid . "</td>
         <td style=\"text-align:center;\">" . $d_rem  . "</td>
         <td style=\"text-align:center;\">" . $r_paid . "</td>
         <td style=\"text-align:center;\">" . $r_rem  . "</td>
         <td style=\"text-align:center;\">" . $o_paid . "</td>
         <td style=\"text-align:center;\">" . $o_rem  . "</td>
-        <td style=\"text-align:right;font-size:9px;color:#475569;\">" . ($notes ? h($notes) : '<span style="color:#94a3b8;font-style:italic;">فارغة</span>') . "</td>
+        <td style=\"text-align:right;font-size:9px;color:#1e293b;\">" . ($notes ? h($notes) : '<span style="color:#64748b;font-style:italic;">فارغة</span>') . "</td>
     </tr>\n";
 }
 

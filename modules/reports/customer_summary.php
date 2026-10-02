@@ -592,15 +592,8 @@ include '../../includes/header.php';
                 $fin['other_paid']          = max(0, (float)($fin['other_paid'] ?? 0));
                 $fin['other_remaining']     = max(0, (float)($fin['other_remaining'] ?? 0));
 
-                // Build "جميع الارقام" string: list all order numbers
-                try {
-                    $on_stmt = $db->prepare("SELECT order_number FROM customer_orders WHERE customer_id = ? ORDER BY created_at DESC LIMIT 20");
-                    $on_stmt->execute([$c['id']]);
-                    $order_numbers = $on_stmt->fetchAll(PDO::FETCH_COLUMN);
-                    $all_numbers_str = !empty($order_numbers) ? implode('، ', $order_numbers) : '—';
-                } catch (Exception $e) {
-                    $all_numbers_str = $c['total_orders'] > 0 ? $c['total_orders'] . ' طلب' : '—';
-                }
+                // Build "جميع الارقام" — show mobile number
+                $all_numbers_str = !empty($c['mobile_number']) ? $c['mobile_number'] : '—';
 
                 // Notes — show فارغة if empty
                 $notes_val = trim($c['notes'] ?? '');
@@ -633,8 +626,8 @@ include '../../includes/header.php';
                             : '<span style="color:#cbd5e1">—</span>' ?>
                     </td>
 
-                    <!-- جميع الارقام -->
-                    <td style="font-size:10px; color:#475569; line-height:1.5; text-align:right; max-width:120px; word-break:break-word">
+                    <!-- جميع الارقام — mobile number -->
+                    <td style="font-size:12px; color:#475569; text-align:center; direction:ltr;">
                         <?= htmlspecialchars($all_numbers_str) ?>
                     </td>
 
