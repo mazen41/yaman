@@ -40,7 +40,16 @@ if (!empty($customer_city)) {
 $banks_stmt = $db->query("SELECT id, bank_name, account_name, account_holder_name, account_number, iban FROM bank_accounts WHERE is_active = 1 AND show_in_checkout = 1 ORDER BY bank_name ASC");
 $bank_accounts = $banks_stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// 4. Fetch Company Phone
+// 4. Fetch Checkout Slides
+$checkout_slides = [];
+try {
+    $cs_stmt = $db->query("SELECT * FROM checkout_slides WHERE is_active = 1 ORDER BY CASE WHEN display_order = 0 THEN 9999 ELSE display_order END ASC, created_at DESC");
+    $checkout_slides = $cs_stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    $checkout_slides = [];
+}
+
+// 5. Fetch Company Phone
 $phone_stmt = $db->query("SELECT setting_value FROM system_settings WHERE setting_key = 'company_phone'");
 $company_phone = $phone_stmt->fetchColumn() ?: '';
 
@@ -61,30 +70,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_order'])) {
     } elseif (empty($_FILES['payment_evidence']['name'])) {
         $error_msg = "يرجى إرفاق صورة إيصال التحويل البنكي.";
     } else {
-        // ============================================================
-        // SERVER-SIDE BANK ACCOUNT VALIDATION
-        // Verify the selected bank account is valid and currently enabled.
-        // This prevents accepting a disabled account even if the customer
-        // kept the checkout page open while an admin disabled the account.
-        // ============================================================
-        $selected_bank_id = filter_var($_POST['selected_bank_account_id'] ?? null, FILTER_VALIDATE_INT);
-        // Only validate if bank accounts are available (if all are disabled, submission still works without bank selection)
-        $has_available_banks_stmt = $db->query("SELECT COUNT(*) FROM bank_accounts WHERE is_active = 1 AND show_in_checkout = 1");
-        $has_available_banks = (int)$has_available_banks_stmt->fetchColumn() > 0;
-
-        if ($has_available_banks) {
-            if (!$selected_bank_id || $selected_bank_id <= 0) {
-                $error_msg = "يرجى اختيار الحساب البنكي الذي حوّلت إليه المبلغ.";
-            } else {
-                // Verify: account exists + is_active=1 + show_in_checkout=1
-                $verify_bank_stmt = $db->prepare("SELECT id FROM bank_accounts WHERE id = ? AND is_active = 1 AND show_in_checkout = 1");
-                $verify_bank_stmt->execute([$selected_bank_id]);
-                $verified_bank = $verify_bank_stmt->fetch(PDO::FETCH_ASSOC);
-                if (!$verified_bank) {
-                    $error_msg = "الحساب البنكي المحدد غير متاح حالياً. يرجى تحديث الصفحة واختيار حساب متاح.";
-                }
-            }
-        }
         if (empty($error_msg)) {
         try {
             // Upload Image
@@ -267,10 +252,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_order'])) {
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: #f1f1f1; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        /* Bank card selection */
-        .bank-card.selected { border-color: #C7A46D !important; background: #fffbf4 !important; box-shadow: 0 0 0 3px rgba(199,164,109,.2); }
-        .bank-card.selected .bank-select-dot { background: #C7A46D !important; border-color: #C7A46D !important; }
-        .bank-card.selected .bank-select-dot i { display: inline-block !important; }
+        /* --- SLIDER STYLES --- */
+        .checkout-slider { position: relative; width: 100%; height: 350px; overflow: hidden; border-radius: 16px; background: transparent; user-select: none; direction: ltr; }
+        .checkout-slider-container { display: flex; height: 100%; width: 100%; cursor: grab; }
+        .checkout-slider-container:active { cursor: grabbing; }
+        .checkout-slide { flex: 0 0 100%; width: 100%; height: 100%; position: relative; display: flex; align-items: center; justify-content: center; }
+        .checkout-slide-img { width: 100%; height: 100%; object-fit: contain; border-radius: 16px; display: block; }
+        .checkout-slider-dots { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; z-index: 20; }
+        .checkout-slider-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(0,0,0,0.2); cursor: pointer; transition: all 0.3s ease; border: 1px solid rgba(0,0,0,0.1); }
+        .checkout-slider-dot.active { background: #C7A46D; width: 25px; border-radius: 10px; }
+        @media (max-width: 768px) { .checkout-slider { height: 180px; border-radius: 12px; } }
     </style>
 </head>
 <body class="bg-gray-50 pb-16">
@@ -307,60 +298,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_order'])) {
                     <p class="text-sm text-gray-600"><strong>مدينة الشحن المعتمدة:</strong> <span class="text-blue-600 font-bold"><?php echo htmlspecialchars($customer_city ?: 'غير محددة'); ?></span></p>
                 </div>
 
-                <!-- 2. Bank Accounts — selectable cards with copy buttons -->
-                <div class="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-gray-100">
-                    <h2 class="text-lg font-bold text-gray-800 mb-3 border-b pb-3"><i class="fas fa-university text-[#C7A46D] ml-2"></i> اختر الحساب البنكي للتحويل</h2>
-                    <?php if (empty($bank_accounts)): ?>
-                        <!-- Empty state: no enabled bank accounts -->
-                        <div class="text-center py-6">
-                            <div class="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                                <i class="fas fa-university text-2xl text-gray-400"></i>
-                            </div>
-                            <p class="text-sm font-bold text-gray-600">لا توجد حسابات بنكية متاحة حالياً</p>
-                            <p class="text-xs text-gray-400 mt-1">يرجى التواصل مع الشركة للحصول على بيانات الحساب.</p>
+                <!-- 2. Checkout Slider -->
+                <?php if (!empty($checkout_slides)): ?>
+                <div class="checkout-slider">
+                    <div class="checkout-slider-container" id="checkoutSliderContainer">
+                        <?php foreach ($checkout_slides as $cs): 
+                            $csImg = "../" . htmlspecialchars($cs['image_path']);
+                        ?>
+                        <div class="checkout-slide">
+                            <?php if (!empty($cs['link_url'])): ?><a href="<?php echo htmlspecialchars($cs['link_url']); ?>" target="_blank" class="w-full h-full block"><?php endif; ?>
+                            <img src="<?php echo $csImg; ?>" alt="Slide" class="checkout-slide-img">
+                            <?php if (!empty($cs['link_url'])): ?></a><?php endif; ?>
                         </div>
-                    <?php else: ?>
-                        <p class="text-xs sm:text-sm text-gray-500 mb-4">يرجى تحويل إجمالي المبلغ لأحد الحسابات التالية ثم اضغط على الحساب لتحديده وأرفق صورة الإيصال أدناه.</p>
-                        <!-- Hidden input: passes selected bank account id for server-side validation -->
-                        <input type="hidden" name="selected_bank_account_id" id="selected-bank-account-id" value="">
-                        <div class="grid grid-cols-1 sm:grid-cols-2 <?php echo count($bank_accounts) >= 3 ? 'lg:grid-cols-3' : ''; ?> gap-3" id="bank-cards-container">
-                            <?php foreach ($bank_accounts as $bank): ?>
-                            <div class="bank-card border-2 border-gray-200 rounded-xl p-3 cursor-pointer transition-all duration-150 bg-gray-50 hover:border-[#C7A46D] hover:shadow-md hover:bg-white"
-                                 data-bank-id="<?php echo (int)$bank['id']; ?>"
-                                 onclick="selectBankCard(this)">
-                                <div class="flex items-center justify-between mb-2">
-                                    <h3 class="font-bold text-sm text-gray-800 flex items-center gap-1">
-                                        <i class="fas fa-university text-[#C7A46D] text-xs"></i>
-                                        <?php echo htmlspecialchars($bank['bank_name']); ?>
-                                    </h3>
-                                    <div class="bank-select-dot w-5 h-5 rounded-full border-2 border-gray-300 flex items-center justify-center flex-shrink-0 transition-all">
-                                        <i class="fas fa-check text-white text-xs" style="display:none" class="bank-check-icon"></i>
-                                    </div>
-                                </div>
-                                <?php if (!empty($bank['account_name'])): ?>
-                                <p class="text-xs text-gray-500 mb-2 truncate"><?php echo htmlspecialchars($bank['account_name']); ?></p>
-                                <?php endif; ?>
-                                <p class="text-xs text-gray-600 mb-2 font-semibold"><?php echo htmlspecialchars($bank['account_holder_name']); ?></p>
-                                <div class="flex items-center gap-1 bg-white border border-gray-200 rounded-lg px-2 py-1 mb-1">
-                                    <span class="text-xs font-bold text-blue-700 flex-1 select-all" dir="ltr" style="font-family:monospace"><?php echo htmlspecialchars($bank['account_number']); ?></span>
-                                    <button type="button" class="text-gray-400 hover:text-blue-600 text-xs p-0.5 transition-colors flex-shrink-0 copy-btn-inner" onclick="event.stopPropagation(); copyCheckoutValue(this, '<?php echo htmlspecialchars($bank['account_number'], ENT_QUOTES); ?>')" title="نسخ رقم الحساب">
-                                        <i class="fas fa-copy"></i>
-                                    </button>
-                                </div>
-                                <?php if (!empty($bank['iban'])): ?>
-                                <div class="flex items-center gap-1 bg-white border border-gray-200 rounded-lg px-2 py-1">
-                                    <span class="text-[10px] text-gray-500 flex-1 select-all truncate" dir="ltr" style="font-family:monospace" title="<?php echo htmlspecialchars($bank['iban']); ?>"><?php echo htmlspecialchars($bank['iban']); ?></span>
-                                    <button type="button" class="text-gray-400 hover:text-blue-600 text-xs p-0.5 transition-colors flex-shrink-0 copy-btn-inner" onclick="event.stopPropagation(); copyCheckoutValue(this, '<?php echo htmlspecialchars($bank['iban'], ENT_QUOTES); ?>')" title="نسخ IBAN">
-                                        <i class="fas fa-copy"></i>
-                                    </button>
-                                </div>
-                                <?php endif; ?>
-                            </div>
-                            <?php endforeach; ?>
-                        </div>
-                        <p id="bank-select-msg" class="text-xs text-amber-600 mt-2 font-bold hidden"><i class="fas fa-exclamation-circle ml-1"></i>يرجى اختيار الحساب الذي حوّلت إليه المبلغ.</p>
+                        <?php endforeach; ?>
+                    </div>
+                    <?php if (count($checkout_slides) > 1): ?>
+                    <div class="checkout-slider-dots">
+                        <?php foreach ($checkout_slides as $ci => $cs): ?>
+                        <button class="checkout-slider-dot <?php echo $ci === 0 ? 'active' : ''; ?>" onclick="csGoToSlide(<?php echo $ci; ?>)"></button>
+                        <?php endforeach; ?>
+                    </div>
                     <?php endif; ?>
                 </div>
+                <script>
+                    (function(){
+                        let csCurrent = 0;
+                        const csTotal = <?php echo count($checkout_slides); ?>;
+                        const csCont = document.getElementById('checkoutSliderContainer');
+                        const csDots = document.querySelectorAll('.checkout-slider-dot');
+                        if (!csCont) return;
+                        csCont.style.transition = 'transform 0.5s cubic-bezier(0.25,1,0.5,1)';
+                        window.csGoToSlide = function(idx) {
+                            csCurrent = ((idx % csTotal) + csTotal) % csTotal;
+                            csCont.style.transform = 'translateX(-' + (csCurrent * 100) + '%)';
+                            csDots.forEach((d,i) => d.classList.toggle('active', i === csCurrent));
+                        };
+                        if (csTotal > 1) setInterval(() => csGoToSlide(csCurrent + 1), 5000);
+                        // touch drag
+                        let startX = 0;
+                        csCont.addEventListener('touchstart', e => { startX = e.touches[0].clientX; });
+                        csCont.addEventListener('touchend', e => {
+                            const diff = startX - e.changedTouches[0].clientX;
+                            if (Math.abs(diff) > 50) csGoToSlide(csCurrent + (diff > 0 ? 1 : -1));
+                        });
+                    })();
+                </script>
+                <?php endif; ?>
 
                 <!-- 3. Upload Payment Evidence with Preview -->
                 <div class="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-gray-100 border-r-4 border-r-[#C7A46D]">

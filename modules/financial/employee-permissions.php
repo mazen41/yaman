@@ -58,7 +58,9 @@ $sidebar_modules = [
     ['name' => 'إدارة الكوبونات', 'icon' => 'fas fa-ticket-alt', 'key' => 'coupons'],
     ['name' => 'كوبونات المتجر', 'icon' => 'fas fa-tags', 'key' => 'shop_coupons'], // Added shop_coupons
     ['name' => 'التقارير', 'icon' => 'fas fa-chart-bar', 'key' => 'reports'],
+    ['name' => 'ملخص العملاء', 'icon' => 'fas fa-users', 'key' => 'customer_summary'], // modules/reports/customer_summary.php
     ['name' => 'إدارة سلايدر البوابة', 'icon' => 'fas fa-images', 'key' => 'portal_slides'],
+    ['name' => 'إدارة سلايدر صفحة الدفع', 'icon' => 'fas fa-images', 'key' => 'checkout_slides'], // modules/settings/checkout_slides.php
     ['name' => 'الإعدادات', 'icon' => 'fas fa-cog', 'key' => 'settings'],
     ['name' => 'إداره الحالات', 'icon' => 'fas fa-tasks', 'key' => 'status'],
     ['name' => 'إداره الدفعات', 'icon' => 'fas fa-tasks', 'key' => 'payments'],
@@ -381,6 +383,8 @@ include $root . '/includes/header.php';
         $allowedTypes = ['view', 'edit'];
     } else if ($module['key'] === 'shop_coupons') { // Added for shop_coupons
         $allowedTypes = ['view', 'add', 'edit'];
+    } else if ($module['key'] === 'customer_summary') { // customer_summary.php is view-only
+        $allowedTypes = ['view'];
     }
     // For other modules not explicitly listed (including 'shipping' now)
     // The default ['view', 'add', 'edit'] will apply as intended.

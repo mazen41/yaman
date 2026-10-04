@@ -11,9 +11,11 @@ require_once '../../includes/check_permissions.php';
 $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
 $user_id = $_SESSION['user_id'] ?? 0;
-if (!hasPermission($user_id, 'reports', 'view')) {
-    header('Location: ../../index.php'); exit();
+if (!hasPermission($user_id, 'customer_summary', 'view')) {
+    header('Location: ../../no-permissions.php'); exit();
 }
+
+$is_pdf = isset($_GET['pdf']);
 
 // ── Fetch data for filters (SAME as customers/index.php) ─────────────────────
 try {
@@ -32,6 +34,7 @@ $filter_date_from     = $_GET['filter_date_from']     ?? '';
 $filter_date_to       = $_GET['filter_date_to']       ?? '';
 $filter_status        = $_GET['filter_status']        ?? 'active'; // active, inactive, all — default: active
 $filter_remaining_from = $_GET['filter_remaining_from'] ?? '';
+$filter_all_delivered = isset($_GET['filter_all_delivered']) && $_GET['filter_all_delivered'] == '1';
 
 // Sorting (SAME whitelist as customers/index.php, adapted column aliases for this report's query)
 $sort_options = [
@@ -54,6 +57,7 @@ $advanced_filters_active = !empty($filter_type) ||
                            !empty($filter_date_from) ||
                            !empty($filter_date_to) ||
                            !empty($filter_remaining_from) ||
+                           $filter_all_delivered ||
                            ($sort_by != 'updated_at') ||
                            ($sort_dir != 'DESC') ||
                            ($filter_status != 'active');
@@ -111,6 +115,14 @@ if ($filter_remaining_from !== '' && is_numeric($filter_remaining_from)) {
 
 $where_sql = implode(" AND ", $where_clauses);
 $having_sql = empty($having_clauses) ? '' : 'HAVING ' . implode(" AND ", $having_clauses);
+
+// "all delivered" filter: only customers whose non-cancelled orders are ALL delivered
+if ($filter_all_delivered) {
+    $having_sql .= empty($having_clauses)
+        ? ' HAVING SUM(CASE WHEN co.status != \'delivered\' AND co.status != \'cancelled\' THEN 1 ELSE 0 END) = 0 AND COUNT(DISTINCT co.id) > 0'
+        : ' AND SUM(CASE WHEN co.status != \'delivered\' AND co.status != \'cancelled\' THEN 1 ELSE 0 END) = 0 AND COUNT(DISTINCT co.id) > 0';
+}
+
 $all_query_params = array_merge($params, $having_params);
 
 // ── Execute the report query ─────────────────────────────────────────────────
@@ -479,6 +491,16 @@ include '../../includes/header.php';
                             <option value="all" <?php if ($filter_status == 'all') echo 'selected'; ?>>الكل</option>
                         </select>
                     </div>
+
+                    <!-- All Delivered Filter -->
+                    <div class='cs-filter-item' style='justify-content:flex-end;padding-bottom:4px'>
+                        <label style='display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:#1e293b;font-weight:700'>
+                            <input type='checkbox' name='filter_all_delivered' value='1'
+                                <?php if ($filter_all_delivered) echo 'checked'; ?>
+                                style='width:16px;height:16px;accent-color:#10b981;cursor:pointer'>
+                            كل طلباته تم الاستلام
+                        </label>
+                    </div>
                 </div>
             </div>
         </form>
@@ -493,14 +515,6 @@ include '../../includes/header.php';
         <div class="cs-card gold">
             <div class="lbl">إجمالي الطلبات</div>
             <div class="val"><?= number_format($ttl_orders) ?></div>
-        </div>
-        <div class="cs-card green">
-            <div class="lbl">إجمالي المدفوع</div>
-            <div class="val"><?= number_format($ttl_paid) ?></div>
-        </div>
-        <div class="cs-card red">
-            <div class="lbl">إجمالي المتبقي</div>
-            <div class="val"><?= number_format($ttl_remaining) ?></div>
         </div>
     </div>
 
@@ -636,9 +650,11 @@ include '../../includes/header.php';
                         <?= htmlspecialchars($all_numbers_str) ?>
                     </td>
 
-                    <!-- تم الاستلام: مدفوع [print-hidden] -->
+                    <!-- تم الاستلام: مدفوع [print-hidden, pdf-empty] -->
                     <td class="col-delivered-paid">
-                        <?php if ($fin['delivered_paid'] > 0): ?>
+                        <?php if ($is_pdf): ?>
+                            
+                        <?php elseif ($fin['delivered_paid'] > 0): ?>
                             <span class="num-paid"><?= number_format($fin['delivered_paid'], 0) ?></span>
                         <?php else: ?>
                             <span class="num-zero">—</span>
@@ -695,43 +711,13 @@ include '../../includes/header.php';
                         <?php if (!empty($notes_val)): ?>
                             <?= htmlspecialchars($notes_val) ?>
                         <?php else: ?>
-                            <span class="note-empty">فارغة</span>
+                            
                         <?php endif; ?>
                     </td>
                 </tr>
             <?php endforeach; ?>
             <?php endif; ?>
             </tbody>
-
-            <?php if (!empty($customers)): ?>
-            <tfoot>
-                <tr>
-                    <td colspan="2" style="text-align:right; color:#475569">
-                        الإجمالي <span style="color:#3b82f6">(<?= count($customers) ?> عميل)</span>
-                    </td>
-                    <!-- الموقع -->
-                    <td></td>
-                    <!-- المجموعة -->
-                    <td class="col-group no-print"></td>
-                    <!-- جميع الارقام -->
-                    <td style="font-weight:800; color:#1e293b"><?= number_format($ttl_orders) ?></td>
-                    <!-- تم الاستلام: مدفوع [print-hidden] -->
-                    <td class="col-delivered-paid num-paid">—</td>
-                    <!-- تم الاستلام: متبقي -->
-                    <td></td>
-                    <!-- جاهز للتوصيل: مدفوع -->
-                    <td></td>
-                    <!-- جاهز للتوصيل: متبقي -->
-                    <td></td>
-                    <!-- باقي الحالات: مدفوع -->
-                    <td class="num-paid"><?= number_format($ttl_paid) ?></td>
-                    <!-- باقي الحالات: متبقي -->
-                    <td class="num-remaining"><?= number_format($ttl_remaining) ?></td>
-                    <!-- ملاحظات -->
-                    <td></td>
-                </tr>
-            </tfoot>
-            <?php endif; ?>
         </table>
         </div>
     </div>

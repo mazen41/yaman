@@ -65,6 +65,7 @@ $all_sidebar_modules = [
     ['name' => 'تصنيفات المنتجات', 'route' => '/modules/categories/index.php', 'icon' => 'fas fa-tags', 'key' => 'product_categories', 'section' => 'shop_management'],
     ['name' => 'سمات المنتجات', 'route' => '/modules/attributes/index.php', 'icon' => 'fas fa-sliders-h', 'key' => 'product_attributes', 'section' => 'shop_management'],
     ['name' => 'سلايدر المنتجات', 'route' => '/modules/settings/product_slides.php', 'icon' => 'fas fa-images', 'key' => 'product_slider', 'section' => 'shop_management'],
+    ['name' => 'سلايدر صفحة الدفع', 'route' => '/modules/settings/checkout_slides.php', 'icon' => 'fas fa-images', 'key' => 'checkout_slides', 'section' => 'shop_management'],
 // END: Shop Management Modules
 
     ['name' => 'المراجعة المالية', 'route' => '/modules/orders/financial_review.php', 'icon' => 'fas fa-file-invoice-dollar', 'key' => 'financial_review', 'section' => 'modules'],
@@ -96,7 +97,7 @@ $all_sidebar_modules = [
     'section' => 'shop_management',
 ],
     ['name' => 'التقارير والطباعة', 'route' => '/modules/reports/index.php', 'icon' => 'fas fa-chart-bar', 'key' => 'reports', 'section' => 'reports'],
-    ['name' => 'ملخص العملاء', 'route' => '/modules/reports/customer_summary.php', 'icon' => 'fas fa-users', 'key' => 'reports', 'section' => 'reports'],
+    ['name' => 'ملخص العملاء', 'route' => '/modules/reports/customer_summary.php', 'icon' => 'fas fa-users', 'key' => 'customer_summary', 'section' => 'reports'],
     ['name' => 'إعدادات النظام', 'route' => '/modules/settings/index.php', 'icon' => 'fas fa-cog', 'key' => 'settings', 'section' => 'settings'],
 [
     'name' => 'القيود اليومية',

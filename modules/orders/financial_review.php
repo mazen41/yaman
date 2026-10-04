@@ -355,30 +355,6 @@ $pdf_url = 'financial_review_pdf.php' . ($pdf_params ? '?' . $pdf_params : '');
         <a href="?filter=modified_history&q=<?php echo urlencode($search_query); ?>&amount=<?php echo urlencode($amount_filter); ?>&status=<?php echo urlencode($status_filter); ?>&review_status=<?php echo urlencode($review_status_filter); ?>&bank_account=<?php echo urlencode($bank_account_filter); ?>&date_from=<?php echo urlencode($date_from); ?>&date_to=<?php echo urlencode($date_to); ?>" class="tab-button <?php echo $filter === 'modified_history' ? 'active' : ''; ?>">Modified Status History <span class="tab-badge"><?php echo $modified_history_count; ?></span></a>
     </div>
 
-    <!-- بطاقات المؤشرات المالية الإجمالية (Financial KPIs) -->
-    <div class="stats-grid">
-        <div class="stat-card" style="border-color: #2563eb;">
-            <div class="text-xs text-gray-500 font-bold mb-1">إجمالي قيمة الطلبات (<?php echo $orders_count; ?>)</div>
-            <div class="text-xl font-extrabold text-blue-700" style="direction:ltr;text-align:right;"><?php echo number_format($orders_total_amount, 2); ?> <span class="text-xs font-normal text-gray-500">ر.ي</span></div>
-        </div>
-        <div class="stat-card" style="border-color: #059669;">
-            <div class="text-xs text-gray-500 font-bold mb-1">إجمالي مقبوضات العملاء (<?php echo $payments_count; ?>)</div>
-            <div class="text-xl font-extrabold text-green-700" style="direction:ltr;text-align:right;"><?php echo number_format($payments_total_amount, 2); ?> <span class="text-xs font-normal text-gray-500">ر.ي</span></div>
-        </div>
-        <div class="stat-card" style="border-color: #7c3aed;">
-            <div class="text-xs text-gray-500 font-bold mb-1">إجمالي سلال الشراء (<?php echo $baskets_count; ?>)</div>
-            <div class="text-xl font-extrabold text-purple-700" style="direction:ltr;text-align:right;"><?php echo number_format($baskets_total_amount, 2); ?> <span class="text-xs font-normal text-gray-500">ر.ي</span></div>
-        </div>
-        <div class="stat-card" style="border-color: #dc2626;">
-            <div class="text-xs text-gray-500 font-bold mb-1">إجمالي المصروفات (<?php echo $expenses_count; ?>)</div>
-            <div class="text-xl font-extrabold text-red-700" style="direction:ltr;text-align:right;"><?php echo number_format($expenses_total_amount, 2); ?> <span class="text-xs font-normal text-gray-500">ر.ي</span></div>
-        </div>
-        <div class="stat-card" style="border-color: #d97706;">
-            <div class="text-xs text-gray-500 font-bold mb-1">المبالغ المعروضة حالياً (<?php echo count($transactions); ?>)</div>
-            <div class="text-xl font-extrabold text-amber-700" style="direction:ltr;text-align:right;"><?php echo number_format($displayed_total_amount, 2); ?> <span class="text-xs font-normal text-gray-500">ر.ي</span></div>
-        </div>
-    </div>
-
     <!-- بطاقات أعداد العمليات وحالات المراجعة -->
     <div class="stats-grid">
         <div class="stat-card" style="border-color: #3b82f6;"><div class="text-2xl font-bold"><?php echo $orders_count; ?></div><div class="text-gray-500 text-sm">طلبات العملاء</div></div>
@@ -476,7 +452,12 @@ $pdf_url = 'financial_review_pdf.php' . ($pdf_params ? '?' . $pdf_params : '');
                                 }
                                 echo htmlspecialchars($type_text);
                             ?></span></td>
-                            <td><strong><?php echo htmlspecialchars($t['transaction_number']); ?></strong></td>
+                            <td>
+    <strong><?php echo htmlspecialchars($t['transaction_number']); ?></strong>
+    <?php if (!empty($t['created_at'])): ?>
+    <div style="font-size:10px;color:#9ca3af;margin-top:2px"><?php echo date('Y', strtotime($t['created_at'])); ?></div>
+    <?php endif; ?>
+</td>
                             <td><?php echo htmlspecialchars($t['customer_name'] ?? '-'); ?></td>
                             <td><?php echo htmlspecialchars($t['bank_name'] ?: '-'); ?></td>
                             <td><?php echo formatToYemenTime($t['created_at'], 'Y/m/d H:i'); ?></td>

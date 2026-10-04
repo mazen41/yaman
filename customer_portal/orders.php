@@ -88,27 +88,45 @@ $orders = $orders_stmt->fetchAll(PDO::FETCH_ASSOC);
                                 <td class="p-4">
                                     <?php 
                                         $status = $order['order_status'];
-                                        // Translate English statuses to Arabic
+                                        // Translate English statuses to Arabic — full map
                                         $status_ar_map = [
                                             'new'               => 'طلب جديد',
                                             'pending'           => 'قيد الانتظار',
                                             'pending_review'    => 'قيد المراجعة',
+                                            'under_review'      => 'قيد المراجعة',
+                                            'approved'          => 'معتمد',
                                             'processing'        => 'قيد التنفيذ',
-                                            'shipped'           => 'تم الشحن',
-                                            'delivered'         => 'تم التسليم',
-                                            'cancelled'         => 'ملغي',
-                                            'returned'          => 'مُرتجع',
+                                            'in_preparation'    => 'قيد التحضير',
+                                            'notes'             => 'ملاحظات',
+                                            'under_sorting'     => 'قيد الفرز',
+                                            'sorted'            => 'تم الفرز',
                                             'scanned'           => 'تم الفرز',
                                             'ready'             => 'جاهز للتسليم',
+                                            'in_delivery'       => 'قيد التوصيل',
+                                            'shipped'           => 'تم الشحن',
+                                            'delivered'         => 'تم التسليم',
+                                            'received'          => 'تم الاستلام',
+                                            'تم الاستلام'      => 'تم الاستلام',
+                                            'completed'         => 'مكتمل',
+                                            'on_hold'           => 'معلق',
+                                            'cancelled'         => 'ملغي',
+                                            'rejected'          => 'مرفوض',
+                                            'returned'          => 'مُرتجع',
+                                            'refunded'          => 'مسترد',
+                                            'modified'          => 'تم التعديل',
                                         ];
-                                        $status_display = $status_ar_map[$status] ?? $status;
+                                        $status_display = isset($status_ar_map[$status]) ? $status_ar_map[$status] : ($status ?: 'غير محدد');
                                         $color = "bg-gray-100 text-gray-600";
-                                        if(in_array($status, ['طلب جديد','new'])) $color = "bg-blue-100 text-blue-600";
-                                        elseif(in_array($status, ['قيد التنفيذ','processing'])) $color = "bg-yellow-100 text-yellow-600";
-                                        elseif(in_array($status, ['تم الشحن','shipped'])) $color = "bg-purple-100 text-purple-600";
-                                        elseif(in_array($status, ['تم التسليم','delivered'])) $color = "bg-green-100 text-green-600";
-                                        elseif(in_array($status, ['ملغي','cancelled'])) $color = "bg-red-100 text-red-600";
-                                        elseif(in_array($status, ['قيد المراجعة','pending','pending_review'])) $color = "bg-amber-100 text-amber-600";
+                                        if(in_array($status, ['new'])) $color = "bg-blue-100 text-blue-600";
+                                        elseif(in_array($status, ['processing','in_preparation'])) $color = "bg-yellow-100 text-yellow-600";
+                                        elseif(in_array($status, ['shipped','in_delivery'])) $color = "bg-purple-100 text-purple-600";
+                                        elseif(in_array($status, ['delivered','received','completed','تم الاستلام'])) $color = "bg-green-100 text-green-600";
+                                        elseif(in_array($status, ['cancelled','rejected'])) $color = "bg-red-100 text-red-600";
+                                        elseif(in_array($status, ['pending','pending_review','under_review'])) $color = "bg-amber-100 text-amber-600";
+                                        elseif(in_array($status, ['approved'])) $color = "bg-teal-100 text-teal-600";
+                                        elseif(in_array($status, ['under_sorting','sorted','scanned'])) $color = "bg-cyan-100 text-cyan-600";
+                                        elseif(in_array($status, ['notes'])) $color = "bg-orange-100 text-orange-600";
+                                        elseif(in_array($status, ['returned','refunded'])) $color = "bg-rose-100 text-rose-600";
                                     ?>
                                     <span class="px-3 py-1 rounded-full text-[11px] font-bold <?php echo $color; ?>">
                                         <?php echo htmlspecialchars($status_display); ?>

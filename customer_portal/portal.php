@@ -203,7 +203,7 @@ if ($customer['enable_create_self_order'] === 'active') {
             $orders[] = [
                 'id' => null,
                 'approval_id' => (int)$approval['id'],
-                'order_number' => 'SA-' . (int)$approval['id'],
+                'order_number' => (string)(int)$approval['id'],
                 'created_at' => $approval['created_at'],
                 'display_status_key' => $approval_status_key,
                 'display_status_label' => $approval_status_label,
