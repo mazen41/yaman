@@ -193,7 +193,7 @@ foreach ($customers as $i => $c) {
         <td style=\"text-align:center;\">" . $o_paid . "</td>
         <td style=\"text-align:center;\">" . $o_rem  . "</td>
         <td style=\"text-align:center;font-weight:700;\">" . $fin['other_orders'] . "</td>
-        <td style=\"text-align:right;font-size:9px;color:#1e293b;\">" . ($notes ? h($notes) : '<span style="color:#64748b;font-style:italic;">فارغة</span>') . "</td>
+        <td style=\"text-align:right;font-size:9px;color:#1e293b;\">" . ($notes ? h($notes) : '') . "</td>
     </tr>\n";
 }
 
