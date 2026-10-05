@@ -268,6 +268,65 @@ try {
     $displayed_total_amount = array_sum(array_map(fn($t) => floatval($t['amount']), $transactions));
 } catch (PDOException $e) { die("Database Error: " . $e->getMessage()); }
 
+// ── Dual-currency display (YER / SAR) based on the exchange rate set in Settings ──
+// 1 SAR = $exchange_rate YER (same convention used across the system, e.g. copying.php / edit_basket.php)
+$exchange_rate = 140;
+try {
+    $rate_stmt = $db->query("SELECT setting_value FROM system_settings WHERE setting_key = 'exchange_rate_sar_yer' LIMIT 1");
+    $rate_row = $rate_stmt ? $rate_stmt->fetch(PDO::FETCH_ASSOC) : null;
+    if ($rate_row && is_numeric($rate_row['setting_value']) && (float)$rate_row['setting_value'] > 0) {
+        $exchange_rate = (float)$rate_row['setting_value'];
+    }
+} catch (PDOException $e) {
+    // system_settings table may not exist yet — keep default rate
+}
+
+// Orders carry their own currency (customer_orders.currency); everything else in this
+// report (payments, expenses, order history) doesn't have a reliable per-row currency,
+// so it's treated as YER by default. Baskets already show their own SAR figure separately.
+$order_currency_by_id = [];
+try {
+    $order_ids_for_currency = array_values(array_unique(array_map(
+        fn($t) => (int)$t['id'],
+        array_filter($transactions, fn($t) => $t['transaction_type'] === 'order')
+    )));
+    if (!empty($order_ids_for_currency)) {
+        $placeholders = implode(',', array_fill(0, count($order_ids_for_currency), '?'));
+        $curr_stmt = $db->prepare("SELECT id, currency FROM customer_orders WHERE id IN ($placeholders)");
+        $curr_stmt->execute($order_ids_for_currency);
+        foreach ($curr_stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $order_currency_by_id[(int)$row['id']] = $row['currency'];
+        }
+    }
+} catch (PDOException $e) {
+    // customer_orders.currency may not exist on some installs — fall back to YER everywhere
+}
+
+/**
+ * Renders an amount as YER with the SAR equivalent underneath (or vice-versa),
+ * based on the given/assumed currency of $amount and the system exchange rate.
+ */
+function renderDualCurrency($amount, $currency, $exchange_rate) {
+    $amount = (float)$amount;
+    $is_sar = is_string($currency) && (
+        stripos($currency, 'سعودي') !== false ||
+        strtoupper(trim($currency)) === 'SAR' ||
+        strtoupper(trim($currency)) === 'SR'
+    );
+
+    if ($is_sar) {
+        $sar = $amount;
+        $yer = $amount * $exchange_rate;
+    } else {
+        $yer = $amount;
+        $sar = $exchange_rate > 0 ? ($amount / $exchange_rate) : 0;
+    }
+
+    return '<strong class="text-emerald-600">' . number_format($yer, 2) . ' YR</strong>'
+         . '<br><span class="text-xs text-gray-500">' . number_format($sar, 2) . ' SR</span>';
+}
+
+
 // Fetch bank accounts for the filter dropdown
 try {
     $bank_stmt = $db->query("SELECT DISTINCT bank_name FROM bank_accounts WHERE bank_name IS NOT NULL AND bank_name != '' ORDER BY bank_name ASC");
@@ -512,7 +571,15 @@ $pdf_url = 'financial_review_pdf.php' . ($pdf_params ? '?' . $pdf_params : '');
                                 }
                                 ?>
                             </td>
-                            <td><strong class="text-emerald-600"><?php echo number_format($t['amount'], 2); ?></strong></td>
+                            <td>
+                                <?php
+                                if ($t['transaction_type'] === 'order') {
+                                    echo renderDualCurrency($t['amount'], $order_currency_by_id[(int)$t['id']] ?? null, $exchange_rate);
+                                } else {
+                                    echo '<strong class="text-emerald-600">' . number_format($t['amount'], 2) . '</strong>';
+                                }
+                                ?>
+                            </td>
                             <td class="actions-cell">
                                 <div class="flex gap-2">
                                     <?php

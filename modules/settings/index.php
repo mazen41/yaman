@@ -204,6 +204,22 @@ include '../../includes/header.php';
                             >
                         </div>
                     </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">سعر صرف العملة (1 ريال سعودي = ? ريال يمني)</label>
+                            <input 
+                                type="number" 
+                                name="settings[exchange_rate_sar_yer]" 
+                                value="<?php echo htmlspecialchars($current_settings['exchange_rate_sar_yer'] ?? '140'); ?>"
+                                min="0" 
+                                step="0.01"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+                                placeholder="140"
+                            >
+                            <p class="text-xs text-gray-500 mt-1">يُستخدم لعرض وتحويل الأسعار تلقائيًا بين الريال اليمني (YER) والريال السعودي (SAR) في صفحات الطلبات والمراجعة المالية.</p>
+                        </div>
+                    </div>
                 </div>
             </div>
 

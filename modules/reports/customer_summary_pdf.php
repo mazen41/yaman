@@ -125,19 +125,24 @@ foreach ($customers as $i => $c) {
             SELECT
                 SUM(CASE WHEN status='delivered' THEN paid_amount ELSE 0 END) AS delivered_paid,
                 SUM(CASE WHEN status='delivered' THEN (final_amount - paid_amount) ELSE 0 END) AS delivered_remaining,
+                SUM(CASE WHEN status='delivered' THEN 1 ELSE 0 END) AS delivered_orders,
                 SUM(CASE WHEN status IN('ready','ready_to_deliver','جاهز للتسليم') THEN paid_amount ELSE 0 END) AS ready_paid,
                 SUM(CASE WHEN status IN('ready','ready_to_deliver','جاهز للتسليم') THEN (final_amount - paid_amount) ELSE 0 END) AS ready_remaining,
+                SUM(CASE WHEN status IN('ready','ready_to_deliver','جاهز للتسليم') THEN 1 ELSE 0 END) AS ready_orders,
                 SUM(CASE WHEN status NOT IN('delivered','cancelled','ready_to_deliver','ready','جاهز للتسليم') THEN paid_amount ELSE 0 END) AS other_paid,
-                SUM(CASE WHEN status NOT IN('delivered','cancelled','ready_to_deliver','ready','جاهز للتسليم') THEN (final_amount - paid_amount) ELSE 0 END) AS other_remaining
+                SUM(CASE WHEN status NOT IN('delivered','cancelled','ready_to_deliver','ready','جاهز للتسليم') THEN (final_amount - paid_amount) ELSE 0 END) AS other_remaining,
+                SUM(CASE WHEN status NOT IN('delivered','cancelled','ready_to_deliver','ready','جاهز للتسليم') THEN 1 ELSE 0 END) AS other_orders
             FROM customer_orders WHERE customer_id = ?
         ");
         $fin_stmt->execute([$c['id']]);
         $fin = $fin_stmt->fetch(PDO::FETCH_ASSOC);
     } catch (Exception $e) {
-        $fin = ['delivered_paid'=>0,'delivered_remaining'=>0,'ready_paid'=>0,'ready_remaining'=>0,'other_paid'=>0,'other_remaining'=>0];
+        $fin = ['delivered_paid'=>0,'delivered_remaining'=>0,'delivered_orders'=>0,'ready_paid'=>0,'ready_remaining'=>0,'ready_orders'=>0,'other_paid'=>0,'other_remaining'=>0,'other_orders'=>0];
     }
     foreach (['delivered_paid','delivered_remaining','ready_paid','ready_remaining','other_paid','other_remaining'] as $k)
         $fin[$k] = max(0, (float)($fin[$k] ?? 0));
+    foreach (['delivered_orders','ready_orders','other_orders'] as $k)
+        $fin[$k] = (int)($fin[$k] ?? 0);
 
     // All phone numbers
     $phones = array_filter([
@@ -181,10 +186,13 @@ foreach ($customers as $i => $c) {
         <td style=\"text-align:center;font-size:10px;color:#1e293b;direction:ltr;\">{$phone_str}</td>
         <td style=\"text-align:center;\">" . $d_paid . "</td>
         <td style=\"text-align:center;\">" . $d_rem  . "</td>
+        <td style=\"text-align:center;font-weight:700;\">" . $fin['delivered_orders'] . "</td>
         <td style=\"text-align:center;\">" . $r_paid . "</td>
         <td style=\"text-align:center;\">" . $r_rem  . "</td>
+        <td style=\"text-align:center;font-weight:700;\">" . $fin['ready_orders'] . "</td>
         <td style=\"text-align:center;\">" . $o_paid . "</td>
         <td style=\"text-align:center;\">" . $o_rem  . "</td>
+        <td style=\"text-align:center;font-weight:700;\">" . $fin['other_orders'] . "</td>
         <td style=\"text-align:right;font-size:9px;color:#1e293b;\">" . ($notes ? h($notes) : '<span style="color:#64748b;font-style:italic;">فارغة</span>') . "</td>
     </tr>\n";
 }
@@ -217,7 +225,7 @@ $totals_html = '
 <tr style="background:#1e293b;color:#ffffff;font-weight:bold;">
     <td colspan="3" style="text-align:right;">الإجمالي (' . $count . ' عميل)</td>
     <td style="text-align:center;">' . n($ttl_orders) . '</td>
-    <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+    <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
 </tr>';
 
 // ── Full HTML ─────────────────────────────────────────────────────────────────
@@ -264,22 +272,25 @@ table.main-tbl tfoot td { padding:6px 5px;border:1px solid #e2e8f0;font-weight:7
         <th rowspan="2" style="min-width:100px;text-align:right;background:#1e293b;color:#ffffff;">الاسم</th>
         <th rowspan="2" style="width:60px;background:#1e293b;color:#ffffff;">الموقع</th>
         <th rowspan="2" style="min-width:70px;text-align:right;background:#1e293b;color:#ffffff;">جميع الأرقام</th>
-        <th colspan="2" style="background:#1a3a5c;color:#ffffff;text-align:center;">تم الاستلام</th>
-        <th colspan="2" style="background:#14532d;color:#ffffff;text-align:center;">جاهز للتوصيل</th>
-        <th colspan="2" style="background:#4c1d95;color:#ffffff;text-align:center;">باقي الحالات</th>
+        <th colspan="3" style="background:#1a3a5c;color:#ffffff;text-align:center;">تم الاستلام</th>
+        <th colspan="3" style="background:#14532d;color:#ffffff;text-align:center;">جاهز للتوصيل</th>
+        <th colspan="3" style="background:#4c1d95;color:#ffffff;text-align:center;">باقي الحالات</th>
         <th rowspan="2" style="min-width:70px;background:#1e293b;color:#ffffff;">ملاحظات</th>
     </tr>
     <tr>
-        <th style="width:58px;background:#1a3a5c;color:#86efac;">مدفوع</th>
-        <th style="width:58px;background:#1a3a5c;color:#fca5a5;font-weight:800;">متبقي</th>
-        <th style="width:58px;background:#14532d;color:#86efac;">مدفوع</th>
-        <th style="width:58px;background:#14532d;color:#fca5a5;font-weight:800;">متبقي</th>
-        <th style="width:58px;background:#4c1d95;color:#86efac;">مدفوع</th>
-        <th style="width:58px;background:#4c1d95;color:#fca5a5;font-weight:800;">متبقي</th>
+        <th style="width:50px;background:#1a3a5c;color:#86efac;">مدفوع</th>
+        <th style="width:50px;background:#1a3a5c;color:#fca5a5;font-weight:800;">متبقي</th>
+        <th style="width:46px;background:#1a3a5c;color:#ffffff;">عدد الطلبات</th>
+        <th style="width:50px;background:#14532d;color:#86efac;">مدفوع</th>
+        <th style="width:50px;background:#14532d;color:#fca5a5;font-weight:800;">متبقي</th>
+        <th style="width:46px;background:#14532d;color:#ffffff;">عدد الطلبات</th>
+        <th style="width:50px;background:#4c1d95;color:#86efac;">مدفوع</th>
+        <th style="width:50px;background:#4c1d95;color:#fca5a5;font-weight:800;">متبقي</th>
+        <th style="width:46px;background:#4c1d95;color:#ffffff;">عدد الطلبات</th>
     </tr>
 </thead>
 <tbody>
-    ' . ($rows_html ?: '<tr><td colspan="11" style="text-align:center;padding:20px;color:#94a3b8;">لا توجد بيانات</td></tr>') . '
+    ' . ($rows_html ?: '<tr><td colspan="14" style="text-align:center;padding:20px;color:#94a3b8;">لا توجد بيانات</td></tr>') . '
 </tbody>
 ' . ($count ? '<tfoot>' . $totals_html . '</tfoot>' : '') . '
 </table>

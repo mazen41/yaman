@@ -41,6 +41,16 @@ $button3_template = '';
 $current_exchange_rate = 140;
 
 try {
+    $rate_stmt = $db->query("SELECT setting_value FROM system_settings WHERE setting_key = 'exchange_rate_sar_yer' LIMIT 1");
+    $rate_row = $rate_stmt ? $rate_stmt->fetch(PDO::FETCH_ASSOC) : null;
+    if ($rate_row && is_numeric($rate_row['setting_value']) && (float)$rate_row['setting_value'] > 0) {
+        $current_exchange_rate = (float)$rate_row['setting_value'];
+    }
+} catch (PDOException $e) {
+    // system_settings table may not exist yet — keep default rate
+}
+
+try {
     // Ensure per-button percentage columns exist (safe migration)
     foreach (['percentage2', 'percentage3'] as $col) {
         try {
@@ -410,15 +420,8 @@ $generated_id = 'CALC-' . time();
         <input type="hidden" name="action" value="save_calculation">
 
         <div class="content-padding">
-            <!-- Row 1: Percentage and Price -->
+            <!-- Row 1: Price and Pieces (right side, primary) -->
             <div class="input-row">
-                <div class="input-group">
-                    <label>النسبة (العميل %)</label>
-                    <div class="field-container">
-                        <input type="number" step="0.01" name="percentage" id="percentage" value="<?php echo $percentage; ?>" readonly>
-                        <div class="icon-box">%</div>
-                    </div>
-                </div>
                 <div class="input-group">
                     <label>السعر (SR)</label>
                     <div class="field-container">
@@ -426,22 +429,29 @@ $generated_id = 'CALC-' . time();
                         <div class="icon-box"><i class="fas fa-dollar-sign"></i></div>
                     </div>
                 </div>
-            </div>
-
-            <!-- Row 2: Date and Pieces -->
-            <div class="input-row">
-                <div class="input-group">
-                    <label>التاريخ</label>
-                    <div class="field-container">
-                        <input type="text" name="cut_date" id="cut_date" value="<?php echo $cut_date; ?>" <?= $canEditCalculations ? '' : 'readonly' ?>>
-                        <div class="icon-box"><i class="far fa-calendar-alt"></i></div>
-                    </div>
-                </div>
                 <div class="input-group">
                     <label>القطع</label>
                     <div class="field-container">
                         <input type="number" name="quantity" id="quantity" placeholder="أدخل عدد القطع" value="<?php echo $quantity; ?>" <?= $canEditCalculations ? '' : 'readonly' ?>>
                         <div class="icon-box"><i class="fas fa-shopping-cart"></i></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Row 2: Percentage (editable) and Date -->
+            <div class="input-row">
+                <div class="input-group">
+                    <label>النسبة (العميل %)</label>
+                    <div class="field-container">
+                        <input type="number" step="0.01" min="0" max="100" name="percentage" id="percentage" value="<?php echo $percentage; ?>">
+                        <div class="icon-box">%</div>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>التاريخ</label>
+                    <div class="field-container">
+                        <input type="text" name="cut_date" id="cut_date" value="<?php echo $cut_date; ?>" <?= $canEditCalculations ? '' : 'readonly' ?>>
+                        <div class="icon-box"><i class="far fa-calendar-alt"></i></div>
                     </div>
                 </div>
             </div>
@@ -536,6 +546,15 @@ $generated_id = 'CALC-' . time();
                                 <code>{REMAINING_YR}</code> (المتبقي)<br>
                                 <code>{PERCENTAGE}</code> <code>{QUANTITY}</code> <code>{CUT_DATE}</code>
                             </span>
+                            <br><br>
+                            <strong>سطر يظهر فقط إذا تم إدخال مبلغ مدفوع:</strong><br>
+                            <span dir="ltr">
+                                <code>{IF_PAID}المدفوع: {PAID_YR} YR{/IF_PAID}</code>
+                            </span><br>
+                            ضع أي نص (حتى لو سطر كامل بعنوانه) بين <code>{IF_PAID}</code> و <code>{/IF_PAID}</code> — إن تُرك حقل "المبلغ المدفوع" فارغًا سيُحذف هذا الجزء بالكامل من الرسالة بدلاً من ترك عنوان بلا رقم.
+                            <br><br>
+                            <strong>نسبة الخصم التلقائية حسب السعر (قابلة للتعديل يدويًا قبل النسخ):</strong><br>
+                            أقل من 499 ← 10% &nbsp;|&nbsp; أقل من 999 ← 11% &nbsp;|&nbsp; 999 فأكثر ← 12%
                         </div>
 
                         <button type="submit" class="save-settings-btn">
@@ -575,16 +594,21 @@ $generated_id = 'CALC-' . time();
         });
     }
 
-    // Auto-update discount rules (price-based triggers) — applies to العميل percentage only
+    // Auto-update discount rules (price-based tiers) — applies to العميل percentage only.
+    // Rule: price < 499 -> 10% | price < 999 -> 11% | price >= 999 -> 12%
+    // This is a DEFAULT suggestion only -- the percentage field stays editable,
+    // and whatever value is in it at copy-time is what gets used in the message.
+    function computeAutoPercentage(price) {
+        if (price < 499) return 10;
+        if (price < 999) return 11;
+        return 12;
+    }
+
     document.getElementById('price_sr').addEventListener('input', function() {
         const price_sr_val = parseFloat(this.value);
         const percentage_input = document.getElementById('percentage');
-        if (price_sr_val === 100) {
-            percentage_input.value = 10;
-        } else if (price_sr_val === 500) {
-            percentage_input.value = 11;
-        } else if (price_sr_val === 1000) {
-            percentage_input.value = 1;
+        if (!isNaN(price_sr_val) && price_sr_val > 0) {
+            percentage_input.value = computeAutoPercentage(price_sr_val);
         } else {
             percentage_input.value = dbPercentages.button1;
         }
@@ -654,34 +678,53 @@ $generated_id = 'CALC-' . time();
             btnName = 'مندوب RY';
         }
 
-        // If no paid amount entered, strip paid/remaining placeholders entirely from message
-        if (!hasPaidInput) {
-            template = template.replace(/\{PAID_YR\}|\{AMOUNT_PAID\}|\{AMOUNT_PAID_YR\}|\{REMAINING_YR\}/g, '');
+        // If no paid amount entered, remove whole conditional blocks first:
+        //   {IF_PAID}...text...{/IF_PAID}  -> removed entirely when nothing was paid, kept (tags stripped) when it was.
+        // This lets a template author wrap an entire "المدفوع: {PAID_YR}" line in {IF_PAID}...{/IF_PAID}
+        // so the whole line disappears instead of leaving an empty label behind.
+        if (hasPaidInput) {
+            template = template.replace(/\{IF_PAID\}([\s\S]*?)\{\/IF_PAID\}/gi, '$1');
+        } else {
+            template = template.replace(/\{IF_PAID\}([\s\S]*?)\{\/IF_PAID\}/gi, '');
+            // Backward compatibility for older templates that don't use {IF_PAID}:
+            // just blank out the raw paid/remaining placeholders.
+            template = template.replace(/\{PAID_YR\}|\{AMOUNT_PAID\}|\{AMOUNT_PAID_YR\}|\{REMAINING_YR\}/gi, '');
         }
 
         const replacements = {
-            '{ID}'                       : '<?php echo $generated_id; ?>',
-            '{PERCENTAGE}'               : percentage,
-            '{PRICE_SR}'                 : price_sr_format,
-            '{PRICE_YR}'                 : price_yr_format,
-            '{TOTAL_BEFORE_DISCOUNT_SR}' : price_sr_format,
-            '{TOTAL_BEFORE_DISCOUNT_YR}' : price_yr_format,
-            '{DISCOUNT_SR}'              : discount_sr_format,
-            '{DISCOUNT_YR}'              : discount_yr_format,
-            '{QUANTITY}'                 : quantity,
-            '{CUT_DATE}'                 : cut_date,
-            '{TOTAL_SR}'                 : total_sr_format,
-            '{TOTAL_YR}'                 : total_yr_format,
-            '{PAID_YR}'                  : paid_yr_display,
-            '{AMOUNT_PAID}'              : paid_yr_display,
-            '{AMOUNT_PAID_YR}'           : paid_yr_display,
-            '{REMAINING_YR}'             : remaining_yr_display
+            'ID'                       : '<?php echo $generated_id; ?>',
+            'PERCENTAGE'               : percentage,
+            'PRICE_SR'                 : price_sr_format,
+            'PRICE_YR'                 : price_yr_format,
+            'TOTAL_BEFORE_DISCOUNT_SR' : price_sr_format,
+            'TOTAL_BEFORE_DISCOUNT_YR' : price_yr_format,
+            'DISCOUNT_SR'              : discount_sr_format,
+            'DISCOUNT_YR'              : discount_yr_format,
+            'QUANTITY'                 : quantity,
+            'CUT_DATE'                 : cut_date,
+            'TOTAL_SR'                 : total_sr_format,
+            'TOTAL_YR'                 : total_yr_format,
+            'PAID_YR'                  : paid_yr_display,
+            'AMOUNT_PAID'              : paid_yr_display,
+            'AMOUNT_PAID_YR'           : paid_yr_display,
+            'REMAINING_YR'             : remaining_yr_display
         };
 
-        let finalMsg = template;
-        for (const key in replacements) {
-            finalMsg = finalMsg.replace(new RegExp(key.replace(/[{}]/g, '\\$&'), 'g'), replacements[key]);
-        }
+        // Sort keys longest-first so e.g. AMOUNT_PAID_YR is matched before AMOUNT_PAID
+        // can partially eat into it, then do ONE pass with a single case-insensitive
+        // regex that also tolerates stray spaces inside the braces (common copy/paste
+        // typo that used to make the raw {VARIABLE NAME} show up instead of the amount).
+        const sortedKeys = Object.keys(replacements).sort((a, b) => b.length - a.length);
+        const variablePattern = new RegExp('\\{\\s*(' + sortedKeys.join('|') + ')\\s*\\}', 'gi');
+
+        let finalMsg = template.replace(variablePattern, (match, varName) => {
+            const key = Object.keys(replacements).find(k => k.toLowerCase() === varName.toLowerCase());
+            return key !== undefined ? replacements[key] : match;
+        });
+
+        // Safety net: if any {...} placeholder is left over (e.g. a template typo for a
+        // variable that doesn't exist), strip it instead of showing the raw variable name.
+        finalMsg = finalMsg.replace(/\{[A-Za-z_]+\}/g, '');
 
         navigator.clipboard.writeText(finalMsg).then(() => {
             const toast = document.getElementById('toast');
