@@ -209,14 +209,7 @@ $summary_html = '
         <div style="font-size:9px;color:#92400e;font-weight:700;">إجمالي الطلبات</div>
         <div style="font-size:18px;font-weight:900;color:#78350f;">' . n($ttl_orders) . '</div>
     </td>
-    <td style="background:#d1fae5;border-radius:6px;text-align:center;border:1px solid #a7f3d0;width:25%;">
-        <div style="font-size:9px;color:#065f46;font-weight:700;">إجمالي المدفوع</div>
-        <div style="font-size:18px;font-weight:900;color:#064e3b;">' . n($ttl_paid) . '</div>
-    </td>
-    <td style="background:#fee2e2;border-radius:6px;text-align:center;border:1px solid #fecaca;width:25%;">
-        <div style="font-size:9px;color:#991b1b;font-weight:700;">إجمالي المتبقي</div>
-        <div style="font-size:18px;font-weight:900;color:#7f1d1d;">' . n($ttl_remaining) . '</div>
-    </td>
+
 </tr>
 </table>';
 
