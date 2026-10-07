@@ -36,6 +36,7 @@ $sidebar_modules = [
     ['name' => 'المدن', 'icon' => 'fas fa-city', 'key' => 'cities'],
     ['name' => 'طلبات العملاء', 'icon' => 'fas fa-shopping-bag', 'key' => 'orders'],
     ['name' => 'تعبئة SKU للطلبات', 'icon' => 'fas fa-barcode', 'key' => 'orders_skus'],
+    ['name' => 'إدارة الفرز', 'icon' => 'fas fa-qrcode', 'key' => 'sorting'],
     ['name' => 'order approval', 'icon' => 'fas fa-clipboard-check', 'key' => 'order_approval'],
     ['name' => 'المنتجات', 'icon' => 'fas fa-boxes', 'key' => 'products'],
     ['name' => 'الفئات', 'icon' => 'fas fa-tags', 'key' => 'categories'],
@@ -374,6 +375,9 @@ include $root . '/includes/header.php';
         $allowedTypes = ['view', 'add', 'edit'];
     } else if ($module['key'] === 'employees') { // Special case for employees module
         $allowedTypes = ['view', 'edit', 'add', 'manage_permissions']; // Employees can have their own permissions managed
+    } else if ($module['key'] === 'sorting') {
+        // Sorting (SKU scanning workflow) only needs view/edit
+        $allowedTypes = ['view', 'edit'];
     } else if (in_array($module['key'],['dashboard', 'cities', 'whatsapp', 'financial', 'bank_accounts', 'expenses', 'coupons', 'reports', 'portal_slides', 'settings', 'status', 'payments'])) {
         // Modules that are more about management/viewing records (Removed 'shipping' from here so it gets the default 'add' permission)
         $allowedTypes =['view', 'edit']; 

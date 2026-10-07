@@ -21,7 +21,7 @@ $all_sidebar_modules = [
     ['name' => 'المدن', 'route' => '/modules/customers/cities.php', 'icon' => 'fas fa-city', 'key' => 'cities', 'section' => 'modules'],
     ['name' => 'طلبات العملاء', 'route' => '/modules/orders/index.php', 'icon' => 'fas fa-shopping-bag', 'key' => 'orders', 'section' => 'modules'],
     ['name' => 'Orders SKUs', 'route' => '/modules/orders/skus.php', 'icon' => 'fas fa-barcode', 'key' => 'orders_skus', 'section' => 'modules'],
-    ['name' => 'إدارة الفرز', 'route' => '/modules/sorting/index.php', 'icon' => 'fas fa-qrcode', 'key' => 'orders', 'section' => 'modules'],
+    ['name' => 'إدارة الفرز', 'route' => '/modules/sorting/index.php', 'icon' => 'fas fa-qrcode', 'key' => 'sorting', 'section' => 'modules'],
     [
     'name' => 'بطاقات العملاء',
     'route' => '/modules/customers/customer_cards.php',

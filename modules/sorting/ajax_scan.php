@@ -30,7 +30,7 @@ require_once '../../includes/serpapi_lookup.php';
 header('Content-Type: application/json; charset=utf-8');
 
 $user_id = $_SESSION['user_id'] ?? 0;
-if (!hasPermission($user_id, 'orders', 'view') && !hasPermission($user_id, 'orders', 'edit')) {
+if (!hasPermission($user_id, 'sorting', 'view') && !hasPermission($user_id, 'sorting', 'edit')) {
     http_response_code(403);
     echo json_encode(['success' => false, 'message' => 'ليس لديك صلاحية']);
     exit();

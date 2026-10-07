@@ -18,7 +18,7 @@ require_once '../../includes/check_permissions.php';
 require_once '../../includes/shein_helpers.php';
 
 $user_id = $_SESSION['user_id'] ?? 0;
-if (!hasPermission($user_id, 'orders', 'view') && !hasPermission($user_id, 'orders', 'edit')) {
+if (!hasPermission($user_id, 'sorting', 'view') && !hasPermission($user_id, 'sorting', 'edit')) {
     $_SESSION['error_message'] = 'ليس لديك صلاحية لإدارة الفرز';
     header('Location: ../../index.php');
     exit();
