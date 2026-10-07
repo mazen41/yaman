@@ -629,7 +629,7 @@ include '../../includes/header.php';
                 <tbody id="orders-table-body">
                     <?php if (empty($orders)): ?>
                         <tr>
-                            <td colspan="21" style="text-align: center; padding: 40px; color: #6b7280;">لا توجد طلبات تطابق معايير البحث</td>
+                            <td colspan="22" style="text-align: center; padding: 40px; color: #6b7280;">لا توجد طلبات تطابق معايير البحث</td>
                         </tr>
                     <?php else: ?>
                         <?php foreach ($orders as $order):
@@ -753,7 +753,7 @@ include '../../includes/header.php';
                 <?php if (!empty($orders) && !empty($page_totals)): ?>
                     <tfoot style="background: #f3f4f6; border-top: 2px solid #d1d5db;">
                         <tr style="font-weight: bold; font-size: 14px;">
-                            <td colspan="3" style="text-align: right; padding: 12px;"><i class="fas fa-calculator"></i> إجمالي الصفحة (<?php echo $page_totals['total_count']; ?>)</td>
+                            <td colspan="4" style="text-align: right; padding: 12px;"><i class="fas fa-calculator"></i> إجمالي الصفحة (<?php echo $page_totals['total_count']; ?>)</td>
                             <td><?php echo number_format($page_totals['total_quantity_sum'], 0); ?></td>
                             <td colspan="7"></td>
                             <td style="color: #3b82f6;"><?php echo number_format($page_totals['total_subtotal_sum'], 0); ?></td>

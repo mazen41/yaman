@@ -322,8 +322,8 @@ function renderDualCurrency($amount, $currency, $exchange_rate) {
         $sar = $exchange_rate > 0 ? ($amount / $exchange_rate) : 0;
     }
 
-    return '<strong class="text-emerald-600">' . number_format($yer, 2) . ' YR</strong>'
-         . '<br><span class="text-xs text-gray-500">' . number_format($sar, 2) . ' SR</span>';
+    return '<strong class="text-emerald-600">' . number_format($sar, 2) . ' SR</strong>'
+         . '<br><span class="text-xs text-gray-500">' . number_format($yer, 2) . ' YR</span>';
 }
 
 

@@ -19,6 +19,7 @@ $page_title = 'تقرير حسابات العملاء';
 // Filters
 $search = $_GET['search'] ?? '';
 $status_filter = $_GET['status'] ?? ''; // 'has_balance', 'paid', ''
+$order_status_filter = $_GET['order_status'] ?? ''; // filter by order status
 $date_from = $_GET['date_from'] ?? '';
 $date_to   = $_GET['date_to'] ?? '';
 // Validate date format (YYYY-MM-DD) to avoid garbage input
@@ -65,8 +66,12 @@ try {
         $join_extra .= ' AND co.created_at <= ?';
         $join_params[] = $date_to . ' 23:59:59';
     }
+    if ($order_status_filter !== '') {
+        $join_extra .= ' AND co.status = ?';
+        $join_params[] = $order_status_filter;
+    }
     // When filtering by date, hide customers with no orders in that range
-    $having_sql = $has_date_filter ? 'HAVING COUNT(co.id) > 0' : '';
+    $having_sql = ($has_date_filter || $order_status_filter !== '') ? 'HAVING COUNT(co.id) > 0' : '';
     // Join params come first (they appear before WHERE in the SQL)
     $params = array_merge($join_params, $params);
 
@@ -152,7 +157,7 @@ include '../../includes/header.php';
     <!-- Filter Section -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
         <form method="GET" action="">
-            <div class="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
+            <div class="grid grid-cols-1 md:grid-cols-7 gap-4 items-end">
                 <div class="md:col-span-2">
                     <label class="block text-sm font-medium text-gray-700 mb-1">بحث</label>
                     <div class="relative rounded-md shadow-sm">
@@ -171,6 +176,17 @@ include '../../includes/header.php';
                         <option value="">الكل</option>
                         <option value="has_balance" <?php echo $status_filter === 'has_balance' ? 'selected' : ''; ?>>لديهم رصيد متبقي</option>
                         <option value="paid" <?php echo $status_filter === 'paid' ? 'selected' : ''; ?>>مسددين بالكامل</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">فلتر حسب حالة الطلب</label>
+                    <select name="order_status" class="w-full rounded-lg border-gray-300 focus:ring-purple-500 focus:border-purple-500 text-sm">
+                        <option value="">الكل</option>
+                        <option value="جديد" <?php echo $order_status_filter === 'جديد' ? 'selected' : ''; ?>>جديد</option>
+                        <option value="تم الشراء" <?php echo $order_status_filter === 'تم الشراء' ? 'selected' : ''; ?>>تم الشراء</option>
+                        <option value="جاهز للتوصيل" <?php echo $order_status_filter === 'جاهز للتوصيل' ? 'selected' : ''; ?>>جاهز للتوصيل</option>
+                        <option value="تم الاستلام" <?php echo $order_status_filter === 'تم الاستلام' ? 'selected' : ''; ?>>تم الاستلام</option>
                     </select>
                 </div>
 

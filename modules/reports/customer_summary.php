@@ -526,104 +526,78 @@ include '../../includes/header.php';
         <div style="overflow-x:auto">
         <table class="cs-table">
             <thead>
-                <!--
-                    Column layout (RTL right→left):
-                    1. م         (rowspan 2)
-                    2. الاسم      (rowspan 2)
-                    3. الموقع     (rowspan 2)
-                    4. المجموعة   (rowspan 2) — screen only, hidden on print
-                    5. جميع الارقام (rowspan 2)
-                    6. تم الاستلام  (colspan 2) → مدفوع [print-hidden] | متبقي
-                    7. جاهز للتوصيل (colspan 2) → مدفوع | متبقي
-                    8. باقي الحالات (colspan 2) → مدفوع | متبقي
-                    9. ملاحظات    (rowspan 2)
-                -->
                 <tr class="hd-row-1">
                     <th rowspan="2" style="width:36px">م</th>
                     <th rowspan="2" style="min-width:130px; text-align:right">الاسم</th>
-                    <th rowspan="2" style="min-width:80px">الموقع</th>
-                    <th rowspan="2" class="col-group no-print" style="min-width:90px">المجموعة</th>
-                    <th rowspan="2" style="min-width:80px">جميع<br>الارقام</th>
+                    <th rowspan="2" style="min-width:100px">الموقع - العنوان</th>
                     <th colspan="3" style="background:#1a3a5c; border-bottom:1px solid #2563eb">تم الاستلام</th>
                     <th colspan="3" style="background:#14532d; border-bottom:1px solid #16a34a">جاهز للتوصيل</th>
-                    <th colspan="3" style="background:#4c1d95; border-bottom:1px solid #7c3aed">باقي الحالات</th>
+                    <th colspan="3" style="background:#4c1d95; border-bottom:1px solid #7c3aed">تم الشراء</th>
+                    <th colspan="3" style="background:#7c2d12; border-bottom:1px solid #ea580c">جديد</th>
                     <th rowspan="2" style="min-width:90px">ملاحظات</th>
                 </tr>
                 <tr class="hd-row-2">
-                    <!-- تم الاستلام sub-cols -->
-                    <th class="sub-paid   col-delivered-paid" style="background:#1a3a5c; width:72px">مدفوع</th>
-                    <th class="sub-remaining"                 style="background:#1a3a5c; width:72px">متبقي</th>
-                    <th class="sub-count"                     style="background:#1a3a5c; width:60px">عدد الطلبات</th>
-                    <!-- جاهز للتوصيل sub-cols -->
-                    <th class="sub-paid"  style="background:#14532d; width:72px">مدفوع</th>
+                    <!-- تم الاستلام -->
+                    <th style="background:#1a3a5c; width:70px">عدد الطلبات</th>
+                    <th class="sub-paid" style="background:#1a3a5c; width:72px">مدفوع</th>
+                    <th class="sub-remaining" style="background:#1a3a5c; width:72px">متبقي</th>
+                    <!-- جاهز للتوصيل -->
+                    <th style="background:#14532d; width:70px">عدد الطلبات</th>
+                    <th class="sub-paid" style="background:#14532d; width:72px">مدفوع</th>
                     <th class="sub-remaining" style="background:#14532d; width:72px">متبقي</th>
-                    <th class="sub-count"     style="background:#14532d; width:60px">عدد الطلبات</th>
-                    <!-- باقي الحالات sub-cols -->
-                    <th class="sub-paid"  style="background:#4c1d95; width:72px">مدفوع</th>
+                    <!-- تم الشراء -->
+                    <th style="background:#4c1d95; width:70px">عدد الطلبات</th>
+                    <th class="sub-paid" style="background:#4c1d95; width:72px">مدفوع</th>
                     <th class="sub-remaining" style="background:#4c1d95; width:72px">متبقي</th>
-                    <th class="sub-count"     style="background:#4c1d95; width:60px">عدد الطلبات</th>
+                    <!-- جديد -->
+                    <th style="background:#7c2d12; width:70px">عدد الطلبات</th>
+                    <th class="sub-paid" style="background:#7c2d12; width:72px">مدفوع</th>
+                    <th class="sub-remaining" style="background:#7c2d12; width:72px">متبقي</th>
                 </tr>
             </thead>
             <tbody>
             <?php if (empty($customers)): ?>
                 <tr>
-                    <td colspan="15" style="text-align:center;padding:40px;color:#94a3b8;font-size:15px">
+                    <td colspan="16" style="text-align:center;padding:40px;color:#94a3b8;font-size:15px">
                         <i class="fas fa-inbox" style="font-size:30px;display:block;margin-bottom:8px"></i>
                         لا توجد نتائج مطابقة للفلاتر
                     </td>
                 </tr>
             <?php else: ?>
             <?php foreach ($customers as $i => $c):
-                // ── Compute per-status financials ──────────────────────────
-                // We need delivered / ready / other paid+remaining
-                // The main query only returns counts; we do a quick sub-query per customer
-                // to get per-status paid/remaining
+                // قيم مالية للحالات الأربع الجديدة
                 try {
                     $fin_stmt = $db->prepare("
                         SELECT
-                            SUM(CASE WHEN status='delivered'
-                                     THEN paid_amount ELSE 0 END) AS delivered_paid,
-                            SUM(CASE WHEN status='delivered'
-                                     THEN (final_amount - paid_amount) ELSE 0 END) AS delivered_remaining,
-                            SUM(CASE WHEN status='delivered' THEN 1 ELSE 0 END) AS delivered_orders,
-                            SUM(CASE WHEN status IN('ready','ready_to_deliver','جاهز للتسليم')
-                                     THEN paid_amount ELSE 0 END) AS ready_paid,
-                            SUM(CASE WHEN status IN('ready','ready_to_deliver','جاهز للتسليم')
-                                     THEN (final_amount - paid_amount) ELSE 0 END) AS ready_remaining,
-                            SUM(CASE WHEN status IN('ready','ready_to_deliver','جاهز للتسليم') THEN 1 ELSE 0 END) AS ready_orders,
-                            SUM(CASE WHEN status NOT IN('delivered','cancelled','ready_to_deliver','ready','جاهز للتسليم')
-                                     THEN paid_amount ELSE 0 END) AS other_paid,
-                            SUM(CASE WHEN status NOT IN('delivered','cancelled','ready_to_deliver','ready','جاهز للتسليم')
-                                     THEN (final_amount - paid_amount) ELSE 0 END) AS other_remaining,
-                            SUM(CASE WHEN status NOT IN('delivered','cancelled','ready_to_deliver','ready','جاهز للتسليم') THEN 1 ELSE 0 END) AS other_orders
-                        FROM customer_orders
-                        WHERE customer_id = ?
+                            SUM(CASE WHEN status IN('delivered','تم الاستلام') THEN 1 ELSE 0 END) AS delivered_orders,
+                            SUM(CASE WHEN status IN('delivered','تم الاستلام') THEN paid_amount ELSE 0 END) AS delivered_paid,
+                            SUM(CASE WHEN status IN('delivered','تم الاستلام') THEN (final_amount-paid_amount) ELSE 0 END) AS delivered_remaining,
+                            SUM(CASE WHEN status IN('ready','ready_to_deliver','جاهز للتسليم','جاهز للتوصيل') THEN 1 ELSE 0 END) AS ready_orders,
+                            SUM(CASE WHEN status IN('ready','ready_to_deliver','جاهز للتسليم','جاهز للتوصيل') THEN paid_amount ELSE 0 END) AS ready_paid,
+                            SUM(CASE WHEN status IN('ready','ready_to_deliver','جاهز للتسليم','جاهز للتوصيل') THEN (final_amount-paid_amount) ELSE 0 END) AS ready_remaining,
+                            SUM(CASE WHEN status IN('تم الشراء','purchased','processing') THEN 1 ELSE 0 END) AS purchased_orders,
+                            SUM(CASE WHEN status IN('تم الشراء','purchased','processing') THEN paid_amount ELSE 0 END) AS purchased_paid,
+                            SUM(CASE WHEN status IN('تم الشراء','purchased','processing') THEN (final_amount-paid_amount) ELSE 0 END) AS purchased_remaining,
+                            SUM(CASE WHEN status IN('new','جديد') THEN 1 ELSE 0 END) AS new_orders,
+                            SUM(CASE WHEN status IN('new','جديد') THEN paid_amount ELSE 0 END) AS new_paid,
+                            SUM(CASE WHEN status IN('new','جديد') THEN (final_amount-paid_amount) ELSE 0 END) AS new_remaining
+                        FROM customer_orders WHERE customer_id = ?
                     ");
                     $fin_stmt->execute([$c['id']]);
                     $fin = $fin_stmt->fetch(PDO::FETCH_ASSOC);
                 } catch (Exception $e) {
-                    $fin = ['delivered_paid'=>0,'delivered_remaining'=>0,'delivered_orders'=>0,'ready_paid'=>0,'ready_remaining'=>0,'ready_orders'=>0,'other_paid'=>0,'other_remaining'=>0,'other_orders'=>0];
+                    $fin = ['delivered_orders'=>0,'delivered_paid'=>0,'delivered_remaining'=>0,
+                            'ready_orders'=>0,'ready_paid'=>0,'ready_remaining'=>0,
+                            'purchased_orders'=>0,'purchased_paid'=>0,'purchased_remaining'=>0,
+                            'new_orders'=>0,'new_paid'=>0,'new_remaining'=>0];
                 }
+                foreach (['delivered_paid','delivered_remaining','ready_paid','ready_remaining',
+                          'purchased_paid','purchased_remaining','new_paid','new_remaining'] as $k)
+                    $fin[$k] = max(0,(float)($fin[$k]??0));
+                foreach (['delivered_orders','ready_orders','purchased_orders','new_orders'] as $k)
+                    $fin[$k] = (int)($fin[$k]??0);
 
-                $fin['delivered_paid']      = max(0, (float)($fin['delivered_paid'] ?? 0));
-                $fin['delivered_remaining'] = max(0, (float)($fin['delivered_remaining'] ?? 0));
-                $fin['delivered_orders']    = (int)($fin['delivered_orders'] ?? 0);
-                $fin['ready_paid']          = max(0, (float)($fin['ready_paid'] ?? 0));
-                $fin['ready_remaining']     = max(0, (float)($fin['ready_remaining'] ?? 0));
-                $fin['ready_orders']        = (int)($fin['ready_orders'] ?? 0);
-                $fin['other_paid']          = max(0, (float)($fin['other_paid'] ?? 0));
-                $fin['other_remaining']     = max(0, (float)($fin['other_remaining'] ?? 0));
-                $fin['other_orders']        = (int)($fin['other_orders'] ?? 0);
-
-                // Build phones string — all numbers the customer has
-                $phones = array_filter([
-                    $c['mobile_number'] ?? '',
-                    $c['phone'] ?? '',
-                    $c['alternative_number'] ?? '',
-                ]);
-                $all_numbers_str = !empty($phones) ? implode(' / ', $phones) : '—';
-
-                // Notes — show فارغة if empty
+                $location = implode(' - ', array_filter([$c['city_name']??'', $c['customer_code']??'']));
                 $notes_val = trim($c['notes'] ?? '');
             ?>
                 <tr>
@@ -640,97 +614,36 @@ include '../../includes/header.php';
                         <?php endif; ?>
                     </td>
 
-                    <!-- الموقع -->
+                    <!-- الموقع - العنوان -->
                     <td>
-                        <?= $c['city_name']
-                            ? '<span class="tag tag-gray">'.htmlspecialchars($c['city_name']).'</span>'
+                        <?= $location
+                            ? '<span class="tag tag-gray">'.htmlspecialchars($location).'</span>'
                             : '<span style="color:#cbd5e1">—</span>' ?>
                     </td>
 
-                    <!-- المجموعة — screen only -->
-                    <td class="col-group no-print">
-                        <?= $c['customer_type_name']
-                            ? '<span class="tag tag-blue">'.htmlspecialchars($c['customer_type_name']).'</span>'
-                            : '<span style="color:#cbd5e1">—</span>' ?>
-                    </td>
-
-                    <!-- جميع الارقام — mobile number -->
-                    <td style="font-size:12px; color:#475569; text-align:center; direction:ltr;">
-                        <?= htmlspecialchars($all_numbers_str) ?>
-                    </td>
-
-                    <!-- تم الاستلام: مدفوع [print-hidden, pdf-empty] -->
-                    <td class="col-delivered-paid">
-                        <?php if ($is_pdf): ?>
-                            
-                        <?php elseif ($fin['delivered_paid'] > 0): ?>
-                            <span class="num-paid"><?= number_format($fin['delivered_paid'], 0) ?></span>
-                        <?php else: ?>
-                            <span class="num-zero">—</span>
-                        <?php endif; ?>
-                    </td>
-
-                    <!-- تم الاستلام: متبقي -->
-                    <td>
-                        <?php if ($fin['delivered_remaining'] > 0): ?>
-                            <span class="num-remaining"><?= number_format($fin['delivered_remaining'], 0) ?></span>
-                        <?php else: ?>
-                            <span class="num-zero" style="font-size:14px">✓</span>
-                        <?php endif; ?>
-                    </td>
-
-                    <!-- تم الاستلام: عدد الطلبات -->
+                    <!-- تم الاستلام: عدد الطلبات | مدفوع | متبقي -->
                     <td><span class="tag tag-blue"><?= $fin['delivered_orders'] ?></span></td>
+                    <td><?= $fin['delivered_paid'] > 0 ? '<span class="num-paid">'.number_format($fin['delivered_paid'],0).'</span>' : '<span class="num-zero">—</span>' ?></td>
+                    <td><?= $fin['delivered_remaining'] > 0 ? '<span class="num-remaining">'.number_format($fin['delivered_remaining'],0).'</span>' : '<span class="num-zero" style="font-size:14px">✓</span>' ?></td>
 
-                    <!-- جاهز للتوصيل: مدفوع -->
-                    <td>
-                        <?php if ($fin['ready_paid'] > 0): ?>
-                            <span class="num-paid"><?= number_format($fin['ready_paid'], 0) ?></span>
-                        <?php else: ?>
-                            <span class="num-zero">—</span>
-                        <?php endif; ?>
-                    </td>
-
-                    <!-- جاهز للتوصيل: متبقي -->
-                    <td>
-                        <?php if ($fin['ready_remaining'] > 0): ?>
-                            <span class="num-remaining"><?= number_format($fin['ready_remaining'], 0) ?></span>
-                        <?php else: ?>
-                            <span class="num-zero" style="font-size:14px">✓</span>
-                        <?php endif; ?>
-                    </td>
-
-                    <!-- جاهز للتوصيل: عدد الطلبات -->
+                    <!-- جاهز للتوصيل: عدد الطلبات | مدفوع | متبقي -->
                     <td><span class="tag tag-green"><?= $fin['ready_orders'] ?></span></td>
+                    <td><?= $fin['ready_paid'] > 0 ? '<span class="num-paid">'.number_format($fin['ready_paid'],0).'</span>' : '<span class="num-zero">—</span>' ?></td>
+                    <td><?= $fin['ready_remaining'] > 0 ? '<span class="num-remaining">'.number_format($fin['ready_remaining'],0).'</span>' : '<span class="num-zero" style="font-size:14px">✓</span>' ?></td>
 
-                    <!-- باقي الحالات: مدفوع -->
-                    <td>
-                        <?php if ($fin['other_paid'] > 0): ?>
-                            <span class="num-paid"><?= number_format($fin['other_paid'], 0) ?></span>
-                        <?php else: ?>
-                            <span class="num-zero">—</span>
-                        <?php endif; ?>
-                    </td>
+                    <!-- تم الشراء: عدد الطلبات | مدفوع | متبقي -->
+                    <td><span class="tag tag-purple"><?= $fin['purchased_orders'] ?></span></td>
+                    <td><?= $fin['purchased_paid'] > 0 ? '<span class="num-paid">'.number_format($fin['purchased_paid'],0).'</span>' : '<span class="num-zero">—</span>' ?></td>
+                    <td><?= $fin['purchased_remaining'] > 0 ? '<span class="num-remaining">'.number_format($fin['purchased_remaining'],0).'</span>' : '<span class="num-zero" style="font-size:14px">✓</span>' ?></td>
 
-                    <!-- باقي الحالات: متبقي -->
-                    <td>
-                        <?php if ($fin['other_remaining'] > 0): ?>
-                            <span class="num-remaining"><?= number_format($fin['other_remaining'], 0) ?></span>
-                        <?php else: ?>
-                            <span class="num-zero" style="font-size:14px">✓</span>
-                        <?php endif; ?>
-                    </td>
-
-                    <!-- باقي الحالات: عدد الطلبات -->
-                    <td><span class="tag tag-purple"><?= $fin['other_orders'] ?></span></td>
+                    <!-- جديد: عدد الطلبات | مدفوع | متبقي -->
+                    <td><span class="tag tag-gold"><?= $fin['new_orders'] ?></span></td>
+                    <td><?= $fin['new_paid'] > 0 ? '<span class="num-paid">'.number_format($fin['new_paid'],0).'</span>' : '<span class="num-zero">—</span>' ?></td>
+                    <td><?= $fin['new_remaining'] > 0 ? '<span class="num-remaining">'.number_format($fin['new_remaining'],0).'</span>' : '<span class="num-zero" style="font-size:14px">✓</span>' ?></td>
 
                     <!-- ملاحظات -->
                     <td style="text-align:right; font-size:11px; color:#475569; max-width:120px; word-break:break-word">
-                        <?php if (!empty($notes_val)): ?>
-                            <?= htmlspecialchars($notes_val) ?>
-                        <?php else: ?>
-                            
-                        <?php endif; ?>
+                        <?= !empty($notes_val) ? htmlspecialchars($notes_val) : '' ?>
                     </td>
                 </tr>
             <?php endforeach; ?>
