@@ -166,6 +166,8 @@ foreach ($customers as $i => $c) {
     // cell helpers
     $cell_rem = fn($v) => $v > 0 ? '<span style="color:#b91c1c;font-weight:800;">'.n($v).'</span>' : '<span style="color:#10b981;">✓</span>';
     $cell_paid = fn($v) => $v > 0 ? '<span style="color:#059669;">'.n($v).'</span>' : '&nbsp;';
+    // "جاهز للتوصيل" paid column always shows the actual figure (including 0), per request
+    $cell_paid_ready = fn($v) => '<span style="color:#059669;">'.n($v).'</span>';
 
     $rows_html .= "
     <tr style=\"background:{$bg};\">
