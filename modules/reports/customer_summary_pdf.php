@@ -178,16 +178,16 @@ foreach ($customers as $i => $c) {
         </td>
         <td style=\"text-align:center;color:#1e293b;\">" . ($location ? h($location) : '—') . "</td>
         <td style=\"text-align:center;font-weight:700;\">" . $fin['delivered_orders'] . "</td>
-        <td style=\"text-align:center;\">" . $cell_paid($fin['delivered_paid']) . "</td>
+        <td style=\"text-align:center;\">&nbsp;</td>
         <td style=\"text-align:center;\">" . $cell_rem($fin['delivered_remaining']) . "</td>
         <td style=\"text-align:center;font-weight:700;\">" . $fin['ready_orders'] . "</td>
-        <td style=\"text-align:center;\">" . $cell_paid($fin['ready_paid']) . "</td>
+        <td style=\"text-align:center;\">" . $cell_paid_ready($fin['ready_paid']) . "</td>
         <td style=\"text-align:center;\">" . $cell_rem($fin['ready_remaining']) . "</td>
         <td style=\"text-align:center;font-weight:700;\">" . $fin['purchased_orders'] . "</td>
-        <td style=\"text-align:center;\">" . $cell_paid($fin['purchased_paid']) . "</td>
+        <td style=\"text-align:center;\">&nbsp;</td>
         <td style=\"text-align:center;\">" . $cell_rem($fin['purchased_remaining']) . "</td>
         <td style=\"text-align:center;font-weight:700;\">" . $fin['new_orders'] . "</td>
-        <td style=\"text-align:center;\">" . $cell_paid($fin['new_paid']) . "</td>
+        <td style=\"text-align:center;\">&nbsp;</td>
         <td style=\"text-align:center;\">" . $cell_rem($fin['new_remaining']) . "</td>
         <td style=\"text-align:right;font-size:9px;color:#1e293b;\">" . ($notes ? h($notes) : '') . "</td>
     </tr>\n";

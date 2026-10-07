@@ -322,8 +322,12 @@ function renderDualCurrency($amount, $currency, $exchange_rate) {
         $sar = $exchange_rate > 0 ? ($amount / $exchange_rate) : 0;
     }
 
-    return '<strong class="text-emerald-600">' . number_format($sar, 2) . ' SR</strong>'
-         . '<br><span class="text-xs text-gray-500">' . number_format($yer, 2) . ' YR</span>';
+    // YER (يمني) on top, SAR (سعودي) underneath, each explicitly labeled
+    return '<div style="line-height:1.5;">'
+         . '<div><span class="text-xs text-gray-500">يمني:</span> <strong class="text-emerald-600">' . number_format($yer, 2) . ' ر.ي</strong></div>'
+         . '<div style="border-top:1px solid #e5e7eb;margin:2px 0;"></div>'
+         . '<div><span class="text-xs text-gray-500">سعودي:</span> <strong class="text-blue-600">' . number_format($sar, 2) . ' ر.س</strong></div>'
+         . '</div>';
 }
 
 
