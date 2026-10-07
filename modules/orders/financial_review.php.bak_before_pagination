@@ -113,13 +113,13 @@ $date_to = $_GET['date_to'] ?? '';
 $bank_account_filter = $_GET['bank_account'] ?? '';
 
 try {
-    $orders_query = "SELECT DISTINCT o.id, CAST('order' AS CHAR(50)) COLLATE utf8mb4_unicode_ci as transaction_type, CAST(o.order_number AS CHAR(255)) COLLATE utf8mb4_unicode_ci as transaction_number, CAST(o.invoice_number AS CHAR(255)) COLLATE utf8mb4_unicode_ci as reference_number, o.customer_id, CAST(o.final_amount AS DECIMAL(10,2)) as amount, CAST(o.status AS CHAR(50)) COLLATE utf8mb4_unicode_ci as status, CAST(COALESCE(o.payment_method, 'غير محدد') AS CHAR(100)) COLLATE utf8mb4_unicode_ci as payment_method, CAST(COALESCE(o.review_status, 'pending') AS CHAR(50)) COLLATE utf8mb4_unicode_ci as review_status, o.reviewed_at, o.reviewed_by, CAST(COALESCE(o.review_note, '') AS CHAR(1000)) COLLATE utf8mb4_unicode_ci as review_note, o.created_at, o.updated_at, CAST(COALESCE(c.name, '') AS CHAR(255)) COLLATE utf8mb4_unicode_ci as customer_name, CAST(COALESCE(c.mobile_number, '') AS CHAR(50)) COLLATE utf8mb4_unicode_ci as mobile_number, CAST(COALESCE(u.username, '') AS CHAR(100)) COLLATE utf8mb4_unicode_ci as reviewed_by_name, CAST(NULL AS CHAR(255)) as bank_name, CAST(COALESCE(o.currency, 'YER') AS CHAR(10)) COLLATE utf8mb4_unicode_ci as currency FROM customer_orders o LEFT JOIN customers c ON o.customer_id = c.id LEFT JOIN users u ON o.reviewed_by = u.id";
+    $orders_query = "SELECT DISTINCT o.id, CAST('order' AS CHAR(50)) COLLATE utf8mb4_unicode_ci as transaction_type, CAST(o.order_number AS CHAR(255)) COLLATE utf8mb4_unicode_ci as transaction_number, CAST(o.invoice_number AS CHAR(255)) COLLATE utf8mb4_unicode_ci as reference_number, o.customer_id, CAST(o.final_amount AS DECIMAL(10,2)) as amount, CAST(o.status AS CHAR(50)) COLLATE utf8mb4_unicode_ci as status, CAST(COALESCE(o.payment_method, 'غير محدد') AS CHAR(100)) COLLATE utf8mb4_unicode_ci as payment_method, CAST(COALESCE(o.review_status, 'pending') AS CHAR(50)) COLLATE utf8mb4_unicode_ci as review_status, o.reviewed_at, o.reviewed_by, CAST(COALESCE(o.review_note, '') AS CHAR(1000)) COLLATE utf8mb4_unicode_ci as review_note, o.created_at, o.updated_at, CAST(COALESCE(c.name, '') AS CHAR(255)) COLLATE utf8mb4_unicode_ci as customer_name, CAST(COALESCE(c.mobile_number, '') AS CHAR(50)) COLLATE utf8mb4_unicode_ci as mobile_number, CAST(COALESCE(u.username, '') AS CHAR(100)) COLLATE utf8mb4_unicode_ci as reviewed_by_name, CAST(NULL AS CHAR(255)) as bank_name FROM customer_orders o LEFT JOIN customers c ON o.customer_id = c.id LEFT JOIN users u ON o.reviewed_by = u.id";
     
-    $baskets_query = "SELECT DISTINCT pb.id, CAST('basket' AS CHAR(50)) COLLATE utf8mb4_unicode_ci as transaction_type, CAST(pb.basket_code AS CHAR(255)) COLLATE utf8mb4_unicode_ci as transaction_number, CAST(pb.currency AS CHAR(255)) COLLATE utf8mb4_unicode_ci as reference_number, NULL as customer_id, CAST(pb.final_amount AS DECIMAL(10,2)) as amount, CAST(pb.status AS CHAR(50)) COLLATE utf8mb4_unicode_ci as status, CAST(CONCAT(COALESCE(pb.sar_amount,''), '|', COALESCE(pb.currency,'YER')) AS CHAR(100)) COLLATE utf8mb4_unicode_ci as payment_method, CAST(COALESCE(pb.review_status, 'pending') AS CHAR(50)) COLLATE utf8mb4_unicode_ci as review_status, pb.reviewed_at, pb.reviewed_by, CAST(COALESCE(pb.review_note, '') AS CHAR(1000)) COLLATE utf8mb4_unicode_ci as review_note, pb.created_at, pb.updated_at, CAST('سلة شراء' AS CHAR(255)) COLLATE utf8mb4_unicode_ci as customer_name, CAST('' AS CHAR(50)) COLLATE utf8mb4_unicode_ci as mobile_number, CAST(COALESCE(u.username, '') AS CHAR(100)) COLLATE utf8mb4_unicode_ci as reviewed_by_name, CAST(NULL AS CHAR(255)) as bank_name, CAST(COALESCE(pb.currency, 'YER') AS CHAR(10)) COLLATE utf8mb4_unicode_ci as currency FROM purchase_baskets pb LEFT JOIN users u ON pb.reviewed_by = u.id";
+    $baskets_query = "SELECT DISTINCT pb.id, CAST('basket' AS CHAR(50)) COLLATE utf8mb4_unicode_ci as transaction_type, CAST(pb.basket_code AS CHAR(255)) COLLATE utf8mb4_unicode_ci as transaction_number, CAST(pb.currency AS CHAR(255)) COLLATE utf8mb4_unicode_ci as reference_number, NULL as customer_id, CAST(pb.final_amount AS DECIMAL(10,2)) as amount, CAST(pb.status AS CHAR(50)) COLLATE utf8mb4_unicode_ci as status, CAST(CONCAT(COALESCE(pb.sar_amount,''), '|', COALESCE(pb.currency,'YER')) AS CHAR(100)) COLLATE utf8mb4_unicode_ci as payment_method, CAST(COALESCE(pb.review_status, 'pending') AS CHAR(50)) COLLATE utf8mb4_unicode_ci as review_status, pb.reviewed_at, pb.reviewed_by, CAST(COALESCE(pb.review_note, '') AS CHAR(1000)) COLLATE utf8mb4_unicode_ci as review_note, pb.created_at, pb.updated_at, CAST('سلة شراء' AS CHAR(255)) COLLATE utf8mb4_unicode_ci as customer_name, CAST('' AS CHAR(50)) COLLATE utf8mb4_unicode_ci as mobile_number, CAST(COALESCE(u.username, '') AS CHAR(100)) COLLATE utf8mb4_unicode_ci as reviewed_by_name, CAST(NULL AS CHAR(255)) as bank_name FROM purchase_baskets pb LEFT JOIN users u ON pb.reviewed_by = u.id";
     
-    $expenses_query = "SELECT DISTINCT e.id, CAST('expense' AS CHAR(50)) COLLATE utf8mb4_unicode_ci as transaction_type, CAST(e.expense_number AS CHAR(255)) COLLATE utf8mb4_unicode_ci as transaction_number, CAST(e.reference_number AS CHAR(255)) COLLATE utf8mb4_unicode_ci as reference_number, NULL as customer_id, CAST(e.amount AS DECIMAL(10,2)) as amount, CAST(e.status AS CHAR(50)) COLLATE utf8mb4_unicode_ci as status, CAST(COALESCE(e.payment_method, 'غير محدد') AS CHAR(100)) COLLATE utf8mb4_unicode_ci as payment_method, CAST(COALESCE(e.review_status, 'pending') AS CHAR(50)) COLLATE utf8mb4_unicode_ci as review_status, e.reviewed_at, e.reviewed_by, CAST(COALESCE(e.review_note, '') AS CHAR(1000)) COLLATE utf8mb4_unicode_ci as review_note, e.created_at, e.updated_at, CAST(COALESCE(e.vendor_name, 'مصروف') AS CHAR(255)) COLLATE utf8mb4_unicode_ci as customer_name, CAST(COALESCE(e.vendor_phone, '') AS CHAR(50)) COLLATE utf8mb4_unicode_ci as mobile_number, CAST(COALESCE(u.username, '') AS CHAR(100)) COLLATE utf8mb4_unicode_ci as reviewed_by_name, CAST(COALESCE(ba.bank_name, e.bank_name, '') AS CHAR(255)) as bank_name, CAST(COALESCE(e.currency, 'YER') AS CHAR(10)) COLLATE utf8mb4_unicode_ci as currency FROM expenses e LEFT JOIN users u ON e.reviewed_by = u.id LEFT JOIN bank_accounts ba ON e.bank_account_id = ba.id";
+    $expenses_query = "SELECT DISTINCT e.id, CAST('expense' AS CHAR(50)) COLLATE utf8mb4_unicode_ci as transaction_type, CAST(e.expense_number AS CHAR(255)) COLLATE utf8mb4_unicode_ci as transaction_number, CAST(e.reference_number AS CHAR(255)) COLLATE utf8mb4_unicode_ci as reference_number, NULL as customer_id, CAST(e.amount AS DECIMAL(10,2)) as amount, CAST(e.status AS CHAR(50)) COLLATE utf8mb4_unicode_ci as status, CAST(COALESCE(e.payment_method, 'غير محدد') AS CHAR(100)) COLLATE utf8mb4_unicode_ci as payment_method, CAST(COALESCE(e.review_status, 'pending') AS CHAR(50)) COLLATE utf8mb4_unicode_ci as review_status, e.reviewed_at, e.reviewed_by, CAST(COALESCE(e.review_note, '') AS CHAR(1000)) COLLATE utf8mb4_unicode_ci as review_note, e.created_at, e.updated_at, CAST(COALESCE(e.vendor_name, 'مصروف') AS CHAR(255)) COLLATE utf8mb4_unicode_ci as customer_name, CAST(COALESCE(e.vendor_phone, '') AS CHAR(50)) COLLATE utf8mb4_unicode_ci as mobile_number, CAST(COALESCE(u.username, '') AS CHAR(100)) COLLATE utf8mb4_unicode_ci as reviewed_by_name, CAST(COALESCE(ba.bank_name, e.bank_name, '') AS CHAR(255)) as bank_name FROM expenses e LEFT JOIN users u ON e.reviewed_by = u.id LEFT JOIN bank_accounts ba ON e.bank_account_id = ba.id";
     
-    $payments_query = "SELECT DISTINCT cp.id, CAST('payment' AS CHAR(50)) COLLATE utf8mb4_unicode_ci as transaction_type, CAST(cp.payment_number AS CHAR(255)) COLLATE utf8mb4_unicode_ci as transaction_number, CAST(cp.reference_number AS CHAR(255)) COLLATE utf8mb4_unicode_ci as reference_number, cp.customer_id, CAST(cp.amount AS DECIMAL(10,2)) as amount, CAST('paid' AS CHAR(50)) COLLATE utf8mb4_unicode_ci as status, CAST(COALESCE(cp.payment_method, 'غير محدد') AS CHAR(100)) COLLATE utf8mb4_unicode_ci as payment_method, CAST(COALESCE(cp.review_status, 'pending') AS CHAR(50)) COLLATE utf8mb4_unicode_ci as review_status, cp.reviewed_at, cp.reviewed_by, CAST(COALESCE(cp.review_note, '') AS CHAR(1000)) COLLATE utf8mb4_unicode_ci as review_note, cp.created_at, cp.updated_at, CAST(COALESCE(c.name, 'دفعة عميل') AS CHAR(255)) COLLATE utf8mb4_unicode_ci as customer_name, CAST(COALESCE(c.mobile_number, '') AS CHAR(50)) COLLATE utf8mb4_unicode_ci as mobile_number, CAST(COALESCE(u.username, '') AS CHAR(100)) COLLATE utf8mb4_unicode_ci as reviewed_by_name, CAST(COALESCE(ba.bank_name, '') AS CHAR(255)) COLLATE utf8mb4_unicode_ci as bank_name, CAST(COALESCE(cp.currency, 'YER') AS CHAR(10)) COLLATE utf8mb4_unicode_ci as currency FROM customer_payments cp LEFT JOIN customers c ON cp.customer_id = c.id LEFT JOIN users u ON cp.reviewed_by = u.id LEFT JOIN bank_accounts ba ON cp.bank_account_id = ba.id";
+    $payments_query = "SELECT DISTINCT cp.id, CAST('payment' AS CHAR(50)) COLLATE utf8mb4_unicode_ci as transaction_type, CAST(cp.payment_number AS CHAR(255)) COLLATE utf8mb4_unicode_ci as transaction_number, CAST(cp.reference_number AS CHAR(255)) COLLATE utf8mb4_unicode_ci as reference_number, cp.customer_id, CAST(cp.amount AS DECIMAL(10,2)) as amount, CAST('paid' AS CHAR(50)) COLLATE utf8mb4_unicode_ci as status, CAST(COALESCE(cp.payment_method, 'غير محدد') AS CHAR(100)) COLLATE utf8mb4_unicode_ci as payment_method, CAST(COALESCE(cp.review_status, 'pending') AS CHAR(50)) COLLATE utf8mb4_unicode_ci as review_status, cp.reviewed_at, cp.reviewed_by, CAST(COALESCE(cp.review_note, '') AS CHAR(1000)) COLLATE utf8mb4_unicode_ci as review_note, cp.created_at, cp.updated_at, CAST(COALESCE(c.name, 'دفعة عميل') AS CHAR(255)) COLLATE utf8mb4_unicode_ci as customer_name, CAST(COALESCE(c.mobile_number, '') AS CHAR(50)) COLLATE utf8mb4_unicode_ci as mobile_number, CAST(COALESCE(u.username, '') AS CHAR(100)) COLLATE utf8mb4_unicode_ci as reviewed_by_name, CAST(COALESCE(ba.bank_name, '') AS CHAR(255)) COLLATE utf8mb4_unicode_ci as bank_name FROM customer_payments cp LEFT JOIN customers c ON cp.customer_id = c.id LEFT JOIN users u ON cp.reviewed_by = u.id LEFT JOIN bank_accounts ba ON cp.bank_account_id = ba.id";
 
     $order_status_history_query = "
         SELECT 
@@ -140,8 +140,7 @@ try {
             CAST(COALESCE(c.name, 'غير محدد') AS CHAR(255)) COLLATE utf8mb4_unicode_ci as customer_name, 
             CAST(COALESCE(c.mobile_number, '') AS CHAR(50)) COLLATE utf8mb4_unicode_ci as mobile_number, 
             CAST(COALESCE(u.username, '') AS CHAR(100)) COLLATE utf8mb4_unicode_ci as reviewed_by_name,
-            CAST(NULL AS CHAR(255)) as bank_name,
-            CAST(COALESCE(co.currency, 'YER') AS CHAR(10)) COLLATE utf8mb4_unicode_ci as currency
+            CAST(NULL AS CHAR(255)) as bank_name
         FROM order_status_history osh
         LEFT JOIN customer_orders co ON osh.order_id = co.id
         LEFT JOIN customers c ON co.customer_id = c.id
@@ -167,8 +166,7 @@ try {
             CAST(COALESCE(c.name, 'غير محدد') AS CHAR(255)) COLLATE utf8mb4_unicode_ci as customer_name, 
             CAST(COALESCE(c.mobile_number, '') AS CHAR(50)) COLLATE utf8mb4_unicode_ci as mobile_number, 
             CAST(COALESCE(u.username, '') AS CHAR(100)) COLLATE utf8mb4_unicode_ci as reviewed_by_name,
-            CAST(NULL AS CHAR(255)) as bank_name,
-            CAST(COALESCE(co.currency, 'YER') AS CHAR(10)) COLLATE utf8mb4_unicode_ci as currency
+            CAST(NULL AS CHAR(255)) as bank_name
         FROM order_state_history osh
         LEFT JOIN customer_orders co ON osh.order_id = co.id
         LEFT JOIN customers c ON co.customer_id = c.id
@@ -176,137 +174,133 @@ try {
     ";
 
 
-    // ── Exchange rate: 1 SAR = N YER (Settings → system_settings.exchange_rate_sar_yer) ──
-    $exchange_rate = 140;
-    try {
-        $rate_stmt = $db->query("SELECT setting_value FROM system_settings WHERE setting_key = 'exchange_rate_sar_yer' LIMIT 1");
-        $rate_row = $rate_stmt ? $rate_stmt->fetch(PDO::FETCH_ASSOC) : null;
-        if ($rate_row && is_numeric($rate_row['setting_value']) && (float)$rate_row['setting_value'] > 0) {
-            $exchange_rate = (float)$rate_row['setting_value'];
-        }
-    } catch (PDOException $e) {
-        // system_settings missing — keep default rate
-    }
-    $rate_sql = sprintf('%.6F', $exchange_rate);
-
-    $known_filters = ['all', 'order', 'basket', 'expense', 'payment', 'order_history', 'modified_history'];
-    if (!in_array($filter, $known_filters, true)) { $filter = 'all'; }
-
-    $union_sql = "($orders_query) UNION ALL ($baskets_query) UNION ALL ($expenses_query) UNION ALL ($payments_query) UNION ALL ($order_status_history_query) UNION ALL ($order_state_history_query)";
-
-    // ── Filters are applied in SQL (not in PHP) so we never load all rows into memory ──
+    $combined_query = "($orders_query) UNION ALL ($baskets_query) UNION ALL ($expenses_query) UNION ALL ($payments_query) UNION ALL ($order_status_history_query) UNION ALL ($order_state_history_query)";
+    
+    // Apply filters to the combined query before fetching
     $where_clauses = [];
     $params = [];
 
+    // NOTE: the review-status filter (pending/reviewed/all) is applied later in PHP, AFTER the
+    // "reviewed" / "pending" counters are calculated, so the two stat cards are always accurate.
+
+    // Filter by bank account name
     if ($bank_account_filter === 'cash') {
         $where_clauses[] = "(bank_name = '' OR bank_name IS NULL)";
     } elseif (!empty($bank_account_filter)) {
         $where_clauses[] = "bank_name = :bank_account_filter";
         $params[':bank_account_filter'] = $bank_account_filter;
     }
-    if ($status_filter !== '') {
-        $where_clauses[] = "status = :status_filter";
-        $params[':status_filter'] = $status_filter;
-    }
-    if ($amount_filter !== '' && is_numeric($amount_filter)) {
-        $where_clauses[] = "amount = :amount_filter";
-        $params[':amount_filter'] = (float)$amount_filter;
-    }
-    // created_at is stored in UTC; Asia/Aden = UTC+3 (no DST) — same conversion the table displays
-    if (!empty($date_from)) {
-        $where_clauses[] = "DATE(DATE_ADD(created_at, INTERVAL 3 HOUR)) >= :date_from";
-        $params[':date_from'] = $date_from;
-    }
-    if (!empty($date_to)) {
-        $where_clauses[] = "DATE(DATE_ADD(created_at, INTERVAL 3 HOUR)) <= :date_to";
-        $params[':date_to'] = $date_to;
-    }
-    if ($search_query !== '') {
-        $where_clauses[] = "LOWER(CONCAT_WS(' ', transaction_number, reference_number, customer_name, mobile_number, status)) LIKE :search_q";
-        $params[':search_q'] = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], mb_strtolower($search_query, 'UTF-8')) . '%';
+
+
+    if (!empty($where_clauses)) {
+        $combined_query = "SELECT * FROM (
+            $combined_query
+        ) AS all_transactions
+        WHERE " . implode(' AND ', $where_clauses);
     }
 
-    $base_sql = "SELECT * FROM ($union_sql) AS all_transactions"
-              . (!empty($where_clauses) ? " WHERE " . implode(' AND ', $where_clauses) : "");
+    $combined_query .= " ORDER BY created_at DESC";
 
-    $modified_sql = "(transaction_type IN ('order_status_history','order_state_history') AND (TRIM(COALESCE(status,'')) IN ('معدل','modified','modifed') OR TRIM(COALESCE(reference_number,'')) IN ('معدل','modified','modifed')))";
-    $yer_expr = "CASE WHEN UPPER(TRIM(COALESCE(currency,''))) IN ('SAR','SR') THEN amount * $rate_sql ELSE amount END";
+    $stmt = $db->prepare($combined_query);
+    $stmt->execute($params);
+    $transactions = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // ── One grouped query gives us every counter + the total (in YER) ──
-    $stats_stmt = $db->prepare("SELECT transaction_type, IF($modified_sql, 1, 0) AS is_modified, review_status, COUNT(*) AS cnt, COALESCE(SUM($yer_expr), 0) AS total_yer FROM ($base_sql) AS f GROUP BY transaction_type, is_modified, review_status");
-    $stats_stmt->execute($params);
-
-    $orders_count = $baskets_count = $expenses_count = $payments_count = $order_status_history_count = 0;
-    $modified_history_count = $main_transactions_count = $reviewed_count = $pending_count = 0;
-    $total_rows = 0;
-    $displayed_total_amount = 0.0;
-    $history_types = ['order_status_history', 'order_state_history'];
-
-    foreach ($stats_stmt->fetchAll(PDO::FETCH_ASSOC) as $s) {
-        $cnt    = (int)$s['cnt'];
-        $type   = $s['transaction_type'];
-        $is_mod = ((int)$s['is_modified'] === 1);
-        $rv     = $s['review_status'] ?? 'pending';
-
-        if ($is_mod) {
-            $modified_history_count += $cnt;
-        } else {
-            $main_transactions_count += $cnt;
-            if ($type === 'order')        $orders_count   += $cnt;
-            elseif ($type === 'basket')   $baskets_count  += $cnt;
-            elseif ($type === 'expense')  $expenses_count += $cnt;
-            elseif ($type === 'payment')  $payments_count += $cnt;
-            elseif (in_array($type, $history_types, true)) $order_status_history_count += $cnt;
-            if ($rv === 'reviewed')     $reviewed_count += $cnt;
-            elseif ($rv === 'pending')  $pending_count  += $cnt;
+    // Apply search/date/status/amount filters before tab counts so every tab respects the active filters.
+    $transactions = array_filter($transactions, function ($t) use ($search_query, $status_filter, $date_from, $date_to, $amount_filter) {
+        if ($status_filter !== '' && ($t['status'] ?? '') !== $status_filter) return false;
+        
+        if ($amount_filter !== '') {
+            if (floatval($t['amount']) != floatval($amount_filter)) return false;
         }
 
-        // Does this group belong to the currently selected tab + review filter?
-        if ($filter === 'modified_history')      $in_view = $is_mod;
-        elseif ($is_mod)                         $in_view = false;
-        elseif ($filter === 'order_history')     $in_view = in_array($type, $history_types, true);
-        elseif ($filter === 'all')               $in_view = true;
-        else                                     $in_view = ($type === $filter);
-
-        if ($in_view && $review_status_filter !== 'all' && $review_status_filter !== '' && $rv !== $review_status_filter) {
-            $in_view = false;
+        if (!empty($date_from) || !empty($date_to)) {
+            // Use the same UTC -> Asia/Aden conversion that the table displays, so the filter matches what the user sees
+            $created_date = formatToYemenTime($t['created_at'] ?? '', 'Y-m-d');
+            if ($created_date === '-') { $created_date = substr($t['created_at'] ?? '', 0, 10); }
+            if (!empty($date_from) && $created_date < $date_from) return false;
+            if (!empty($date_to) && $created_date > $date_to) return false;
         }
-        if ($in_view) {
-            $total_rows += $cnt;
-            $displayed_total_amount += (float)$s['total_yer'];
+        if ($search_query !== '') {
+            $haystack = strtolower(($t['transaction_number'] ?? '') . ' ' . ($t['reference_number'] ?? '') . ' ' . ($t['customer_name'] ?? '') . ' ' . ($t['mobile_number'] ?? '') . ' ' . ($t['status'] ?? ''));
+            if (strpos($haystack, strtolower($search_query)) === false) return false;
         }
-    }
+        return true;
+    });
 
-    // ── Pagination ──
-    $per_page    = 50;
-    $total_pages = max(1, (int)ceil($total_rows / $per_page));
-    $page        = min(max(1, (int)($_GET['page'] ?? 1)), $total_pages);
-    $offset      = ($page - 1) * $per_page;
+    $filtered_transactions = array_values($transactions);
+    $modified_history_transactions = array_values(array_filter($filtered_transactions, 'isModifiedHistoryRecord'));
+    $main_transactions = array_values(array_filter($filtered_transactions, fn($t) => !isModifiedHistoryRecord($t)));
+    $main_transactions_count = count($main_transactions);
 
-    $view_where = [];
-    $page_params = $params;
+    // Counts exclude modified history from the main history/all tabs and expose it in its own tab.
+    $orders_count = count(array_filter($main_transactions, fn($t) => $t['transaction_type'] === 'order'));
+    $baskets_count = count(array_filter($main_transactions, fn($t) => $t['transaction_type'] === 'basket'));
+    $expenses_count = count(array_filter($main_transactions, fn($t) => $t['transaction_type'] === 'expense'));
+    $payments_count = count(array_filter($main_transactions, fn($t) => $t['transaction_type'] === 'payment'));
+    $order_status_history_count = count(array_filter($main_transactions, fn($t) => $t['transaction_type'] === 'order_status_history' || $t['transaction_type'] === 'order_state_history'));
+    $modified_history_count = count($modified_history_transactions);
+
+    // Financial KPI Totals (accurate sums based on active search/date/status filters)
+    $orders_total_amount   = array_sum(array_map(fn($t) => floatval($t['amount']), array_filter($main_transactions, fn($t) => $t['transaction_type'] === 'order')));
+    $baskets_total_amount  = array_sum(array_map(fn($t) => floatval($t['amount']), array_filter($main_transactions, fn($t) => $t['transaction_type'] === 'basket')));
+    $expenses_total_amount = array_sum(array_map(fn($t) => floatval($t['amount']), array_filter($main_transactions, fn($t) => $t['transaction_type'] === 'expense')));
+    $payments_total_amount = array_sum(array_map(fn($t) => floatval($t['amount']), array_filter($main_transactions, fn($t) => $t['transaction_type'] === 'payment')));
+
+    $reviewed_count = count(array_filter($main_transactions, fn($t) => $t['review_status'] === 'reviewed'));
+    $pending_count = count(array_filter($main_transactions, fn($t) => $t['review_status'] === 'pending'));
+
     if ($filter === 'modified_history') {
-        $view_where[] = $modified_sql;
+        $transactions = $modified_history_transactions;
+    } elseif ($filter === 'order_history') {
+        $transactions = array_values(array_filter($main_transactions, fn($t) => $t['transaction_type'] === 'order_status_history' || $t['transaction_type'] === 'order_state_history'));
+    } elseif ($filter !== 'all') {
+        $transactions = array_values(array_filter($main_transactions, fn($t) => $t['transaction_type'] === $filter));
     } else {
-        $view_where[] = "NOT $modified_sql";
-        if ($filter === 'order_history') {
-            $view_where[] = "transaction_type IN ('order_status_history','order_state_history')";
-        } elseif ($filter !== 'all') {
-            $view_where[] = "transaction_type = :view_type";
-            $page_params[':view_type'] = $filter;
-        }
-    }
-    if ($review_status_filter !== 'all' && $review_status_filter !== '') {
-        $view_where[] = "review_status = :review_filter";
-        $page_params[':review_filter'] = $review_status_filter;
+        $transactions = $main_transactions;
     }
 
-    $page_sql = "SELECT * FROM ($base_sql) AS f WHERE " . implode(' AND ', $view_where)
-              . " ORDER BY created_at DESC, transaction_type ASC, id DESC LIMIT " . (int)$per_page . " OFFSET " . (int)$offset;
-    $page_stmt = $db->prepare($page_sql);
-    $page_stmt->execute($page_params);
-    $transactions = $page_stmt->fetchAll(PDO::FETCH_ASSOC);
+    // FIX: Apply review_status filter to displayed transactions
+    if ($review_status_filter !== 'all' && $review_status_filter !== '') {
+        $transactions = array_values(array_filter($transactions, fn($t) => ($t['review_status'] ?? 'pending') === $review_status_filter));
+    }
+
+    // Calculate total amount of all transactions currently displayed
+    $displayed_total_amount = array_sum(array_map(fn($t) => floatval($t['amount']), $transactions));
 } catch (PDOException $e) { die("Database Error: " . $e->getMessage()); }
+
+// ── Dual-currency display (YER / SAR) based on the exchange rate set in Settings ──
+// 1 SAR = $exchange_rate YER (same convention used across the system, e.g. copying.php / edit_basket.php)
+$exchange_rate = 140;
+try {
+    $rate_stmt = $db->query("SELECT setting_value FROM system_settings WHERE setting_key = 'exchange_rate_sar_yer' LIMIT 1");
+    $rate_row = $rate_stmt ? $rate_stmt->fetch(PDO::FETCH_ASSOC) : null;
+    if ($rate_row && is_numeric($rate_row['setting_value']) && (float)$rate_row['setting_value'] > 0) {
+        $exchange_rate = (float)$rate_row['setting_value'];
+    }
+} catch (PDOException $e) {
+    // system_settings table may not exist yet — keep default rate
+}
+
+// Orders carry their own currency (customer_orders.currency); everything else in this
+// report (payments, expenses, order history) doesn't have a reliable per-row currency,
+// so it's treated as YER by default. Baskets already show their own SAR figure separately.
+$order_currency_by_id = [];
+try {
+    $order_ids_for_currency = array_values(array_unique(array_map(
+        fn($t) => (int)$t['id'],
+        array_filter($transactions, fn($t) => $t['transaction_type'] === 'order')
+    )));
+    if (!empty($order_ids_for_currency)) {
+        $placeholders = implode(',', array_fill(0, count($order_ids_for_currency), '?'));
+        $curr_stmt = $db->prepare("SELECT id, currency FROM customer_orders WHERE id IN ($placeholders)");
+        $curr_stmt->execute($order_ids_for_currency);
+        foreach ($curr_stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $order_currency_by_id[(int)$row['id']] = $row['currency'];
+        }
+    }
+} catch (PDOException $e) {
+    // customer_orders.currency may not exist on some installs — fall back to YER everywhere
+}
 
 /**
  * Renders an amount as YER with the SAR equivalent underneath (or vice-versa),
@@ -583,8 +577,11 @@ $pdf_url = 'financial_review_pdf.php' . ($pdf_params ? '?' . $pdf_params : '');
                             </td>
                             <td>
                                 <?php
-                                // Every row shows YER on top and SAR below, using the row's real currency + the Settings exchange rate
-                                echo renderDualCurrency($t['amount'], $t['currency'] ?? null, $exchange_rate);
+                                if ($t['transaction_type'] === 'order') {
+                                    echo renderDualCurrency($t['amount'], $order_currency_by_id[(int)$t['id']] ?? null, $exchange_rate);
+                                } else {
+                                    echo '<strong class="text-emerald-600">' . number_format($t['amount'], 2) . '</strong>';
+                                }
                                 ?>
                             </td>
                             <td class="actions-cell">
@@ -624,10 +621,10 @@ $pdf_url = 'financial_review_pdf.php' . ($pdf_params ? '?' . $pdf_params : '');
                 <tfoot>
                     <tr class="bg-gray-100 font-bold border-t-2 border-gray-300">
                         <td colspan="8" class="p-3 text-right text-gray-800 font-bold">
-                            إجمالي كل النتائج (<?php echo number_format($total_rows); ?> عملية) — الصفحة <?php echo $page; ?> من <?php echo $total_pages; ?>
+                            الإجمالي للعمليات المعروضة (<?php echo count($transactions); ?> عملية)
                         </td>
-                        <td class="p-3 text-base font-extrabold">
-                            <?php echo renderDualCurrency($displayed_total_amount, 'YER', $exchange_rate); ?>
+                        <td class="p-3 text-emerald-700 text-base font-extrabold" style="direction:ltr;text-align:right;">
+                            <?php echo number_format($displayed_total_amount, 2); ?> <span class="text-xs font-normal text-gray-500">ر.ي</span>
                         </td>
                         <td></td>
                     </tr>
@@ -636,32 +633,6 @@ $pdf_url = 'financial_review_pdf.php' . ($pdf_params ? '?' . $pdf_params : '');
             </table>
         </div>
     </div>
-
-    <?php if ($total_pages > 1):
-        $page_qs = http_build_query(array_filter([
-            'filter' => $filter, 'q' => $search_query, 'amount' => $amount_filter,
-            'status' => $status_filter, 'review_status' => $review_status_filter,
-            'bank_account' => $bank_account_filter, 'date_from' => $date_from, 'date_to' => $date_to,
-        ], fn($v) => $v !== '' && $v !== null));
-        $page_link = fn($p) => '?' . $page_qs . ($page_qs ? '&' : '') . 'page=' . $p;
-        $win_from = max(1, $page - 2);
-        $win_to   = min($total_pages, $page + 2);
-    ?>
-    <div class="flex flex-wrap items-center justify-center gap-2 mt-6" style="direction:rtl;">
-        <?php if ($page > 1): ?>
-            <a href="<?php echo htmlspecialchars($page_link(1)); ?>" class="tab-button" style="padding:.5rem .9rem;">الأولى</a>
-            <a href="<?php echo htmlspecialchars($page_link($page - 1)); ?>" class="tab-button" style="padding:.5rem .9rem;">السابق</a>
-        <?php endif; ?>
-        <?php for ($p = $win_from; $p <= $win_to; $p++): ?>
-            <a href="<?php echo htmlspecialchars($page_link($p)); ?>" class="tab-button <?php echo $p === $page ? 'active' : ''; ?>" style="padding:.5rem .9rem;"><?php echo $p; ?></a>
-        <?php endfor; ?>
-        <?php if ($page < $total_pages): ?>
-            <a href="<?php echo htmlspecialchars($page_link($page + 1)); ?>" class="tab-button" style="padding:.5rem .9rem;">التالي</a>
-            <a href="<?php echo htmlspecialchars($page_link($total_pages)); ?>" class="tab-button" style="padding:.5rem .9rem;">الأخيرة</a>
-        <?php endif; ?>
-        <span class="text-sm text-gray-500 mr-3">عرض <?php echo number_format($offset + 1); ?> - <?php echo number_format(min($offset + $per_page, $total_rows)); ?> من <?php echo number_format($total_rows); ?></span>
-    </div>
-    <?php endif; ?>
 </div>
 
 <!-- مودال المراجعة -->
