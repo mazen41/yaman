@@ -23,6 +23,44 @@
     <!-- Google Fonts for Arabic -->
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
 
+    <!-- Dark mode (quick invert method): apply saved choice before paint -->
+    <script>
+        (function () { try { if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark'); } catch (e) {} })();
+    </script>
+    <style>
+        html.dark { filter: invert(1) hue-rotate(180deg); background: #fff; }
+        html.dark img, html.dark video, html.dark iframe, html.dark canvas, html.dark picture,
+        html.dark [style*="background-image"], html.dark .no-invert { filter: invert(1) hue-rotate(180deg); }
+        @media print {
+            html.dark, html.dark img, html.dark video, html.dark iframe, html.dark canvas, html.dark picture,
+            html.dark [style*="background-image"], html.dark .no-invert { filter: none !important; }
+        }
+        #darkModeToggle {
+            position: fixed; left: 14px; bottom: 14px; z-index: 9999;
+            width: 44px; height: 44px; border-radius: 50%; border: 1px solid #cbd5e1;
+            background: #ffffff; color: #1e293b; font-size: 18px; line-height: 1;
+            box-shadow: 0 4px 14px rgba(0,0,0,.18); cursor: pointer;
+        }
+        @media print { #darkModeToggle { display: none !important; } }
+    </style>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var root = document.documentElement;
+            var btn = document.createElement('button');
+            btn.id = 'darkModeToggle';
+            btn.type = 'button';
+            btn.title = 'الوضع الداكن / الفاتح';
+            function paint() { btn.textContent = root.classList.contains('dark') ? '☀️' : '🌙'; }
+            btn.addEventListener('click', function () {
+                root.classList.toggle('dark');
+                try { localStorage.setItem('theme', root.classList.contains('dark') ? 'dark' : 'light'); } catch (e) {}
+                paint();
+            });
+            paint();
+            document.body.appendChild(btn);
+        });
+    </script>
+
     <!-- Custom CSS for RTL -->
     <style>
         @keyframes pulse-ring {
