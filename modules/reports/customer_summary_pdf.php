@@ -43,6 +43,16 @@ $sort_column   = $sort_options[$sort_by] ?? 'c.updated_at';
 $sort_dir      = $_GET['sort_dir'] ?? 'DESC';
 $sort_direction = ($sort_dir === 'ASC') ? 'ASC' : 'DESC';
 
+// ── Selected rows mode (ids=1,2,3) — printed from the report page checkboxes ──
+$selected_ids = [];
+if (!empty($_GET['ids'])) {
+    foreach (explode(',', (string)$_GET['ids']) as $v) {
+        $v = trim($v);
+        if (ctype_digit($v) && (int)$v > 0) $selected_ids[] = (int)$v;
+    }
+    $selected_ids = array_values(array_unique($selected_ids));
+}
+
 // ── WHERE / HAVING ────────────────────────────────────────────────────────────
 $where_clauses = ["1=1"]; $params = []; $having_clauses = []; $having_params = [];
 
@@ -62,9 +72,16 @@ if ($filter_remaining_from !== '' && is_numeric($filter_remaining_from)) {
     $having_params[]  = $filter_remaining_from;
 }
 
-$where_sql       = implode(" AND ", $where_clauses);
-$having_sql      = empty($having_clauses) ? '' : 'HAVING ' . implode(" AND ", $having_clauses);
-$all_query_params = array_merge($params, $having_params);
+if ($selected_ids) {
+    // Selected-rows mode: print exactly the checked customers, ignore other filters
+    $where_sql  = "c.id IN (" . implode(',', $selected_ids) . ")";
+    $having_sql = '';
+    $all_query_params = [];
+} else {
+    $where_sql       = implode(" AND ", $where_clauses);
+    $having_sql      = empty($having_clauses) ? '' : 'HAVING ' . implode(" AND ", $having_clauses);
+    $all_query_params = array_merge($params, $having_params);
+}
 
 // ── Main query (same as customer_summary.php) ─────────────────────────────────
 $stmt = $db->prepare("
@@ -113,7 +130,13 @@ if ($filter_status == 'active')   $fp[] = 'الحالة: نشط';
 if ($filter_status == 'inactive') $fp[] = 'الحالة: معطل';
 if ($filter_status == 'all')      $fp[] = 'الحالة: الكل';
 if ($filter_remaining_from !== '' && is_numeric($filter_remaining_from)) $fp[] = 'المتبقي من: ' . n($filter_remaining_from);
-$filter_text = $fp ? implode(' | ', $fp) : 'جميع العملاء النشطين';
+if ($selected_ids) {
+    $filter_text = 'عملاء محددون (' . count($selected_ids) . ' عميل)';
+} elseif ($fp) {
+    $filter_text = implode(' | ', $fp);
+} else {
+    $filter_text = 'جميع العملاء النشطين';
+}
 
 // ── Build table rows ──────────────────────────────────────────────────────────
 $rows_html = '';
@@ -175,6 +198,7 @@ foreach ($customers as $i => $c) {
         <td style=\"text-align:right;\">
             <strong style=\"font-size:11px;color:#1e293b;\">" . h($c['name']) . "</strong>
             " . ($c['mobile_number'] ? '<br><span style="font-size:9px;color:#475569;direction:ltr;">' . h($c['mobile_number']) . '</span>' : '') . "
+            " . (!empty($c['alternative_number']) ? '<br><span style="font-size:8px;color:#64748b;direction:ltr;">بديل: ' . h($c['alternative_number']) . '</span>' : '') . "
         </td>
         <td style=\"text-align:center;color:#1e293b;\">" . ($location ? h($location) : '—') . "</td>
         <td style=\"text-align:center;font-weight:700;\">" . $fin['delivered_orders'] . "</td>

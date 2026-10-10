@@ -1168,6 +1168,64 @@ include '../../includes/header.php';
         border-top: 1px dashed var(--border-color);
     }
 }
+
+/* ── Phones (≤767px): tighten spacing, buttons, modals & drawer ── */
+@media (max-width: 767px) {
+    .approvals-dashboard { padding: 0.75rem 0.5rem 2.5rem; }
+
+    /* Hero header */
+    .app-hero { padding: 1.15rem 1rem; border-radius: 14px; margin-bottom: 1rem; }
+    .hero-title-area h1 { font-size: 1.2rem; gap: 0.4rem; }
+    .hero-title-area p { font-size: 0.78rem; }
+    .hero-actions { width: 100%; }
+    .hero-actions .btn-glass { flex: 1 1 auto; justify-content: center; padding: 0.55rem 0.8rem; font-size: 0.78rem; }
+
+    /* KPI cards: single column, tighter */
+    .kpi-grid { grid-template-columns: 1fr; gap: 0.6rem; margin-bottom: 1rem; }
+    .kpi-card { padding: 0.85rem 1rem; border-radius: 12px; }
+    .kpi-icon { width: 38px; height: 38px; font-size: 1rem; border-radius: 10px; }
+    .kpi-info .kpi-val { font-size: 1.2rem; }
+
+    /* Filter panel: one control per row, full-width buttons */
+    .filter-card { padding: 1rem 0.85rem; border-radius: 12px; margin-bottom: 1rem; }
+    .filter-grid { grid-template-columns: 1fr; gap: 0.7rem; }
+    .filter-buttons { width: 100%; }
+    .filter-buttons > * { flex: 1; justify-content: center; }
+    .status-pill-bar { gap: 0.35rem; }
+    .status-pill { font-size: 0.7rem; padding: 0.3rem 0.6rem; }
+
+    /* Orders list (stacked cards from 991px block) — tighter on phones */
+    .orders-table-wrapper { border-radius: 12px; margin-bottom: 1rem; }
+    .table-meta-header { padding: 0.85rem 1rem; gap: 0.5rem; }
+    .modern-app-table tbody tr { margin: 0.6rem 0.5rem; padding: 1rem; border-radius: 12px; }
+    .modern-app-table tbody td { flex-wrap: wrap; gap: 0.25rem; }
+    .table-actions-group { flex-wrap: wrap; gap: 0.35rem; }
+    .table-actions-group .btn-action-sm,
+    .table-actions-group form { flex: 1 1 45%; }
+    .table-actions-group .btn-action-sm { justify-content: center; }
+
+    /* Modals: fit small screens, scroll if tall */
+    .app-modal { padding: 0.5rem; }
+    .modal-dialog { max-width: 100%; max-height: 92vh; overflow-y: auto; border-radius: 16px; }
+    .modal-header-custom { padding: 1rem; }
+    .modal-header-custom h4 { font-size: 0.95rem; }
+    .modal-body-custom { padding: 1rem; }
+    .modal-body-custom .grid-cols-2 { grid-template-columns: 1fr; }
+    .modal-footer-custom { padding: 0.85rem 1rem; flex-wrap: wrap; }
+    .modal-footer-custom > * { flex: 1; justify-content: center; }
+
+    /* Side drawer: full width on phones */
+    .app-drawer { width: 100vw; }
+    .drawer-header { padding: 1rem; }
+    .drawer-body { padding: 1rem; }
+    .drawer-footer { padding: 0.85rem 1rem; }
+
+    /* Lightbox & pagination */
+    #mediaLightbox { padding: 0.75rem; }
+    #lightboxMediaContainer { max-width: 96vw; }
+    .pagination-container { padding: 0.85rem 1rem; justify-content: center; }
+    .pagination-links { flex-wrap: wrap; justify-content: center; }
+}
 </style>
 
 <!-- ==========================================

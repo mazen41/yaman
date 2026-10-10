@@ -183,7 +183,8 @@ include '../../includes/header.php';
 .cs-btn-secondary{ background:#e2e8f0; color:#475569; }
 .cs-btn-success  { background:#10b981; color:#fff; }
 .cs-btn-warning  { background:#f59e0b; color:#fff; }
-.cs-btn:hover { opacity:.85; }
+.cs-btn:hover:not(:disabled) { opacity:.85; }
+.cs-btn:disabled { opacity:.45; cursor:not-allowed; }
 
 /* ── Filter card ── */
 .cs-filter { background:#fff; border-radius:10px; box-shadow:0 1px 4px rgba(0,0,0,.08); padding:16px 20px; margin-bottom:16px; }
@@ -393,6 +394,9 @@ include '../../includes/header.php';
                 <i class="fas fa-filter"></i>
                 <span id="toggleText"><?php echo $advanced_filters_active ? 'إخفاء الفلاتر المتقدمة' : 'إظهار الفلاتر المتقدمة'; ?></span>
             </button>
+            <button type="button" id="csPrintSelectedBtn" class="cs-btn cs-btn-success" disabled>
+                <i class="fas fa-file-pdf"></i> طباعة المحدد PDF
+            </button>
             <a href="<?= htmlspecialchars($pdf_url) ?>" class="cs-btn cs-btn-success" target="_blank">
                 <i class="fas fa-file-pdf"></i> تصدير PDF
             </a>
@@ -527,6 +531,7 @@ include '../../includes/header.php';
         <table class="cs-table">
             <thead>
                 <tr class="hd-row-1">
+                    <th rowspan="2" class="col-select no-print" style="width:36px"><input type="checkbox" id="csSelectAll" title="تحديد الكل" style="width:15px;height:15px;cursor:pointer;accent-color:#3b82f6"></th>
                     <th rowspan="2" style="width:36px">م</th>
                     <th rowspan="2" style="min-width:130px; text-align:right">الاسم</th>
                     <th rowspan="2" style="min-width:100px">الموقع - العنوان</th>
@@ -558,7 +563,7 @@ include '../../includes/header.php';
             <tbody>
             <?php if (empty($customers)): ?>
                 <tr>
-                    <td colspan="16" style="text-align:center;padding:40px;color:#94a3b8;font-size:15px">
+                    <td colspan="17" style="text-align:center;padding:40px;color:#94a3b8;font-size:15px">
                         <i class="fas fa-inbox" style="font-size:30px;display:block;margin-bottom:8px"></i>
                         لا توجد نتائج مطابقة للفلاتر
                     </td>
@@ -601,6 +606,8 @@ include '../../includes/header.php';
                 $notes_val = trim($c['notes'] ?? '');
             ?>
                 <tr>
+                    <!-- تحديد -->
+                    <td class="col-select no-print"><input type="checkbox" class="cs-row-check" value="<?= (int)$c['id'] ?>" style="width:15px;height:15px;cursor:pointer;accent-color:#3b82f6"></td>
                     <!-- م -->
                     <td style="color:#94a3b8; font-size:12px; font-weight:700"><?= $i + 1 ?></td>
 
@@ -610,6 +617,11 @@ include '../../includes/header.php';
                         <?php if (!empty($c['mobile_number'])): ?>
                         <div style="font-size:10px; color:#64748b; margin-top:2px; direction:ltr; text-align:right">
                             <?= htmlspecialchars($c['mobile_number']) ?>
+                        </div>
+                        <?php endif; ?>
+                        <?php if (!empty($c['alternative_number'])): ?>
+                        <div style="font-size:10px; color:#94a3b8; margin-top:1px; direction:ltr; text-align:right">
+                            <span style="font-size:9px">بديل:</span> <?= htmlspecialchars($c['alternative_number']) ?>
                         </div>
                         <?php endif; ?>
                     </td>
@@ -682,6 +694,39 @@ include '../../includes/header.php';
                 toggleText.textContent = 'إظهار الفلاتر المتقدمة';
             }
         });
+
+        // ── Row selection & "Print selected as PDF" ──
+        const selectAllCb = document.getElementById('csSelectAll');
+        const rowChecks   = document.querySelectorAll('.cs-row-check');
+        const printSelBtn = document.getElementById('csPrintSelectedBtn');
+
+        function csUpdateSelection() {
+            const checked = document.querySelectorAll('.cs-row-check:checked');
+            if (printSelBtn) printSelBtn.disabled = checked.length === 0;
+            if (selectAllCb) {
+                selectAllCb.checked = rowChecks.length > 0 && checked.length === rowChecks.length;
+                selectAllCb.indeterminate = checked.length > 0 && checked.length < rowChecks.length;
+            }
+        }
+
+        rowChecks.forEach(function(cb) { cb.addEventListener('change', csUpdateSelection); });
+
+        if (selectAllCb) {
+            selectAllCb.addEventListener('change', function() {
+                rowChecks.forEach(function(cb) { cb.checked = selectAllCb.checked; });
+                csUpdateSelection();
+            });
+        }
+
+        if (printSelBtn) {
+            printSelBtn.addEventListener('click', function() {
+                const ids = Array.from(document.querySelectorAll('.cs-row-check:checked')).map(function(cb) { return cb.value; });
+                if (!ids.length) return;
+                window.open('customer_summary_pdf.php?ids=' + encodeURIComponent(ids.join(',')), '_blank');
+            });
+        }
+
+        csUpdateSelection();
     });
 </script>
 <?php include '../../includes/footer.php'; ?>
