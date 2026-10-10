@@ -157,6 +157,65 @@
         }
     </style>
 
+    <!-- Dark theme: overrides for page-level custom CSS (hardcoded white/gray backgrounds in /modules pages) -->
+    <style>
+        @media screen {
+            /* Main surfaces (cards, wrappers, panels) */
+            html.dark :is(.card, .form-card, .filter-card, .stat-card, .stat-box, .report-card, .invoice-card,
+                          .invoice-container, .table-wrapper, .form-wrapper, .purchase-order-form,
+                          .order-details-panel, .slide-card, .data-table, .items-table, .details-table,
+                          .pagination a, .pagination-links a, .pagination-links span) {
+                background-color: var(--pal-1) !important;
+                border-color: var(--pal-4) !important;
+                color: var(--text-1);
+            }
+
+            /* Inner / nested surfaces, modals, summary boxes */
+            html.dark :is(.filter-section, .tier-section, .totals-box, .info-item, .amount-summary, .modal-content,
+                          .modal-box, .search-results, .details-header, .details-amounts, .details-grid div,
+                          .fin-disc-total, .form-control, .form-select, .status-dropdown) {
+                background-color: var(--pal-2) !important;
+                border-color: var(--pal-4) !important;
+                color: var(--text-1);
+            }
+
+            /* Tables: transparent body, dark header (keeps colored .vertical-table header) */
+            html.dark table { background-color: transparent; }
+            html.dark table:not(.vertical-table) th { background-color: var(--pal-3) !important; color: var(--text-1); }
+            html.dark tbody tr:nth-child(even) { background-color: rgba(255, 255, 255, .03) !important; }
+            html.dark :is(tbody tr:hover, .item-row:hover, .data-table tr:hover, .search-result-item:hover) { background-color: var(--pal-3) !important; }
+            html.dark :is(td, th) { border-color: var(--pal-4) !important; }
+
+            /* Text that pages hardcode as dark (boosted specificity, no !important so colored text still works) */
+            html.dark.dark :is(label, h1, h2, h3, h4, h5, h6, legend, dt, .form-label, .filter-group label) { color: var(--text-1); }
+            html.dark.dark :is(td, th, li, p):not([class]) { color: var(--text-1); }
+
+            /* Inline styles with hardcoded light backgrounds / dark text */
+            html.dark :is([style*="background: white"], [style*="background:white"], [style*="background-color: white"],
+                          [style*="background-color:white"],
+                          [style*="background: #ffffff"], [style*="background:#ffffff"],
+                          [style*="background-color: #ffffff"], [style*="background-color:#ffffff"],
+                          [style*="background: #fff;"], [style*="background:#fff;"],
+                          [style*="background-color: #fff;"], [style*="background-color:#fff;"]) {
+                background-color: var(--pal-1) !important;
+            }
+            html.dark :is([style*="background: #f9fafb"], [style*="background:#f9fafb"], [style*="background-color: #f9fafb"],
+                          [style*="background: #f3f4f6"], [style*="background:#f3f4f6"], [style*="background-color: #f3f4f6"],
+                          [style*="background: #f8f9fa"], [style*="background:#f8f9fa"], [style*="background-color: #f8f9fa"],
+                          [style*="background: #f5f5f5"], [style*="background:#f5f5f5"], [style*="background-color: #f5f5f5"]) {
+                background-color: var(--pal-2) !important;
+            }
+            html.dark :is([style*="color: var(--text-color-dark)"], [style*="color:#374151"], [style*="color: #374151"],
+                          [style*="color:#1f2937"], [style*="color: #1f2937"], [style*="color:#111827"],
+                          [style*="color: #111827"], [style*="color:#333"], [style*="color: #333"]) {
+                color: var(--text-1) !important;
+            }
+            html.dark :is([style*="color: var(--text-color-light)"], [style*="color:#6b7280"], [style*="color: #6b7280"]) {
+                color: var(--text-2) !important;
+            }
+        }
+    </style>
+
     <!-- Custom CSS for RTL -->
     <style>
         @keyframes pulse-ring {
