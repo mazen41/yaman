@@ -1,3 +1,11 @@
+<?php
+// App base path: '/yaman' when served from a subfolder (XAMPP), '' when served from the domain root.
+$__doc_root = realpath($_SERVER['DOCUMENT_ROOT'] ?? '') ?: '';
+$__app_dir  = realpath(__DIR__ . '/..') ?: '';
+$app_base   = ($__doc_root !== '' && $__app_dir !== '' && strncasecmp($__app_dir, $__doc_root, strlen($__doc_root)) === 0)
+    ? str_replace('\\', '/', substr($__app_dir, strlen($__doc_root)))
+    : '';
+?>
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 
@@ -486,13 +494,13 @@
 
     <!-- Phone RTL Support -->
     <link rel="stylesheet"
-        href="/assets/css/phone-rtl.css">
+        href="<?php echo htmlspecialchars($app_base); ?>/assets/css/phone-rtl.css">
 
     <!-- Shared dark-mode fallbacks for module pages (screen only, print stays light) -->
-    <link rel="stylesheet" href="/assets/css/dark-overrides.css">
+    <link rel="stylesheet" href="<?php echo htmlspecialchars($app_base); ?>/assets/css/dark-overrides.css">
 
     <!-- Generated dark fallbacks for hardcoded inline colors (every rule requires html.dark) -->
-    <link rel="stylesheet" href="/assets/css/dark-hardcoded.css">
+    <link rel="stylesheet" href="<?php echo htmlspecialchars($app_base); ?>/assets/css/dark-hardcoded.css">
 </head>
 
 <body class="bg-gray-100 font-arabic">
@@ -506,7 +514,7 @@
                 style="background: linear-gradient(to left, #C7A46D, #B8956A);">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center">
-                        <img src="/assets/images/yamman_logo.png" alt="يمان" class="h-10 w-auto mr-2">
+                        <img src="<?php echo htmlspecialchars($app_base); ?>/assets/images/yamman_logo.png" alt="يمان" class="h-10 w-auto mr-2">
                     </div>
                     <button id="closeSidebarButton"
                         class="w-10 h-10 flex items-center justify-center bg-gray-100 text-gray-500 hover:bg-gray-200 rounded-full transition-all duration-300 transform hover:scale-110 focus:outline-none md:hidden">
