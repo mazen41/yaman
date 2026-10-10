@@ -10,6 +10,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
+            darkMode: 'class',
             theme: {
                 extend: {
                     fontFamily: {
@@ -23,43 +24,136 @@
     <!-- Google Fonts for Arabic -->
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
 
-    <!-- Dark mode (quick invert method): apply saved choice before paint -->
+    <!-- Dark mode: apply saved choice (or system preference) before first paint -->
     <script>
-        (function () { try { if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark'); } catch (e) {} })();
+        (function () {
+            try {
+                var t = localStorage.getItem('theme');
+                if (t !== 'dark' && t !== 'light') {
+                    t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+                }
+                if (t === 'dark') document.documentElement.classList.add('dark');
+            } catch (e) {}
+        })();
     </script>
+
+    <!-- Dark theme: layered charcoal palette (no filters). Screen only; print stays light. -->
     <style>
-        html.dark { filter: invert(1) hue-rotate(180deg) contrast(.64) brightness(1.2); background: #fff; }
-        html.dark img, html.dark video, html.dark iframe, html.dark canvas, html.dark picture,
-        html.dark [style*="background-image"], html.dark .no-invert { filter: brightness(.8333) contrast(1.5625) hue-rotate(180deg) invert(1); }
+        :root {
+            --pal-0: #0e1111;   /* page background */
+            --pal-1: #232b2b;   /* sidebar, navbar, main cards */
+            --pal-2: #353839;   /* inner cards, inputs, dropdowns, modals */
+            --pal-3: #3b444b;   /* table headers, hover states */
+            --pal-4: #414a4c;   /* borders, dividers */
+            --text-1: #e5e7eb;  /* primary text */
+            --text-2: #9ca3af;  /* secondary text */
+            --brand: #C7A46D;
+
+            /* Light-theme tokens used by the header rules below */
+            --sidebar-bg: #ffffff;
+            --sidebar-border: #e5e7eb;
+            --sidebar-hover-bg: #f0fdf4;
+            --sidebar-icon-bg: #f3f4f6;
+            --sidebar-icon-color: #4b5563;
+            --sidebar-icon-hover-bg: #d1fae5;
+        }
+
+        @media screen {
+            html.dark {
+                color-scheme: dark;
+                --sidebar-bg: var(--pal-1);
+                --sidebar-border: var(--pal-4);
+                --sidebar-hover-bg: var(--pal-3);
+                --sidebar-icon-bg: var(--pal-2);
+                --sidebar-icon-color: var(--text-2);
+                --sidebar-icon-hover-bg: var(--pal-4);
+            }
+
+            /* Page + base text */
+            html.dark body,
+            html.dark body.bg-gray-100 { background-color: var(--pal-0) !important; color: var(--text-1); }
+
+            /* Navbar and sidebar */
+            html.dark nav.top-nav { background: var(--pal-1) !important; border-bottom: 1px solid var(--pal-4); }
+            html.dark .gradient-bg { background: var(--sidebar-bg); border-color: var(--sidebar-border); }
+            html.dark .sidebar-link { color: var(--text-1); }
+            html.dark .sidebar-link:hover,
+            html.dark .sidebar-link.active { color: var(--brand); }
+            html.dark .sidebar-link.active { background-color: var(--pal-3); border-right-color: var(--brand); }
+            html.dark .btn-success { box-shadow: 0 2px 4px rgba(0, 0, 0, .45); }
+            html.dark .btn-success:hover { box-shadow: 0 4px 6px rgba(0, 0, 0, .55); }
+
+            /* Dropdowns (notifications, user menu) */
+            html.dark #notifDropdown,
+            html.dark #userMenu { background-color: var(--pal-2) !important; border-color: var(--pal-4) !important; }
+            html.dark #notifDropdown .bg-white { background-color: transparent !important; }
+
+            /* Tailwind surface utilities (keeps translucent bg-white bg-opacity-* buttons intact) */
+            html.dark .bg-white:not([class*="bg-opacity"]) { background-color: var(--pal-1) !important; }
+            html.dark .bg-gray-50 { background-color: var(--pal-2) !important; }
+            html.dark .bg-gray-100 { background-color: var(--pal-3) !important; }
+            html.dark .bg-gray-200 { background-color: var(--pal-4) !important; }
+            html.dark .hover\:bg-gray-50:hover,
+            html.dark .hover\:bg-amber-50:hover { background-color: var(--pal-3) !important; }
+            html.dark .hover\:bg-gray-100:hover,
+            html.dark .hover\:bg-gray-200:hover { background-color: var(--pal-4) !important; }
+            html.dark .hover\:bg-red-50:hover { background-color: rgba(239, 68, 68, .18) !important; }
+
+            /* Tailwind text utilities */
+            html.dark .text-gray-900,
+            html.dark .text-gray-800,
+            html.dark .text-gray-700 { color: var(--text-1) !important; }
+            html.dark .text-gray-600,
+            html.dark .text-gray-500,
+            html.dark .text-gray-400 { color: var(--text-2) !important; }
+
+            /* Tailwind borders and dividers */
+            html.dark .border-gray-50,
+            html.dark .border-gray-100,
+            html.dark .border-gray-200,
+            html.dark .border-gray-300 { border-color: var(--pal-4) !important; }
+            html.dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]),
+            html.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]) { border-color: var(--pal-4) !important; }
+
+            /* Status colors readable on dark */
+            html.dark .bg-green-50, html.dark .bg-green-100 { background-color: rgba(34, 197, 94, .16) !important; }
+            html.dark .bg-yellow-50, html.dark .bg-yellow-100,
+            html.dark .bg-amber-50, html.dark .bg-amber-100 { background-color: rgba(245, 158, 11, .16) !important; }
+            html.dark .bg-red-50, html.dark .bg-red-100 { background-color: rgba(239, 68, 68, .16) !important; }
+            html.dark .bg-blue-50, html.dark .bg-blue-100 { background-color: rgba(59, 130, 246, .16) !important; }
+            html.dark .border-red-100 { border-color: rgba(239, 68, 68, .35) !important; }
+            html.dark .text-green-600, html.dark .text-green-700, html.dark .text-green-800 { color: #4ade80 !important; }
+            html.dark .text-yellow-600, html.dark .text-yellow-700, html.dark .text-yellow-800,
+            html.dark .text-amber-600, html.dark .text-amber-700, html.dark .text-amber-800 { color: #fbbf24 !important; }
+            html.dark .text-red-600, html.dark .text-red-700, html.dark .text-red-800,
+            html.dark .hover\:text-red-700:hover { color: #f87171 !important; }
+            html.dark .text-blue-600, html.dark .text-blue-700, html.dark .text-blue-800 { color: #60a5fa !important; }
+            html.dark .hover\:text-blue-800:hover { color: #93c5fd !important; }
+
+            /* Inputs, selects, textareas (images/logos are never touched) */
+            html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="submit"]):not([type="button"]),
+            html.dark select,
+            html.dark textarea,
+            html.dark .form-input { background-color: var(--pal-2); color: var(--text-1); border-color: var(--pal-4); }
+            html.dark ::placeholder { color: var(--text-2); opacity: 1; }
+            html.dark input:focus, html.dark select:focus, html.dark textarea:focus { border-color: var(--brand); }
+            html.dark option { background-color: var(--pal-2); color: var(--text-1); }
+
+            /* Scrollbars */
+            html.dark * { scrollbar-color: var(--pal-4) var(--pal-0); }
+            html.dark ::-webkit-scrollbar { width: 10px; height: 10px; }
+            html.dark ::-webkit-scrollbar-track { background: var(--pal-0); }
+            html.dark ::-webkit-scrollbar-thumb { background: var(--pal-4); border-radius: 6px; }
+            html.dark ::-webkit-scrollbar-thumb:hover { background: var(--pal-3); }
+        }
+
+        /* Print always light; toggle hidden */
         @media print {
-            html.dark, html.dark img, html.dark video, html.dark iframe, html.dark canvas, html.dark picture,
-            html.dark [style*="background-image"], html.dark .no-invert { filter: none !important; }
+            html.dark { color-scheme: light; }
+            html.dark body { background: #ffffff !important; color: #000000 !important; }
+            #theme-toggle { display: none !important; }
         }
-        #darkModeToggle {
-            position: fixed; left: 14px; bottom: 14px; z-index: 9999;
-            width: 44px; height: 44px; border-radius: 50%; border: 1px solid #cbd5e1;
-            background: #ffffff; color: #1e293b; font-size: 18px; line-height: 1;
-            box-shadow: 0 4px 14px rgba(0,0,0,.18); cursor: pointer;
-        }
-        @media print { #darkModeToggle { display: none !important; } }
     </style>
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            var root = document.documentElement;
-            var btn = document.createElement('button');
-            btn.id = 'darkModeToggle';
-            btn.type = 'button';
-            btn.title = 'الوضع الداكن / الفاتح';
-            function paint() { btn.textContent = root.classList.contains('dark') ? '☀️' : '🌙'; }
-            btn.addEventListener('click', function () {
-                root.classList.toggle('dark');
-                try { localStorage.setItem('theme', root.classList.contains('dark') ? 'dark' : 'light'); } catch (e) {}
-                paint();
-            });
-            paint();
-            document.body.appendChild(btn);
-        });
-    </script>
 
     <!-- Custom CSS for RTL -->
     <style>
@@ -260,7 +354,7 @@
 
         .sidebar-link:hover {
             color: #C7A46D;
-            background-color: #f0fdf4;
+            background-color: var(--sidebar-hover-bg);
         }
 
         .sidebar-link:hover::before {
@@ -270,7 +364,7 @@
         .sidebar-link.active {
             color: #C7A46D;
             font-weight: 600;
-            background-color: #f0fdf4;
+            background-color: var(--sidebar-hover-bg);
         }
 
         .sidebar-link.active::before {
@@ -284,22 +378,22 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            color: #4b5563;
+            color: var(--sidebar-icon-color);
             transition: all 0.2s ease;
-            background-color: #f3f4f6;
+            background-color: var(--sidebar-icon-bg);
             border-radius: 6px;
             padding: 6px;
         }
 
         .sidebar-link:hover .sidebar-icon {
             color: #C7A46D;
-            background-color: #d1fae5;
+            background-color: var(--sidebar-icon-hover-bg);
             transform: scale(1.05);
         }
 
         .sidebar-link.active .sidebar-icon {
             color: #C7A46D;
-            background-color: #d1fae5;
+            background-color: var(--sidebar-icon-hover-bg);
         }
 
         .main-content {
@@ -313,8 +407,8 @@
         }
 
         .gradient-bg {
-            background: #ffffff;
-            border-right: 1px solid #e5e7eb;
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--sidebar-border);
         }
 
         .sidebar-link.active {
@@ -466,7 +560,7 @@
     </aside>
 
     <!-- Top Navigation Bar -->
-    <nav class="shadow-md fixed w-full z-30" style="background: linear-gradient(to left, #C7A46D, #B8956A);">
+    <nav class="top-nav shadow-md fixed w-full z-30" style="background: linear-gradient(to left, #C7A46D, #B8956A);">
         <div class="px-4 py-3 flex items-center justify-between">
             <!-- Mobile Menu Button with Tooltip -->
             <div class="group relative">
@@ -487,6 +581,10 @@
 
             <!-- Right Side Actions -->
             <div class="flex items-center space-x-4 space-x-reverse">
+                <!-- Theme toggle (dark / light) -->
+                <button id="theme-toggle" type="button" title="الوضع الداكن / الفاتح" aria-label="الوضع الداكن"
+                    class="flex-shrink-0 w-9 h-9 flex items-center justify-center bg-white bg-opacity-20 text-white hover:bg-opacity-30 rounded-full transition-all duration-200 shadow-sm focus:outline-none">🌙</button>
+
                 <!-- Notifications -->
                 <div class="relative" id="notifContainer">
                     <button id="notifButton"
@@ -545,6 +643,24 @@
     <main id="mainContent" class="pt-16 main-content sm:mr-64 transition-all duration-300">
 
         <script>
+            // Theme toggle: switches <html class="dark"> and saves to localStorage ("theme")
+            (function () {
+                var btn = document.getElementById('theme-toggle');
+                if (!btn) return;
+                var root = document.documentElement;
+                function paint() {
+                    var dark = root.classList.contains('dark');
+                    btn.textContent = dark ? '☀️' : '🌙';
+                    btn.setAttribute('aria-label', dark ? 'الوضع الفاتح' : 'الوضع الداكن');
+                }
+                btn.addEventListener('click', function () {
+                    root.classList.toggle('dark');
+                    try { localStorage.setItem('theme', root.classList.contains('dark') ? 'dark' : 'light'); } catch (e) {}
+                    paint();
+                });
+                paint();
+            })();
+
             // Toggle user menu dropdown
             function toggleUserMenu() {
                 document.getElementById('userMenu').classList.toggle('hidden');
