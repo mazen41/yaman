@@ -1226,6 +1226,91 @@ include '../../includes/header.php';
     .pagination-container { padding: 0.85rem 1rem; justify-content: center; }
     .pagination-links { flex-wrap: wrap; justify-content: center; }
 }
+
+/* ── Phone card redesign (≤767px): compact grid card instead of label/value rows ── */
+@media (max-width: 767px) {
+    .modern-app-table tbody tr[id^="row-"] {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-areas:
+            "id id status"
+            "cust cust cust"
+            "items total paid"
+            "links links proof"
+            "notes notes notes"
+            "act act act";
+        gap: 0.65rem 0.5rem;
+        align-items: center;
+        margin: 0.6rem 0.4rem;
+        padding: 0.85rem;
+        border-radius: 14px;
+    }
+    .modern-app-table tbody tr[id^="row-"] > td {
+        display: block;
+        padding: 0;
+        min-width: 0;
+        max-width: none !important;
+        text-align: start !important;
+    }
+    .modern-app-table tbody tr[id^="row-"] > td::before { display: none; }
+    .modern-app-table tbody tr[id^="row-"] > td:has(.cell-empty) { display: none; }
+
+    /* Header line: id + date | status */
+    .modern-app-table tbody tr[id^="row-"] > td:nth-child(1) { grid-area: id; display: flex; align-items: center; flex-wrap: wrap; gap: 0.25rem 0.6rem; }
+    .modern-app-table tbody tr[id^="row-"] > td:nth-child(2) { grid-area: status; justify-self: end; }
+
+    /* Customer block */
+    .modern-app-table tbody tr[id^="row-"] > td:nth-child(3) { grid-area: cust; padding-top: 0.6rem; border-top: 1px dashed var(--border-color); }
+    .modern-app-table tbody tr[id^="row-"] .customer-cell-main .flex { flex-wrap: wrap; }
+    .modern-app-table tbody tr[id^="row-"] .customer-meta-row { flex-wrap: wrap; gap: 0.4rem 0.6rem; }
+
+    /* Stat tiles: items / total / paid */
+    .modern-app-table tbody tr[id^="row-"] > td:nth-child(4) { grid-area: items; }
+    .modern-app-table tbody tr[id^="row-"] > td:nth-child(6) { grid-area: total; }
+    .modern-app-table tbody tr[id^="row-"] > td:nth-child(7) { grid-area: paid; }
+    .modern-app-table tbody tr[id^="row-"] > td:nth-child(4),
+    .modern-app-table tbody tr[id^="row-"] > td:nth-child(6),
+    .modern-app-table tbody tr[id^="row-"] > td:nth-child(7) {
+        background: #f8fafc;
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        padding: 0.5rem 0.35rem;
+        text-align: center !important;
+        align-self: stretch;
+    }
+    .modern-app-table tbody tr[id^="row-"] > td:nth-child(4)::before,
+    .modern-app-table tbody tr[id^="row-"] > td:nth-child(6)::before,
+    .modern-app-table tbody tr[id^="row-"] > td:nth-child(7)::before {
+        display: block;
+        font-size: 0.65rem;
+        margin-bottom: 0.2rem;
+    }
+    .modern-app-table tbody tr[id^="row-"] .amount-stack { align-items: center; text-align: center; }
+    .modern-app-table tbody tr[id^="row-"] .amount-main { font-size: 0.95rem; }
+
+    /* Links + proof chips */
+    .modern-app-table tbody tr[id^="row-"] > td:nth-child(5) { grid-area: links; }
+    .modern-app-table tbody tr[id^="row-"] > td:nth-child(5) .flex { flex-wrap: wrap; }
+    .modern-app-table tbody tr[id^="row-"] > td:nth-child(8) { grid-area: proof; justify-self: end; }
+
+    /* Notes (hidden when empty) */
+    .modern-app-table tbody tr[id^="row-"] > td:nth-child(9) { grid-area: notes; font-size: 0.8rem; }
+
+    /* Actions: 2-column button grid, comfortable tap targets */
+    .modern-app-table tbody tr[id^="row-"] > td:nth-child(10) { grid-area: act; }
+    .modern-app-table tbody tr[id^="row-"] .table-actions-group {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.5rem;
+        margin-top: 0;
+        padding-top: 0.65rem;
+        border-top: 1px dashed var(--border-color);
+    }
+    .modern-app-table tbody tr[id^="row-"] .table-actions-group > * { min-width: 0; width: 100%; }
+    .modern-app-table tbody tr[id^="row-"] .table-actions-group form { display: contents; }
+    .modern-app-table tbody tr[id^="row-"] .table-actions-group .btn-action-sm { min-height: 42px; justify-content: center; width: 100%; }
+    .modern-app-table tbody tr[id^="row-"] .table-actions-group > .btn-action-sm:last-child:nth-child(odd) { grid-column: 1 / -1; }
+}
 </style>
 
 <!-- ==========================================
@@ -1636,7 +1721,7 @@ include '../../includes/header.php';
                                     <?php endif; ?>
 
                                     <?php if ($prim_link === '' && $sec_link === ''): ?>
-                                        <span class="text-gray-400 text-xs">-</span>
+                                        <span class="text-gray-400 text-xs cell-empty">-</span>
                                     <?php endif; ?>
                                 </div>
                             </td>
@@ -1680,7 +1765,7 @@ include '../../includes/header.php';
                                         <span>عرض</span>
                                     </button>
                                 <?php else: ?>
-                                    <span class="text-gray-400 text-xs">لا يوجد</span>
+                                    <span class="text-gray-400 text-xs cell-empty">لا يوجد</span>
                                 <?php endif; ?>
                             </td>
 
@@ -1696,7 +1781,7 @@ include '../../includes/header.php';
                                         <?php echo mb_substr(htmlspecialchars($order['notes']), 0, 40) . (mb_strlen($order['notes']) > 40 ? '...' : ''); ?>
                                     </div>
                                 <?php else: ?>
-                                    <span class="text-gray-400 text-xs">-</span>
+                                    <span class="text-gray-400 text-xs cell-empty">-</span>
                                 <?php endif; ?>
                             </td>
 
