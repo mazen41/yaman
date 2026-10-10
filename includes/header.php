@@ -28,9 +28,9 @@
         (function () { try { if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark'); } catch (e) {} })();
     </script>
     <style>
-        html.dark { filter: invert(1) hue-rotate(180deg); background: #fff; }
+        html.dark { filter: invert(1) hue-rotate(180deg) contrast(.64) brightness(1.2); background: #fff; }
         html.dark img, html.dark video, html.dark iframe, html.dark canvas, html.dark picture,
-        html.dark [style*="background-image"], html.dark .no-invert { filter: invert(1) hue-rotate(180deg); }
+        html.dark [style*="background-image"], html.dark .no-invert { filter: brightness(.8333) contrast(1.5625) hue-rotate(180deg) invert(1); }
         @media print {
             html.dark, html.dark img, html.dark video, html.dark iframe, html.dark canvas, html.dark picture,
             html.dark [style*="background-image"], html.dark .no-invert { filter: none !important; }
