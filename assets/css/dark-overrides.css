@@ -1,0 +1,197 @@
+/*
+ * dark-overrides.css
+ * Shared dark-mode fallbacks for module pages.
+ * Every rule is scoped to html.dark and screen media, so light mode and print stay unchanged.
+ * Palette: #0e1111 page, #232b2b surfaces, #353839 inputs/inner cards,
+ *          #3b444b headers/hover, #414a4c borders. Text #e5e7eb / #9ca3af. Brand gold #C7A46D.
+ * Images, logos and payment proof photos are never touched.
+ */
+
+@media screen {
+
+    /* ---------- Base surfaces ---------- */
+    html.dark body,
+    html.dark .page-container,
+    html.dark .page-wrap,
+    html.dark .approvals-dashboard,
+    html.dark .sku-page,
+    html.dark #sortApp {
+        background-color: #0e1111;
+        color: #e5e7eb;
+    }
+
+    html.dark .card,
+    html.dark .stat-card,
+    html.dark .table-card,
+    html.dark .table-container,
+    html.dark .filter-card,
+    html.dark .orders-table-wrapper,
+    html.dark .kpi-card,
+    html.dark .modal-content,
+    html.dark .modal-dialog,
+    html.dark .app-drawer,
+    html.dark .drawer-footer,
+    html.dark .pagination-container,
+    html.dark .pagination-wrap,
+    html.dark .table-meta-header,
+    html.dark .order-card,
+    html.dark .filter-bar,
+    html.dark .s-card,
+    html.dark .s-card-head,
+    html.dark .admin-settings,
+    html.dark .app-screen {
+        background-color: #232b2b;
+        border-color: #414a4c;
+        color: #e5e7eb;
+    }
+
+    /* ---------- Tailwind light utilities (safety net) ---------- */
+    html.dark .bg-white,
+    html.dark .bg-gray-50,
+    html.dark .bg-gray-100 {
+        background-color: #232b2b !important;
+    }
+    html.dark .bg-gray-50 { background-color: #353839 !important; }
+    html.dark .bg-gray-100 { background-color: #3b444b !important; }
+
+    html.dark .text-gray-900,
+    html.dark .text-gray-800,
+    html.dark .text-gray-700 { color: #e5e7eb !important; }
+
+    html.dark .text-gray-600,
+    html.dark .text-gray-500,
+    html.dark .text-gray-400 { color: #9ca3af !important; }
+
+    html.dark .border-gray-100,
+    html.dark .border-gray-200,
+    html.dark .border-gray-300 { border-color: #414a4c !important; }
+
+    /* ---------- Form fields (browser default white is the main breakage) ---------- */
+    html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="submit"]):not([type="button"]):not([type="hidden"]),
+    html.dark select,
+    html.dark textarea,
+    html.dark .filter-control,
+    html.dark .scan-input,
+    html.dark .sku-input,
+    html.dark .template-textarea,
+    html.dark .pct-field input,
+    html.dark .field-container,
+    html.dark .field-container input {
+        background-color: #353839;
+        color: #e5e7eb;
+        border-color: #414a4c;
+    }
+    html.dark input::placeholder,
+    html.dark textarea::placeholder {
+        color: #9ca3af;
+        opacity: 1;
+    }
+    html.dark option {
+        background-color: #353839;
+        color: #e5e7eb;
+    }
+    html.dark input[readonly],
+    html.dark input:disabled {
+        background-color: #3b444b;
+    }
+
+    /* ---------- Tables ---------- */
+    html.dark table {
+        background-color: transparent;
+        color: #e5e7eb;
+    }
+    html.dark thead th,
+    html.dark table:not(.vertical-table) th {
+        background-color: #3b444b;
+        color: #e5e7eb;
+        border-color: #414a4c;
+    }
+    html.dark td,
+    html.dark tbody td {
+        border-color: #414a4c;
+        color: #e5e7eb;
+    }
+    html.dark tbody tr:hover td,
+    html.dark tr:hover td {
+        background-color: #3b444b;
+    }
+    html.dark tfoot td,
+    html.dark tfoot tr {
+        background-color: #353839;
+        color: #e5e7eb;
+    }
+
+    /* ---------- Tab / pill / status chips (financial review, approvals, sorting) ---------- */
+    html.dark .tab-button,
+    html.dark .status-pill,
+    html.dark .page-btn,
+    html.dark .pag-btn,
+    html.dark .batch-btn,
+    html.dark .btn-filter-reset,
+    html.dark .btn-action-secondary,
+    html.dark .s-btn-muted {
+        background-color: #353839;
+        color: #d1d5db;
+        border-color: #414a4c;
+    }
+    html.dark .tab-button.active {
+        background-color: #10b981;
+        color: #ffffff;
+        border-color: #10b981;
+    }
+    html.dark .tab-badge,
+    html.dark .pill-count {
+        background-color: rgba(255, 255, 255, .08);
+        color: inherit;
+    }
+    html.dark .status-reviewed {
+        background-color: rgba(16, 185, 129, .18);
+        color: #6ee7b7;
+    }
+    html.dark .status-pending {
+        background-color: rgba(245, 158, 11, .18);
+        color: #fcd34d;
+    }
+    html.dark .btn-view {
+        background-color: rgba(59, 130, 246, .18);
+        color: #93c5fd;
+    }
+
+    /* ---------- Modals and overlays ---------- */
+    html.dark .modal-header-custom,
+    html.dark .modal-footer-custom,
+    html.dark .drawer-body {
+        background-color: #232b2b;
+        border-color: #414a4c;
+        color: #e5e7eb;
+    }
+    html.dark .modal-body-custom,
+    html.dark .modal-dialog,
+    html.dark .app-drawer {
+        color: #e5e7eb;
+    }
+
+    /* ---------- Muted helpers used in page markup ---------- */
+    html.dark .text-muted,
+    html.dark .muted,
+    html.dark small {
+        color: #9ca3af;
+    }
+
+    /* ---------- Native controls match the theme ---------- */
+    html.dark {
+        color-scheme: dark;
+    }
+}
+
+/* Print always light: mPDF output and browser print are untouched. */
+@media print {
+    html.dark body,
+    html.dark .page-container,
+    html.dark .card,
+    html.dark .stat-card,
+    html.dark .table-card {
+        background: #ffffff !important;
+        color: #000000 !important;
+    }
+}

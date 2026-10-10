@@ -487,6 +487,10 @@
     <!-- Phone RTL Support -->
     <link rel="stylesheet"
         href="<?php echo dirname($_SERVER['PHP_SELF']) === '/' ? '' : '../..'; ?>/assets/css/phone-rtl.css">
+
+    <!-- Shared dark-mode fallbacks for module pages (screen only, print stays light) -->
+    <link rel="stylesheet"
+        href="<?php echo dirname($_SERVER['PHP_SELF']) === '/' ? '' : '../..'; ?>/assets/css/dark-overrides.css">
 </head>
 
 <body class="bg-gray-100 font-arabic">
