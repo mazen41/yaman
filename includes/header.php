@@ -75,6 +75,7 @@
 
             /* Navbar and sidebar */
             html.dark nav.top-nav { background: var(--pal-1) !important; border-bottom: 1px solid var(--pal-4); }
+            html.dark .sidebar-brand { background: var(--pal-1) !important; border-bottom: 2px solid var(--brand) !important; }
             html.dark .gradient-bg { background: var(--sidebar-bg); border-color: var(--sidebar-border); }
             html.dark .sidebar-link { color: var(--text-1); }
             html.dark .sidebar-link:hover,
@@ -140,6 +141,7 @@
             html.dark option { background-color: var(--pal-2); color: var(--text-1); }
 
             /* Scrollbars */
+            html.dark,
             html.dark * { scrollbar-color: var(--pal-4) var(--pal-0); }
             html.dark ::-webkit-scrollbar { width: 10px; height: 10px; }
             html.dark ::-webkit-scrollbar-track { background: var(--pal-0); }
@@ -435,7 +437,7 @@
         class="fixed top-0 right-0 z-40 w-64 h-screen transition-transform translate-x-full sm:translate-x-0">
         <div class="h-full gradient-bg shadow-lg flex flex-col">
             <!-- Logo and System Name -->
-            <div class="px-5 py-6 border-b border-gray-200"
+            <div class="sidebar-brand px-5 py-6 border-b border-gray-200"
                 style="background: linear-gradient(to left, #C7A46D, #B8956A);">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center">
