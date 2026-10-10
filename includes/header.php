@@ -486,11 +486,13 @@
 
     <!-- Phone RTL Support -->
     <link rel="stylesheet"
-        href="<?php echo dirname($_SERVER['PHP_SELF']) === '/' ? '' : '../..'; ?>/assets/css/phone-rtl.css">
+        href="/assets/css/phone-rtl.css">
 
     <!-- Shared dark-mode fallbacks for module pages (screen only, print stays light) -->
-    <link rel="stylesheet"
-        href="<?php echo dirname($_SERVER['PHP_SELF']) === '/' ? '' : '../..'; ?>/assets/css/dark-overrides.css">
+    <link rel="stylesheet" href="/assets/css/dark-overrides.css">
+
+    <!-- Generated dark fallbacks for hardcoded inline colors (every rule requires html.dark) -->
+    <link rel="stylesheet" href="/assets/css/dark-hardcoded.css">
 </head>
 
 <body class="bg-gray-100 font-arabic">

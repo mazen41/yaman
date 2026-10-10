@@ -184,6 +184,25 @@
     }
 }
 
+@media screen {
+    /* Purchase-group / list pages: class names defined in their own <style> blocks */
+    html.dark :is(.table-wrapper, .stats-bar, .stat-item, .filter-section) {
+        background-color: #232b2b !important;
+        border-color: #414a4c !important;
+        color: #e5e7eb;
+    }
+    html.dark .stat-item { background-color: #353839 !important; }
+    html.dark .stat-label, html.dark .empty-state { color: #9ca3af; }
+    html.dark .stat-value { color: #e5e7eb; }
+    html.dark .table-container { background-color: #232b2b !important; }
+    html.dark .vertical-table tbody tr { border-color: #414a4c !important; }
+    html.dark .vertical-table tbody tr:hover { background-color: #3b444b !important; }
+    html.dark .status-dropdown { background-color: #353839 !important; color: #e5e7eb; border-color: #414a4c !important; }
+    html.dark .status-badge { background-color: #3b444b !important; color: #d1d5db; }
+    html.dark .alert-danger { background-color: rgba(239,68,68,.18) !important; color: #fca5a5; border-color: rgba(239,68,68,.45) !important; }
+    html.dark .btn:not(.btn-primary):not(.btn-success):not(.btn-warning):not(.btn-danger) { background-color: #353839; color: #e5e7eb; }
+}
+
 /* Print always light: mPDF output and browser print are untouched. */
 @media print {
     html.dark body,
