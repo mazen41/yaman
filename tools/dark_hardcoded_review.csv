@@ -1,0 +1,131 @@
+﻿file,item,value,note
+modules\courier\dashboard\index.php,<style> block,,manual review
+modules\customers\add.php,<style> block,,manual review
+modules\customers\add.php,background,"linear-gradient(135deg, #007bff, #0056d2)",gradient skipped
+modules\customers\add.php,background,"linear-gradient(135deg, #dc3545, #a71d2a)",gradient skipped
+modules\customers\cities.php,<style> block,,manual review
+modules\customers\customer_types.php,<style> block,,manual review
+modules\customers\edit.php,<style> block,,manual review
+modules\customers\edit_invoice.php,<style> block,,manual review
+modules\customers\show_invoices.php,<style> block,,manual review
+modules\customers\update_cities_yemen.php,<style> block,,manual review
+modules\customers\update_offices_yemen.php,<style> block,,manual review
+modules\customers\view_enhanced.php,<style> block,,manual review
+modules\customers\view_invoice.php,<style> block,,manual review
+modules\customer_text\copying.php,<style> block,,manual review
+modules\expenses\view.php,<style> block,,manual review
+modules\financial\employee-permissions.php,<style> block,,manual review
+modules\financial\universal_transfer.php,<style> block,,manual review
+modules\invoices\index.php,<style> block,,manual review
+modules\invoices\print.php,<style> block,,manual review
+modules\loyalty-cards\transactions.php,<style> block,,manual review
+modules\manage_status\create_status.php,<style> block,,manual review
+modules\manage_status\edit_status.php,<style> block,,manual review
+modules\manage_status\manage_status.php,<style> block,,manual review
+modules\orders\approvals.php,<style> block,,manual review
+modules\orders\create.php,<style> block,,manual review
+modules\orders\create_coupons_table.php,<style> block,,manual review
+modules\orders\edit.php,<style> block,,manual review
+modules\orders\financial_review.php,<style> block,,manual review
+modules\orders\index.php,<style> block,,manual review
+modules\orders\print.php,<style> block,,manual review
+modules\orders\print_labels.php,<style> block,,manual review
+modules\orders\send.php,<style> block,,manual review
+modules\orders\shop_orders_manage.php,<style> block,,manual review
+modules\orders\shop_order_download.php,<style> block,,manual review
+modules\orders\shop_order_view.php,<style> block,,manual review
+modules\orders\skus.php,<style> block,,manual review
+modules\orders\sync_invoices.php,<style> block,,manual review
+modules\orders\view.php,<style> block,,manual review
+modules\orders\view_approval.php,<style> block,,manual review
+modules\orders\view_approval.php,background,"linear-gradient(to left, var(--primary-gold), var(--dark-gold))",gradient skipped
+modules\orders\view_approval.php,background,"linear-gradient(135deg, var(--dark-gold) 0%, var(--primary-gold) 100%)",gradient skipped
+modules\payments\bank_accounts.php,<style> block,,manual review
+modules\payments\index.php,<style> block,,manual review
+modules\payments\print.php,<style> block,,manual review
+modules\payments\transfer.php,<style> block,,manual review
+modules\purchases\add.php,<style> block,,manual review
+modules\purchases\add_basket.php,<style> block,,manual review
+modules\purchases\basket.php,<style> block,,manual review
+modules\purchases\basket_complete.php,<style> block,,manual review
+modules\purchases\create_invoice.php,<style> block,,manual review
+modules\purchases\edit.php,<style> block,,manual review
+modules\purchases\edit_basket.php,<style> block,,manual review
+modules\purchases\print.php,<style> block,,manual review
+modules\purchases\print_basket.php,<style> block,,manual review
+modules\purchases\show_baskets.php,<style> block,,manual review
+modules\purchases\tracking.php,<style> block,,manual review
+modules\purchases\view_basket.php,<style> block,,manual review
+modules\purchases\view_invoice.php,<style> block,,manual review
+modules\purchases\groups\index.php,<style> block,,manual review
+modules\purchases\groups\view.php,<style> block,,manual review
+modules\purchases\groups\view.php,background,"linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)",gradient skipped
+modules\purchases\purchases\add.php,<style> block,,manual review
+modules\purchases\purchases\add_basket.php,<style> block,,manual review
+modules\purchases\purchases\basket.php,<style> block,,manual review
+modules\purchases\purchases\basket_complete.php,<style> block,,manual review
+modules\purchases\purchases\create_invoice.php,<style> block,,manual review
+modules\purchases\purchases\edit.php,<style> block,,manual review
+modules\purchases\purchases\edit_basket.php,<style> block,,manual review
+modules\purchases\purchases\print.php,<style> block,,manual review
+modules\purchases\purchases\print_basket.php,<style> block,,manual review
+modules\purchases\purchases\show_baskets.php,<style> block,,manual review
+modules\purchases\purchases\tracking.php,<style> block,,manual review
+modules\purchases\purchases\view_basket.php,<style> block,,manual review
+modules\purchases\purchases\view_invoice.php,<style> block,,manual review
+modules\purchase_cards\view_transactions.php,<style> block,,manual review
+modules\reports\balance_sheet.php,<style> block,,manual review
+modules\reports\baskets_report.php,<style> block,,manual review
+modules\reports\basket_details_report.php,<style> block,,manual review
+modules\reports\coupons_report.php,<style> block,,manual review
+modules\reports\customers-report.php,<style> block,,manual review
+modules\reports\customer_summary.php,<style> block,,manual review
+modules\reports\detail_payments_reports.php,<style> block,,manual review
+modules\reports\export_report.php,<style> block,,manual review
+modules\reports\filter_component.php,<style> block,,manual review
+modules\reports\index.php,<style> block,,manual review
+modules\reports\index.php,background,"linear-gradient(135deg, #10b981 0%, #047857 100%)",gradient skipped
+modules\reports\index.php,background,"linear-gradient(135deg, #667eea 0%, #764ba2 100%)",gradient skipped
+modules\reports\index.php,background,"linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",gradient skipped
+modules\reports\index.php,background,"linear-gradient(135deg, #fa709a 0%, #fee140 100%)",gradient skipped
+modules\reports\index.php,background,"linear-gradient(135deg, #2563eb 0%, #0d9488 100%)",gradient skipped
+modules\reports\index.php,background,"linear-gradient(135deg, #10B981 0%, #3B82F6 100%)",gradient skipped
+modules\reports\index.php,background,"linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",gradient skipped
+modules\reports\index.php,background,"linear-gradient(135deg, #667eea 0%, #764ba2 100%)",gradient skipped
+modules\reports\index.php,background,"linear-gradient(135deg, #43cea2 0%, #185a9d 100%)",gradient skipped
+modules\reports\index.php,background,"linear-gradient(135deg, #ff9966 0%, #ff5e62 100%)",gradient skipped
+modules\reports\index.php,background,"linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)",gradient skipped
+modules\reports\index.php,background,"linear-gradient(135deg, #fa709a 0%, #fee140 100%)",gradient skipped
+modules\reports\index.php,background,"linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)",gradient skipped
+modules\reports\index.php,background,"linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)",gradient skipped
+modules\reports\index.php,background,"linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)",gradient skipped
+modules\reports\inventory-report.php,<style> block,,manual review
+modules\reports\low-stock.php,<style> block,,manual review
+modules\reports\orders_reports.php,<style> block,,manual review
+modules\reports\pending-orders.php,<style> block,,manual review
+modules\reports\purchases-by-supplier.php,<style> block,,manual review
+modules\reports\purchases-monthly.php,<style> block,,manual review
+modules\reports\purchases-report.php,<style> block,,manual review
+modules\reports\purchase_cards_report.php,<style> block,,manual review
+modules\reports\sales-by-customer.php,<style> block,,manual review
+modules\reports\sales-by-product.php,<style> block,,manual review
+modules\reports\sales-monthly.php,<style> block,,manual review
+modules\reports\sales-report.php,<style> block,,manual review
+modules\reports\shop_orders_overview.php,<style> block,,manual review
+modules\reports\shop_reports.php,<style> block,,manual review
+modules\settings\checkout_slides.php,<style> block,,manual review
+modules\settings\email_settings.php,<style> block,,manual review
+modules\settings\email_templates.php,<style> block,,manual review
+modules\settings\install_phpmailer.php,<style> block,,manual review
+modules\settings\install_phpmailer_simple.php,<style> block,,manual review
+modules\settings\portal_slides.php,<style> block,,manual review
+modules\settings\product_slides.php,<style> block,,manual review
+modules\shipping\add.php,<style> block,,manual review
+modules\shipping\print.php,<style> block,,manual review
+modules\shipping\senders.php,<style> block,,manual review
+modules\shipping\view.php,<style> block,,manual review
+modules\sorting\index.php,<style> block,,manual review
+modules\sorting\patch_view.php,background,"linear-gradient(135deg,rgba(34,197,94,.15),rgba(16,185,129,.08))",gradient skipped
+modules\whatsapp\index.php,<style> block,,manual review
+modules\whatsapp\send.php,<style> block,,manual review
+modules\whatsapp\templates.php,<style> block,,manual review

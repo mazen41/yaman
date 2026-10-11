@@ -134,6 +134,7 @@ $stmt = $db->prepare("
            ct.name AS customer_type_name,
            city.name AS city_name,
            c.customer_code, c.mobile_number, c.phone, c.alternative_number,
+           c.location_area, c.address,
            COUNT(DISTINCT co.id) AS total_orders,
            COALESCE(SUM(CASE WHEN co.status='delivered' THEN 1 ELSE 0 END),0) AS delivered_count,
            COALESCE(SUM(CASE WHEN co.status IN('ready','ready_to_deliver','جاهز للتسليم') THEN 1 ELSE 0 END),0) AS ready_count,
@@ -602,7 +603,6 @@ include '../../includes/header.php';
                 foreach (['delivered_orders','ready_orders','purchased_orders','new_orders'] as $k)
                     $fin[$k] = (int)($fin[$k]??0);
 
-                $location = implode(' - ', array_filter([$c['city_name']??'', $c['customer_code']??'']));
                 $notes_val = trim($c['notes'] ?? '');
             ?>
                 <tr>
@@ -627,10 +627,17 @@ include '../../includes/header.php';
                     </td>
 
                     <!-- الموقع - العنوان -->
-                    <td>
-                        <?= $location
-                            ? '<span class="tag tag-gray">'.htmlspecialchars($location).'</span>'
+                    <td style="text-align:right">
+                        <?php $loc_head = implode(' - ', array_filter([$c['city_name'] ?? '', $c['customer_code'] ?? ''])); ?>
+                        <?= $loc_head
+                            ? '<span class="tag tag-gray">'.htmlspecialchars($loc_head).'</span>'
                             : '<span style="color:#cbd5e1">—</span>' ?>
+                        <?php if (!empty($c['location_area'])): ?>
+                        <div style="font-size:11px; color:#475569; margin-top:4px"><?= htmlspecialchars($c['location_area']) ?></div>
+                        <?php endif; ?>
+                        <?php if (!empty($c['address'])): ?>
+                        <div style="font-size:11px; color:#475569; margin-top:2px; white-space:pre-wrap"><?= htmlspecialchars($c['address']) ?></div>
+                        <?php endif; ?>
                     </td>
 
                     <!-- تم الاستلام: عدد الطلبات | مدفوع | متبقي -->
