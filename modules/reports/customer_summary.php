@@ -35,6 +35,7 @@ $filter_date_to       = $_GET['filter_date_to']       ?? '';
 $filter_status        = $_GET['filter_status']        ?? 'active'; // active, inactive, all — default: active
 $filter_remaining_from = $_GET['filter_remaining_from'] ?? '';
 $filter_all_delivered = isset($_GET['filter_all_delivered']) && $_GET['filter_all_delivered'] == '1';
+$filter_order_status  = $_GET['filter_order_status'] ?? '';
 
 // Sorting (SAME whitelist as customers/index.php, adapted column aliases for this report's query)
 $sort_options = [
@@ -60,7 +61,8 @@ $advanced_filters_active = !empty($filter_type) ||
                            $filter_all_delivered ||
                            ($sort_by != 'updated_at') ||
                            ($sort_dir != 'DESC') ||
-                           ($filter_status != 'active');
+                           ($filter_status != 'active') ||
+                           !empty($filter_order_status);
 
 // ── Build WHERE conditions (SAME logic as customers/index.php) ───────────────
 $where_clauses = ["1=1"];
@@ -95,6 +97,20 @@ if ($filter_type) {
 if ($filter_city) {
     $where_clauses[] = "c.city_id = ?";
     $params[] = $filter_city;
+}
+
+// Order status filter: customers with at least one order in the chosen status group
+$order_status_groups = [
+    'delivered' => ['delivered', 'تم الاستلام'],
+    'ready'     => ['ready', 'ready_to_deliver', 'جاهز للتسليم', 'جاهز للتوصيل'],
+    'purchased' => ['purchased', 'processing', 'تم الشراء'],
+    'new'       => ['new', 'جديد'],
+];
+if ($filter_order_status && isset($order_status_groups[$filter_order_status])) {
+    $grp = $order_status_groups[$filter_order_status];
+    $grp_placeholders = implode(',', array_fill(0, count($grp), '?'));
+    $where_clauses[] = "EXISTS (SELECT 1 FROM customer_orders cox WHERE cox.customer_id = c.id AND cox.status IN ($grp_placeholders))";
+    foreach ($grp as $grp_status) { $params[] = $grp_status; }
 }
 
 // Date range filters (SAME: DATE(c.created_at))
@@ -385,6 +401,7 @@ include '../../includes/header.php';
                 'filter_date_to'       => $filter_date_to,
                 'filter_status'        => ($filter_status !== 'active') ? $filter_status : '',
                 'filter_remaining_from' => $filter_remaining_from,
+                'filter_order_status'  => $filter_order_status,
                 'sort_by'              => ($sort_by !== 'updated_at') ? $sort_by : '',
                 'sort_dir'             => ($sort_dir !== 'DESC') ? $sort_dir : '',
             ]));
@@ -497,6 +514,18 @@ include '../../includes/header.php';
                         </select>
                     </div>
 
+                    <!-- Order Status Filter (customers with at least one order in this status) -->
+                    <div class="cs-filter-item">
+                        <label>حالة طلبات العميل</label>
+                        <select name="filter_order_status">
+                            <option value="">الكل</option>
+                            <option value="delivered" <?php if ($filter_order_status == 'delivered') echo 'selected'; ?>>تم الاستلام</option>
+                            <option value="ready" <?php if ($filter_order_status == 'ready') echo 'selected'; ?>>جاهز للتوصيل</option>
+                            <option value="purchased" <?php if ($filter_order_status == 'purchased') echo 'selected'; ?>>تم الشراء</option>
+                            <option value="new" <?php if ($filter_order_status == 'new') echo 'selected'; ?>>جديد</option>
+                        </select>
+                    </div>
+
                     <!-- All Delivered Filter -->
                     <div class='cs-filter-item' style='justify-content:flex-end;padding-bottom:4px'>
                         <label style='display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:#1e293b;font-weight:700'>
@@ -603,6 +632,16 @@ include '../../includes/header.php';
                 foreach (['delivered_orders','ready_orders','purchased_orders','new_orders'] as $k)
                     $fin[$k] = (int)($fin[$k]??0);
 
+                // Orders matching the selected order status (only when that filter is active)
+                $matched_orders = [];
+                if ($filter_order_status && isset($order_status_groups[$filter_order_status])) {
+                    $mg = $order_status_groups[$filter_order_status];
+                    $mph = implode(',', array_fill(0, count($mg), '?'));
+                    $mo_stmt = $db->prepare("SELECT order_number, final_amount, paid_amount, status, created_at FROM customer_orders WHERE customer_id = ? AND status IN ($mph) ORDER BY created_at DESC");
+                    $mo_stmt->execute(array_merge([$c['id']], $mg));
+                    $matched_orders = $mo_stmt->fetchAll(PDO::FETCH_ASSOC);
+                }
+
                 $notes_val = trim($c['notes'] ?? '');
             ?>
                 <tr>
@@ -622,6 +661,18 @@ include '../../includes/header.php';
                         <?php if (!empty($c['alternative_number'])): ?>
                         <div style="font-size:10px; color:#94a3b8; margin-top:1px; direction:ltr; text-align:right">
                             <span style="font-size:9px">بديل:</span> <?= htmlspecialchars($c['alternative_number']) ?>
+                        </div>
+                        <?php endif; ?>
+                        <?php if (!empty($matched_orders)): ?>
+                        <div style="margin-top:6px; border-top:1px dashed #cbd5e1; padding-top:4px">
+                            <?php foreach ($matched_orders as $mo): ?>
+                            <div style="font-size:10px; color:#334155; direction:ltr; text-align:right; white-space:nowrap">
+                                <strong><?= htmlspecialchars($mo['order_number']) ?></strong>
+                                &nbsp;| <?= number_format($mo['final_amount'], 0) ?>
+                                &nbsp;| مدفوع <?= number_format($mo['paid_amount'], 0) ?>
+                                &nbsp;| متبقي <?= number_format(max(0, $mo['final_amount'] - $mo['paid_amount']), 0) ?>
+                            </div>
+                            <?php endforeach; ?>
                         </div>
                         <?php endif; ?>
                     </td>

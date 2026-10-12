@@ -36,6 +36,16 @@ $filter_date_from      = $_GET['filter_date_from']      ?? '';
 $filter_date_to        = $_GET['filter_date_to']        ?? '';
 $filter_status         = $_GET['filter_status']         ?? 'active';
 $filter_remaining_from = $_GET['filter_remaining_from'] ?? '';
+$filter_order_status   = $_GET['filter_order_status']   ?? '';
+
+// Order status groups (same as customer_summary.php)
+$order_status_groups = [
+    'delivered' => ['delivered', 'تم الاستلام'],
+    'ready'     => ['ready', 'ready_to_deliver', 'جاهز للتسليم', 'جاهز للتوصيل'],
+    'purchased' => ['purchased', 'processing', 'تم الشراء'],
+    'new'       => ['new', 'جديد'],
+];
+$order_status_labels = ['delivered' => 'تم الاستلام', 'ready' => 'جاهز للتوصيل', 'purchased' => 'تم الشراء', 'new' => 'جديد'];
 
 $sort_options  = ['updated_at'=>'c.updated_at','total_amount'=>'total_amount','total_orders'=>'total_orders','remaining_amount'=>'total_remaining','name_alpha'=>'c.name'];
 $sort_by       = $_GET['sort_by']  ?? 'updated_at';
@@ -65,6 +75,14 @@ if ($search) {
 }
 if ($filter_type)  { $where_clauses[] = "c.customer_type_id = ?"; $params[] = $filter_type; }
 if ($filter_city)  { $where_clauses[] = "c.city_id = ?";          $params[] = $filter_city; }
+
+// Order status filter: customers with at least one order in the chosen status group
+if (!$selected_ids && $filter_order_status && isset($order_status_groups[$filter_order_status])) {
+    $grp = $order_status_groups[$filter_order_status];
+    $grp_placeholders = implode(',', array_fill(0, count($grp), '?'));
+    $where_clauses[] = "EXISTS (SELECT 1 FROM customer_orders cox WHERE cox.customer_id = c.id AND cox.status IN ($grp_placeholders))";
+    foreach ($grp as $grp_status) { $params[] = $grp_status; }
+}
 if ($filter_date_from) { $where_clauses[] = "DATE(c.created_at) >= ?"; $params[] = $filter_date_from; }
 if ($filter_date_to)   { $where_clauses[] = "DATE(c.created_at) <= ?"; $params[] = $filter_date_to; }
 if ($filter_remaining_from !== '' && is_numeric($filter_remaining_from)) {
@@ -130,6 +148,7 @@ if ($filter_status == 'active')   $fp[] = 'الحالة: نشط';
 if ($filter_status == 'inactive') $fp[] = 'الحالة: معطل';
 if ($filter_status == 'all')      $fp[] = 'الحالة: الكل';
 if ($filter_remaining_from !== '' && is_numeric($filter_remaining_from)) $fp[] = 'المتبقي من: ' . n($filter_remaining_from);
+if ($filter_order_status && isset($order_status_labels[$filter_order_status])) $fp[] = 'حالة الطلبات: ' . $order_status_labels[$filter_order_status];
 if ($selected_ids) {
     $filter_text = 'عملاء محددون (' . count($selected_ids) . ' عميل)';
 } elseif ($fp) {
@@ -182,6 +201,21 @@ foreach ($customers as $i => $c) {
     ]);
     $phone_str = !empty($phones) ? h(implode(' / ', $phones)) : '—';
 
+    // Orders matching the selected order status (only when that filter is active)
+    $matched_html = '';
+    if (!$selected_ids && $filter_order_status && isset($order_status_groups[$filter_order_status])) {
+        $mg = $order_status_groups[$filter_order_status];
+        $mph = implode(',', array_fill(0, count($mg), '?'));
+        $mo_stmt = $db->prepare("SELECT order_number, final_amount, paid_amount FROM customer_orders WHERE customer_id = ? AND status IN ($mph) ORDER BY created_at DESC");
+        $mo_stmt->execute(array_merge([$c['id']], $mg));
+        foreach ($mo_stmt->fetchAll(PDO::FETCH_ASSOC) as $mo) {
+            $matched_html .= '<div style="margin-top:2px;border-top:1px dashed #cbd5e1;padding-top:2px;font-size:8px;color:#334155;direction:ltr;text-align:right;">'
+                . '<strong>' . h($mo['order_number']) . '</strong> | ' . n($mo['final_amount'])
+                . ' | مدفوع ' . n($mo['paid_amount'])
+                . ' | متبقي ' . n(max(0, $mo['final_amount'] - $mo['paid_amount'])) . '</div>';
+        }
+    }
+
     $bg    = ($i % 2 === 0) ? '#ffffff' : '#e8edf2';
     $notes = trim($c['notes'] ?? '');
     $location = implode(' - ', array_filter([$c['city_name']??'', $c['customer_code']??'']));
@@ -199,6 +233,7 @@ foreach ($customers as $i => $c) {
             <strong style=\"font-size:11px;color:#1e293b;\">" . h($c['name']) . "</strong>
             " . ($c['mobile_number'] ? '<br><span style="font-size:9px;color:#475569;direction:ltr;">' . h($c['mobile_number']) . '</span>' : '') . "
             " . (!empty($c['alternative_number']) ? '<br><span style="font-size:8px;color:#64748b;direction:ltr;">بديل: ' . h($c['alternative_number']) . '</span>' : '') . "
+            " . $matched_html . "
         </td>
         <td style=\"text-align:center;color:#1e293b;\">" . ($location ? h($location) : '—') . "</td>
         <td style=\"text-align:center;font-weight:700;\">" . $fin['delivered_orders'] . "</td>
