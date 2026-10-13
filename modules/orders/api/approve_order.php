@@ -536,11 +536,69 @@ try {
     $db->prepare("INSERT INTO order_status_history (order_id, status, notes, created_by) VALUES (?, 'new', 'تمت الموافقة على الطلب وتحويله لسجل دائم', ?)")->execute([$order_id, $user_id]);
     $db->prepare("UPDATE notifications SET is_read = 1 WHERE related_id = ? AND related_table = 'order_approvals'")->execute([$approval_id]);
 
+    // 13. Create customer notification records for selected contacts
+    $selected_numbers = [];
+    $uses_contact_picker = !empty($_POST['whatsapp_contacts_form']);
+    $posted_contacts = (isset($_POST['whatsapp_contacts']) && is_array($_POST['whatsapp_contacts'])) ? $_POST['whatsapp_contacts'] : [];
+
+    if ($uses_contact_picker) {
+        foreach ($posted_contacts as $c) {
+            $c = trim((string) $c);
+            if ($c === 'mobile' && !empty($customer['mobile_number'])) {
+                $selected_numbers[] = trim($customer['mobile_number']);
+            }
+            if ($c === 'whatsapp' && !empty($customer['whatsapp_number'])) {
+                $selected_numbers[] = trim($customer['whatsapp_number']);
+            }
+        }
+    } elseif (!empty($_POST['whatsapp_contact']) && $_POST['whatsapp_contact'] === '2' && !empty($customer['whatsapp_number'])) {
+        $selected_numbers[] = trim($customer['whatsapp_number']);
+    } elseif (!empty($_POST['whatsapp_contact']) && $_POST['whatsapp_contact'] === '1' && !empty($customer['mobile_number'])) {
+        $selected_numbers[] = trim($customer['mobile_number']);
+    } elseif (!$uses_contact_picker && !empty($customer['mobile_number'])) {
+        $selected_numbers[] = trim($customer['mobile_number']);
+    }
+    $selected_numbers = array_values(array_unique(array_filter($selected_numbers)));
+
+    if (!empty($selected_numbers)) {
+        $notif_stmt = $db->prepare("
+            INSERT INTO notifications (customer_id, related_id, related_table, message, is_read, created_at)
+            VALUES (?, ?, 'order_approvals', ?, 0, NOW())
+        ");
+        $notif_message = 'عزيزي ' . ($customer['name'] ?? 'العميل') . '، نود إبلاغك بأنه تمت الموافقة على طلبك #' . $approval_id . ' (رقم الطلب: ' . $order_number . ')';
+        foreach ($selected_numbers as $num) {
+            $notif_stmt->execute([$customer['id'] ?? null, $approval_id, $notif_message . ' - رقم التواصل: ' . $num]);
+        }
+    }
+
     // COMMIT
     if ($db->inTransaction()) { $db->commit(); }
-    
-    $_SESSION['success_message'] = 'تمت الموافقة بنجاح. تم إنشاء الطلب النهائي رقم: ' . $order_number;
-    header('Location: ../index.php?search=' . urlencode($order_number));
+
+    // Build WhatsApp message and redirect with WA send option (matching rejection flow)
+    $currency_symbol = $approval['currency'] ?? 'USD';
+    $wa_message = 'عزيزي ' . ($customer['name'] ?? 'العميل') . '،' . "\n"
+        . 'تمت الموافقة على طلبك بنجاح واعتماده برقم: ' . $order_number . "\n"
+        . 'إجمالي المبلغ: ' . number_format($final_amount, 2) . ' ' . $currency_symbol . "\n";
+    if ($final_data['paid_amount'] > 0) {
+        $wa_message .= 'المبلغ المدفوع: ' . number_format($final_data['paid_amount'], 2) . ' ' . $currency_symbol . "\n";
+        $remaining = max(0, $final_amount - $final_data['paid_amount']);
+        if ($remaining > 0) {
+            $wa_message .= 'المبلغ المتبقي: ' . number_format($remaining, 2) . ' ' . $currency_symbol . "\n";
+        }
+    }
+    $wa_message .= 'شكراً لتسوقكم معنا!';
+    $wa_phones = $selected_numbers;
+
+    if (!empty($wa_phones)) {
+        $_SESSION['whatsapp_pending'] = [
+            'phones'  => $wa_phones,
+            'message' => $wa_message,
+            'label'   => 'إشعار اعتماد الطلب #' . $order_number,
+        ];
+    }
+
+    $_SESSION['success_message'] = 'تمت الموافقة بنجاح. تم إنشاء الطلب النهائي رقم: ' . $order_number . (!empty($wa_phones) ? ' يرجى إرسال إشعار الواتساب للعميل.' : '');
+    header('Location: ../approvals.php');
     exit();
 
 } catch (Exception $e) {

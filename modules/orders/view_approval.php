@@ -366,7 +366,7 @@ include '../../includes/header.php';
 
                             <div class="grid grid-cols-1 gap-3 pt-4">
                                 <?php if ($can_approve_sa): ?>
-                                <button type="submit" name="action" value="approve" onclick="return validateAndConfirmApproval();" class="btn-grad-primary py-3.5 rounded-xl font-bold">اعتماد وموافقة</button>
+                                <button type="button" onclick="openApproveModal()" class="btn-grad-primary py-3.5 rounded-xl font-bold">اعتماد وموافقة</button>
                                 <?php endif; ?>
                                 <?php if ($can_reject_sa): ?>
                                 <button type="button" onclick="openModal()" class="btn-grad-danger py-3 rounded-xl font-bold">رفض الطلب</button>
@@ -455,6 +455,46 @@ include '../../includes/header.php';
                 <button type="submit" class="px-4 py-2 bg-red-600 hover:bg-red-700 transition text-white rounded">تأكيد الرفض</button>
             </div>
         </form>
+    </div>
+</div>
+
+<div id="approveModal" class="custom-modal">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md m-4" id="approveModalContent">
+        <h5 class="text-green-700 font-bold p-4 border-b flex items-center gap-2">
+            <i class="fas fa-check-circle text-green-600"></i> اعتماد وموافقة على الطلب
+        </h5>
+        <div class="p-6">
+            <p class="mb-3 text-sm font-bold text-gray-800">هل أنت متأكد من الموافقة على هذا الطلب وإنشاء فاتورة رسمية؟</p>
+
+            <p class="mb-2 mt-4 text-sm font-bold text-gray-800">إرسال إشعار واتساب بالموافقة إلى:</p>
+            <div class="space-y-2 text-right border border-gray-100 rounded-lg p-3 bg-gray-50">
+                <?php
+                $mob = trim($approval['customer_mobile_number'] ?? '');
+                $wa = trim($approval['customer_whatsapp_number'] ?? '');
+                $has_any = ($mob !== '' || $wa !== '');
+                if (!$has_any): ?>
+                    <p class="text-xs text-gray-500">لا توجد أرقام مسجلة للعميل.</p>
+                <?php else: ?>
+                    <?php if ($mob !== ''): ?>
+                    <label class="flex items-center gap-2 cursor-pointer text-sm">
+                        <input type="checkbox" id="approve_whatsapp_mobile" value="mobile" class="rounded" checked>
+                        <span>الجوال: <?php echo htmlspecialchars($mob); ?></span>
+                    </label>
+                    <?php endif; ?>
+                    <?php if ($wa !== ''): ?>
+                    <label class="flex items-center gap-2 cursor-pointer text-sm">
+                        <input type="checkbox" id="approve_whatsapp_wa" value="whatsapp" class="rounded" <?php echo ($mob === '') ? 'checked' : ''; ?>>
+                        <span>واتساب: <?php echo htmlspecialchars($wa); ?></span>
+                    </label>
+                    <?php endif; ?>
+                    <p class="text-xs text-gray-500 mt-2">اترك كل الخيارات غير محددة لعدم إرسال إشعار واتساب.</p>
+                <?php endif; ?>
+            </div>
+        </div>
+        <div class="bg-gray-50 p-4 flex justify-end gap-3 rounded-b-2xl">
+            <button type="button" onclick="closeApproveModal()" class="px-4 py-2 bg-white border rounded hover:bg-gray-50 transition">إلغاء</button>
+            <button type="button" id="confirmApproveBtn" onclick="confirmAndSubmitApproval()" class="px-5 py-2 bg-green-600 hover:bg-green-700 transition text-white rounded font-bold">تأكيد الموافقة</button>
+        </div>
     </div>
 </div>
 
@@ -650,8 +690,7 @@ include '../../includes/header.php';
             });
     }
 
-    // NEW: Client-side validation for payment method and amount
-    function validateAndConfirmApproval() {
+    function openApproveModal() {
         const paidAmount = parseFloat(document.getElementById('paid_amount_admin').value);
         const paymentMethod = paymentMethodSelect.value;
 
@@ -684,8 +723,63 @@ include '../../includes/header.php';
                 }
             }
         }
+
+        document.getElementById('approveModal').classList.add('show');
+    }
+
+    function closeApproveModal() {
+        document.getElementById('approveModal').classList.remove('show');
+    }
+
+    function confirmAndSubmitApproval() {
+        const form = document.getElementById('approvalForm');
         
-        return confirm('هل أنت متأكد من الموافقة على هذا الطلب وإنشاء فاتورة؟');
+        // Remove existing injected whatsapp inputs if any
+        form.querySelectorAll('.injected-wa-input').forEach(el => el.remove());
+
+        // WhatsApp contacts form flag
+        const flagInput = document.createElement('input');
+        flagInput.type = 'hidden';
+        flagInput.name = 'whatsapp_contacts_form';
+        flagInput.value = '1';
+        flagInput.classList.add('injected-wa-input');
+        form.appendChild(flagInput);
+
+        const mobCb = document.getElementById('approve_whatsapp_mobile');
+        if (mobCb && mobCb.checked) {
+            const mobInput = document.createElement('input');
+            mobInput.type = 'hidden';
+            mobInput.name = 'whatsapp_contacts[]';
+            mobInput.value = 'mobile';
+            mobInput.classList.add('injected-wa-input');
+            form.appendChild(mobInput);
+        }
+
+        const waCb = document.getElementById('approve_whatsapp_wa');
+        if (waCb && waCb.checked) {
+            const waInput = document.createElement('input');
+            waInput.type = 'hidden';
+            waInput.name = 'whatsapp_contacts[]';
+            waInput.value = 'whatsapp';
+            waInput.classList.add('injected-wa-input');
+            form.appendChild(waInput);
+        }
+
+        // Action input for approve
+        const actionInput = document.createElement('input');
+        actionInput.type = 'hidden';
+        actionInput.name = 'action';
+        actionInput.value = 'approve';
+        actionInput.classList.add('injected-wa-input');
+        form.appendChild(actionInput);
+
+        const btn = document.getElementById('confirmApproveBtn');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin ml-1"></i> جاري الاعتماد...';
+        }
+
+        form.submit();
     }
 
 
