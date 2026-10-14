@@ -158,17 +158,75 @@ foreach ($products as $key => $product) {
         @media (max-width: 768px) { .portal-slider { height: 180px; } }
 
         /* ── Category Circles ── */
-        /* BUG 8 FIX: overflow:visible on scroll container + enough padding-top so rings don't clip */
-        .cat-item { display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; flex-shrink: 0; }
-        #main-category-scroll { padding-top: 6px; overflow-x: auto; overflow-y: visible; }
-        .cat-ring { width: 64px; height: 64px; border-radius: 50%; border: 2.5px solid #e5e7eb; overflow: hidden; position: relative; background: #fff; transition: border-color 0.25s, transform 0.25s, box-shadow 0.25s; }
+        .cat-item { 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            gap: 6px; 
+            cursor: pointer; 
+            flex-shrink: 0; 
+            position: relative;
+            padding: 6px 4px;
+            margin: 2px;
+            border-radius: 16px;
+            transition: all 0.25s ease;
+        }
+        .cat-item.active { z-index: 10; }
+        
+        #main-category-scroll { 
+            display: flex;
+            gap: 12px;
+            overflow-x: auto; 
+            padding: 14px 16px 14px 16px; 
+            scroll-padding: 0 16px;
+            align-items: flex-start;
+        }
+        .sub-cat-group {
+            display: flex;
+            gap: 12px;
+            overflow-x: auto;
+            padding: 12px 16px 14px 16px;
+            scroll-padding: 0 16px;
+            align-items: flex-start;
+        }
+
+        .cat-ring { 
+            width: 64px; 
+            height: 64px; 
+            border-radius: 50%; 
+            border: 2.5px solid #e5e7eb; 
+            overflow: hidden; 
+            position: relative; 
+            background: #fff; 
+            transition: border-color 0.25s ease, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease; 
+            margin: 4px;
+        }
         .cat-ring img { width: 100%; height: 100%; object-fit: cover; }
         .cat-ring .cat-fallback { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 22px; background: linear-gradient(135deg, #f3f4f6, #e9e9e5); color: #9ca3af; }
-        .cat-ring-sub { width: 48px; height: 48px; border-radius: 50%; border: 2px solid #e5e7eb; overflow: hidden; position: relative; background: #fff; transition: border-color 0.25s, transform 0.25s, box-shadow 0.25s; }
+        
+        .cat-ring-sub { 
+            width: 48px; 
+            height: 48px; 
+            border-radius: 50%; 
+            border: 2px solid #e5e7eb; 
+            overflow: hidden; 
+            position: relative; 
+            background: #fff; 
+            transition: border-color 0.25s ease, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease; 
+            margin: 4px;
+        }
         .cat-ring-sub img { width: 100%; height: 100%; object-fit: cover; }
         .cat-ring-sub .cat-fallback { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 16px; background: linear-gradient(135deg, #f9f9f7, #f0f0ec); color: #b0b7c3; }
-        .cat-item.active .cat-ring, .cat-item.active .cat-ring-sub { border-color: #C7A46D; box-shadow: 0 0 0 3px rgba(199,164,109,0.2); transform: scale(1.08); }
-        .cat-item.active .cat-label, .cat-item.active .cat-label-sub { color: #C7A46D; font-weight: 700; }
+        
+        .cat-item.active .cat-ring, .cat-item.active .cat-ring-sub { 
+            border-color: #C7A46D; 
+            box-shadow: 0 0 0 3.5px rgba(199,164,109,0.25); 
+            transform: scale(1.08); 
+        }
+        .cat-item.active .cat-label, .cat-item.active .cat-label-sub { 
+            color: #C7A46D; 
+            font-weight: 700; 
+        }
         
         /* ── Product Cards Animations ── */
         .product-card { animation: fadeUp 0.4s ease both; cursor: pointer; }
@@ -303,9 +361,8 @@ foreach ($products as $key => $product) {
         </div>
 
         <!-- ─── Category Circles (Hierarchical) ─── -->
-        <!-- BUG 8 FIX: overflow-y:visible so ring border/shadow not clipped -->
-        <div class="pb-3 border-b border-gray-200 mb-5" style="overflow:visible;">
-            <div class="flex gap-4 overflow-x-auto hide-scrollbar pb-2 items-start" id="main-category-scroll" style="overflow-y:visible; padding-top:6px;">
+        <div class="border-b border-gray-200 mb-5 pb-2">
+            <div class="hide-scrollbar" id="main-category-scroll">
                 <div class="cat-item active" data-filter-type="all" data-category-id="all" onclick="filterCategory(this)">
                     <div class="cat-ring"><div class="cat-fallback"><i class="fas fa-th-large"></i></div></div>
                     <span class="cat-label text-xs text-center whitespace-normal leading-tight w-16">الكل</span>
@@ -319,9 +376,9 @@ foreach ($products as $key => $product) {
                 </div>
                 <?php endforeach; ?>
             </div>
-            <div id="sub-category-wrapper" class="hidden mt-2 pt-3 pb-4 border-t border-gray-100">
+            <div id="sub-category-wrapper" class="hidden mt-2 pt-2 pb-2 border-t border-gray-100">
                 <?php foreach ($main_categories as $main_cat): if (isset($sub_categories_map[$main_cat['id']]) && count($sub_categories_map[$main_cat['id']]) > 0): ?>
-                <div class="sub-cat-group hidden flex gap-4 overflow-x-auto hide-scrollbar items-start pt-2 pb-3" id="sub-cats-<?php echo $main_cat['id']; ?>">
+                <div class="sub-cat-group hidden hide-scrollbar" id="sub-cats-<?php echo $main_cat['id']; ?>">
                     <?php foreach ($sub_categories_map[$main_cat['id']] as $sub_cat): ?>
                     <div class="cat-item sub-cat-item" data-filter-type="sub" data-category-id="<?php echo $sub_cat['id']; ?>" onclick="filterSubCategory(this)">
                         <div class="cat-ring-sub">
@@ -532,6 +589,7 @@ foreach ($products as $key => $product) {
                 else { wrapper.classList.add('hidden'); }
             } else { wrapper.classList.add('hidden'); }
             applyFilters();
+            try { el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' }); } catch(e){}
         }
 
         function filterSubCategory(el) {
@@ -540,6 +598,7 @@ foreach ($products as $key => $product) {
             currentFilterType  = el.dataset.filterType;
             currentFilterCatId = el.dataset.categoryId;
             applyFilters();
+            try { el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' }); } catch(e){}
         }
 
         function initProductCardSliders() {
