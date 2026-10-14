@@ -3,11 +3,16 @@
  * customer_summary_pdf.php — Matches customer_summary.php exactly
  */
 session_start();
+
+// Large reports (many customers + order lines) need more memory/time than the PHP defaults
+ini_set('memory_limit', '1024M');
+set_time_limit(300);
+
 require_once '../../config/database.php';
 require_once '../../includes/check_permissions.php';
 
 $user_id = $_SESSION['user_id'] ?? 0;
-if (!hasPermission($user_id, 'reports', 'view')) {
+if (!hasPermission($user_id, 'customer_summary', 'view')) {
     http_response_code(403); exit('غير مصرح');
 }
 
@@ -108,6 +113,7 @@ $stmt = $db->prepare("
            ct.name AS customer_type_name,
            city.name AS city_name,
            c.customer_code, c.mobile_number, c.phone, c.alternative_number,
+           c.location_area, c.address,
            COUNT(DISTINCT co.id) AS total_orders,
            COALESCE(SUM(CASE WHEN co.status='delivered' THEN 1 ELSE 0 END),0) AS delivered_count,
            COALESCE(SUM(CASE WHEN co.status IN('ready','ready_to_deliver','جاهز للتسليم') THEN 1 ELSE 0 END),0) AS ready_count,
@@ -132,6 +138,48 @@ $ttl_paid      = array_sum(array_column($customers, 'total_paid'));
 $ttl_remaining = array_sum(array_column($customers, 'total_remaining'));
 $count         = count($customers);
 $generated_at  = date('Y/m/d H:i:s');
+
+// ── Batch-load per-status financials and order lines (2 queries total, not 2 per customer) ──
+$fin_by_cust    = [];
+$orders_by_cust = [];
+if (!empty($customers)) {
+    $cust_ids    = array_map('intval', array_column($customers, 'id'));
+    $in_ph       = implode(',', array_fill(0, count($cust_ids), '?'));
+
+    $fin_stmt = $db->prepare("
+        SELECT customer_id,
+            SUM(CASE WHEN status IN('delivered','تم الاستلام') THEN 1 ELSE 0 END) AS delivered_orders,
+            SUM(CASE WHEN status IN('delivered','تم الاستلام') THEN paid_amount ELSE 0 END) AS delivered_paid,
+            SUM(CASE WHEN status IN('delivered','تم الاستلام') THEN (final_amount-paid_amount) ELSE 0 END) AS delivered_remaining,
+            SUM(CASE WHEN status IN('ready','ready_to_deliver','جاهز للتسليم','جاهز للتوصيل') THEN 1 ELSE 0 END) AS ready_orders,
+            SUM(CASE WHEN status IN('ready','ready_to_deliver','جاهز للتسليم','جاهز للتوصيل') THEN paid_amount ELSE 0 END) AS ready_paid,
+            SUM(CASE WHEN status IN('ready','ready_to_deliver','جاهز للتسليم','جاهز للتوصيل') THEN (final_amount-paid_amount) ELSE 0 END) AS ready_remaining,
+            SUM(CASE WHEN status IN('تم الشراء','purchased','processing') THEN 1 ELSE 0 END) AS purchased_orders,
+            SUM(CASE WHEN status IN('تم الشراء','purchased','processing') THEN paid_amount ELSE 0 END) AS purchased_paid,
+            SUM(CASE WHEN status IN('تم الشراء','purchased','processing') THEN (final_amount-paid_amount) ELSE 0 END) AS purchased_remaining,
+            SUM(CASE WHEN status IN('new','جديد') THEN 1 ELSE 0 END) AS new_orders,
+            SUM(CASE WHEN status IN('new','جديد') THEN paid_amount ELSE 0 END) AS new_paid,
+            SUM(CASE WHEN status IN('new','جديد') THEN (final_amount-paid_amount) ELSE 0 END) AS new_remaining
+        FROM customer_orders
+        WHERE customer_id IN ($in_ph)
+        GROUP BY customer_id
+    ");
+    $fin_stmt->execute($cust_ids);
+    foreach ($fin_stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
+        $fin_by_cust[(int)$r['customer_id']] = $r;
+    }
+
+    $ord_stmt = $db->prepare("
+        SELECT customer_id, order_number, final_amount, paid_amount
+        FROM customer_orders
+        WHERE customer_id IN ($in_ph)
+        ORDER BY created_at DESC
+    ");
+    $ord_stmt->execute($cust_ids);
+    foreach ($ord_stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
+        $orders_by_cust[(int)$r['customer_id']][] = $r;
+    }
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function h($s) { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
@@ -161,32 +209,14 @@ if ($selected_ids) {
 $rows_html = '';
 foreach ($customers as $i => $c) {
 
-    // Per-status financials — 4 statuses matching customer_summary.php
-    try {
-        $fin_stmt = $db->prepare("
-            SELECT
-                SUM(CASE WHEN status IN('delivered','تم الاستلام') THEN 1 ELSE 0 END) AS delivered_orders,
-                SUM(CASE WHEN status IN('delivered','تم الاستلام') THEN paid_amount ELSE 0 END) AS delivered_paid,
-                SUM(CASE WHEN status IN('delivered','تم الاستلام') THEN (final_amount-paid_amount) ELSE 0 END) AS delivered_remaining,
-                SUM(CASE WHEN status IN('ready','ready_to_deliver','جاهز للتسليم','جاهز للتوصيل') THEN 1 ELSE 0 END) AS ready_orders,
-                SUM(CASE WHEN status IN('ready','ready_to_deliver','جاهز للتسليم','جاهز للتوصيل') THEN paid_amount ELSE 0 END) AS ready_paid,
-                SUM(CASE WHEN status IN('ready','ready_to_deliver','جاهز للتسليم','جاهز للتوصيل') THEN (final_amount-paid_amount) ELSE 0 END) AS ready_remaining,
-                SUM(CASE WHEN status IN('تم الشراء','purchased','processing') THEN 1 ELSE 0 END) AS purchased_orders,
-                SUM(CASE WHEN status IN('تم الشراء','purchased','processing') THEN paid_amount ELSE 0 END) AS purchased_paid,
-                SUM(CASE WHEN status IN('تم الشراء','purchased','processing') THEN (final_amount-paid_amount) ELSE 0 END) AS purchased_remaining,
-                SUM(CASE WHEN status IN('new','جديد') THEN 1 ELSE 0 END) AS new_orders,
-                SUM(CASE WHEN status IN('new','جديد') THEN paid_amount ELSE 0 END) AS new_paid,
-                SUM(CASE WHEN status IN('new','جديد') THEN (final_amount-paid_amount) ELSE 0 END) AS new_remaining
-            FROM customer_orders WHERE customer_id = ?
-        ");
-        $fin_stmt->execute([$c['id']]);
-        $fin = $fin_stmt->fetch(PDO::FETCH_ASSOC);
-    } catch (Exception $e) {
-        $fin = ['delivered_orders'=>0,'delivered_paid'=>0,'delivered_remaining'=>0,
-                'ready_orders'=>0,'ready_paid'=>0,'ready_remaining'=>0,
-                'purchased_orders'=>0,'purchased_paid'=>0,'purchased_remaining'=>0,
-                'new_orders'=>0,'new_paid'=>0,'new_remaining'=>0];
-    }
+    // Per-status financials (from the batch query) — 4 statuses matching customer_summary.php
+    $fin = array_merge([
+        'delivered_orders'=>0,'delivered_paid'=>0,'delivered_remaining'=>0,
+        'ready_orders'=>0,'ready_paid'=>0,'ready_remaining'=>0,
+        'purchased_orders'=>0,'purchased_paid'=>0,'purchased_remaining'=>0,
+        'new_orders'=>0,'new_paid'=>0,'new_remaining'=>0,
+    ], $fin_by_cust[(int)$c['id']] ?? []);
+
     foreach (['delivered_paid','delivered_remaining','ready_paid','ready_remaining',
               'purchased_paid','purchased_remaining','new_paid','new_remaining'] as $k)
         $fin[$k] = max(0, (float)($fin[$k] ?? 0));
@@ -201,19 +231,14 @@ foreach ($customers as $i => $c) {
     ]);
     $phone_str = !empty($phones) ? h(implode(' / ', $phones)) : '—';
 
-    // Orders matching the selected order status (only when that filter is active)
+    // All orders of this customer, listed under the name (same layout as the report page)
     $matched_html = '';
-    if (!$selected_ids && $filter_order_status && isset($order_status_groups[$filter_order_status])) {
-        $mg = $order_status_groups[$filter_order_status];
-        $mph = implode(',', array_fill(0, count($mg), '?'));
-        $mo_stmt = $db->prepare("SELECT order_number, final_amount, paid_amount FROM customer_orders WHERE customer_id = ? AND status IN ($mph) ORDER BY created_at DESC");
-        $mo_stmt->execute(array_merge([$c['id']], $mg));
-        foreach ($mo_stmt->fetchAll(PDO::FETCH_ASSOC) as $mo) {
-            $matched_html .= '<div style="margin-top:2px;border-top:1px dashed #cbd5e1;padding-top:2px;font-size:8px;color:#334155;direction:ltr;text-align:right;">'
-                . '<strong>' . h($mo['order_number']) . '</strong> | ' . n($mo['final_amount'])
-                . ' | مدفوع ' . n($mo['paid_amount'])
-                . ' | متبقي ' . n(max(0, $mo['final_amount'] - $mo['paid_amount'])) . '</div>';
-        }
+    foreach ($orders_by_cust[(int)$c['id']] ?? [] as $mo) {
+        $matched_html .= '<div style="margin-top:2px;border-top:1px dashed #cbd5e1;padding-top:2px;font-size:8px;color:#334155;text-align:right;">'
+            . 'مدفوع ' . n($mo['paid_amount'])
+            . ' | متبقي ' . n(max(0, $mo['final_amount'] - $mo['paid_amount']))
+            . ' | ' . n($mo['final_amount'])
+            . ' | <strong>' . h($mo['order_number']) . '</strong></div>';
     }
 
     $bg    = ($i % 2 === 0) ? '#ffffff' : '#e8edf2';
@@ -235,7 +260,7 @@ foreach ($customers as $i => $c) {
             " . (!empty($c['alternative_number']) ? '<br><span style="font-size:8px;color:#64748b;direction:ltr;">بديل: ' . h($c['alternative_number']) . '</span>' : '') . "
             " . $matched_html . "
         </td>
-        <td style=\"text-align:center;color:#1e293b;\">" . ($location ? h($location) : '—') . "</td>
+        <td style=\"text-align:center;color:#1e293b;\">" . ($location ? h($location) : '—') . ($c['location_area'] ? '<br><span style="font-size:9px;">' . h($c['location_area']) . '</span>' : '') . ($c['address'] ? '<br><span style="font-size:9px;white-space:pre-wrap;">' . h($c['address']) . '</span>' : '') . "</td>
         <td style=\"text-align:center;font-weight:700;\">" . $fin['delivered_orders'] . "</td>
         <td style=\"text-align:center;\">&nbsp;</td>
         <td style=\"text-align:center;\">" . $cell_rem($fin['delivered_remaining']) . "</td>

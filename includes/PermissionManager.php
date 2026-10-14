@@ -4,6 +4,21 @@
  * Path: /includes/PermissionManager.php
  */
 
+/**
+ * Prefix an app-root path (e.g. '/modules/orders/index.php') with the folder the app
+ * is served from. Localhost: '/yaman' + path. Live domain at web root: path unchanged.
+ */
+if (!function_exists('yaman_app_path')) {
+    function yaman_app_path($path) {
+        $root = str_replace('\\', '/', realpath(dirname(__DIR__)) ?: '');
+        $doc  = str_replace('\\', '/', realpath($_SERVER['DOCUMENT_ROOT'] ?? '') ?: '');
+        $base = ($doc !== '' && $root !== '' && strpos($root, $doc) === 0)
+            ? rtrim(substr($root, strlen($doc)), '/')
+            : '';
+        return $base . $path;
+    }
+}
+
 class PermissionManager {
     private $db;
     private $user_id;
@@ -105,11 +120,15 @@ class PermissionManager {
         
         $db_module = $module_map[$module_name] ?? $module_name;
         
-        // Check specific permission
-        if (isset($this->user_permissions[$db_module][$action])) {
-            return $this->user_permissions[$db_module][$action];
+        // Check mapped module first, then the raw module name
+        // (employee-permissions saves 'orders_view' under module 'orders', not 'sales')
+        if (!empty($this->user_permissions[$db_module][$action])) {
+            return true;
         }
-        
+        if (!empty($this->user_permissions[$module_name][$action])) {
+            return true;
+        }
+
         return false;
     }
     
@@ -117,6 +136,14 @@ class PermissionManager {
      * Get all modules user can view
      */
     public function getAllowedModules() {
+        // Routes are app-root paths; add the app folder so links work on localhost/yaman
+        return array_map(function ($m) {
+            $m['module_route'] = yaman_app_path($m['module_route']);
+            return $m;
+        }, $this->getAllowedModulesRaw());
+    }
+
+    private function getAllowedModulesRaw() {
         try {
             if ($this->is_admin) {
                 // Admin sees all modules - return hardcoded list
@@ -164,7 +191,7 @@ class PermissionManager {
      */
     public function getFirstAllowedRoute() {
         $modules = $this->getAllowedModules();
-        return !empty($modules) ? $modules[0]['module_route'] : '/modules/orders/index.php';
+        return !empty($modules) ? $modules[0]['module_route'] : yaman_app_path('/modules/orders/index.php');
     }
     
     /**

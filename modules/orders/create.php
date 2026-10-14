@@ -553,7 +553,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
             $db->commit();
             $success_message = 'تم إنشاء الطلب بنجاح';
-            header("Location: /modules/orders/index.php");
+            header("Location: " . yaman_app_path('/modules/orders/index.php'));
             exit();
 
         } catch (Exception $e) {

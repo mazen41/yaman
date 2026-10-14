@@ -22,6 +22,10 @@
 /**
  * Check if user is admin
  */
+if (!function_exists('yaman_app_path')) {
+    require_once __DIR__ . '/PermissionManager.php';
+}
+
 function isUserAdmin($user_id, $db) {
     static $cache = [];
     
@@ -128,7 +132,7 @@ function getUserPermissions($user_id) {
 function requirePermission($user_id, $module, $permission_type = 'view', $redirect_url = null) {
     if (!hasPermission($user_id, $module, $permission_type)) {
         if ($redirect_url === null) {
-            $redirect_url = '/no-permissions.php';
+            $redirect_url = yaman_app_path('/no-permissions.php');
         }
         
         $_SESSION['error_message'] = 'ليس لديك صلاحية للوصول إلى هذه الصفحة';

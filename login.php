@@ -23,6 +23,7 @@ $security = new SecurityManager($db);
 $csrf_token = $security->generateCSRFToken();
 
 $error_message = '';
+$is_credentials_error = false;
 $success_message = '';
 
 // Check for timeout message
@@ -155,7 +156,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $permissionManager = new PermissionManager($db, $user['id']);
         
         $target_route = '';
-        $orders_module_route = '/modules/orders/index.php';
+        $orders_module_route = yaman_app_path('/modules/orders/index.php');
         
         // 1. Check if the user has permission for the desired default page: /modules/orders/index.php
         if ($permissionManager->hasPermission('orders', 'view')) {
@@ -173,6 +174,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         
     } catch (Exception $e) {
         $error_message = $e->getMessage();
+        $is_credentials_error = (strpos($error_message, 'كلمة المرور غير صحيحة') !== false);
     }
 }
 
@@ -244,8 +246,17 @@ $page_title = 'تسجيل الدخول';
         <!-- Login Form -->
         <div class="bg-white rounded-lg shadow-2xl p-8">
             
+            <!-- Wrong credentials: show a popup instead of the inline error box -->
+            <?php if ($is_credentials_error): ?>
+            <script>
+                document.addEventListener('DOMContentLoaded', function () {
+                    alert(<?php echo json_encode('اسم المستخدم أو كلمة المرور غير صحيحة'); ?>);
+                });
+            </script>
+            <?php endif; ?>
+
             <!-- Error Message -->
-            <?php if ($error_message): ?>
+            <?php if ($error_message && !$is_credentials_error): ?>
             <div class="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
                 <div class="flex items-center">
                     <i class="fas fa-exclamation-circle ml-2"></i>

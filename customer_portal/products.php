@@ -319,9 +319,9 @@ foreach ($products as $key => $product) {
                 </div>
                 <?php endforeach; ?>
             </div>
-            <div id="sub-category-wrapper" class="hidden mt-2 pt-3 border-t border-gray-100">
+            <div id="sub-category-wrapper" class="hidden mt-2 pt-3 pb-4 border-t border-gray-100">
                 <?php foreach ($main_categories as $main_cat): if (isset($sub_categories_map[$main_cat['id']]) && count($sub_categories_map[$main_cat['id']]) > 0): ?>
-                <div class="sub-cat-group hidden flex gap-4 overflow-x-auto hide-scrollbar items-start" id="sub-cats-<?php echo $main_cat['id']; ?>">
+                <div class="sub-cat-group hidden flex gap-4 overflow-x-auto hide-scrollbar items-start pt-2 pb-3" id="sub-cats-<?php echo $main_cat['id']; ?>">
                     <?php foreach ($sub_categories_map[$main_cat['id']] as $sub_cat): ?>
                     <div class="cat-item sub-cat-item" data-filter-type="sub" data-category-id="<?php echo $sub_cat['id']; ?>" onclick="filterSubCategory(this)">
                         <div class="cat-ring-sub">
@@ -441,6 +441,7 @@ foreach ($products as $key => $product) {
     </div>
 
     <!-- ── JS Logic ── -->
+    <script src="cart.js"></script>
     <script>
         const ALL_PRODUCTS          = <?php echo json_encode($products); ?>;
         const ALL_COLORS            = <?php echo json_encode($colors); ?>;
@@ -453,7 +454,7 @@ foreach ($products as $key => $product) {
         const TOKEN                 = "<?php echo htmlspecialchars($token); ?>";
         const PRODUCT_IMG_BASE_PATH = "../";
 
-        let cart = JSON.parse(localStorage.getItem('cart_' + CUSTOMER_ID)) || [];
+        let cart = YamanCart.load(CUSTOMER_ID);
         let currentModalProduct = null;
         let selectedOptions = { color: null, attributes: {} };
         let selectedVariant = null;
@@ -472,7 +473,8 @@ foreach ($products as $key => $product) {
             renderCart();
             renderProducts(ALL_PRODUCTS);
             document.getElementById('product-modal').addEventListener('click', function(event) { if (event.target === this) closeProductModal(event); });
-            document.getElementById('cart-edit-modal').addEventListener('click', function(event) { if (event.target === this) closeCartEditModal(event); });
+            const cartEditModal = document.getElementById('cart-edit-modal');
+            if (cartEditModal) cartEditModal.addEventListener('click', function(event) { if (event.target === this) closeCartEditModal(event); });
             document.getElementById('search-input').addEventListener('input', debounce(applyFilters, 300));
             document.getElementById('min-price').addEventListener('input', debounce(applyFilters, 300));
             document.getElementById('max-price').addEventListener('input', debounce(applyFilters, 300));
@@ -1049,7 +1051,7 @@ foreach ($products as $key => $product) {
             saveCart(); closeProductModal();
         }
 
-        function saveCart() { localStorage.setItem('cart_' + CUSTOMER_ID, JSON.stringify(cart)); renderCart(); }
+        function saveCart() { YamanCart.save(CUSTOMER_ID, cart); renderCart(); }
 
         function updateCartQty(cartKey, delta) {
             const item = cart.find(i => i.cartKey === cartKey);
@@ -1201,7 +1203,18 @@ foreach ($products as $key => $product) {
             }
         });
 
-        document.addEventListener('DOMContentLoaded', init);
+        // Re-read the shared cart whenever this page is shown again (e.g. back from product.php),
+// and when another tab changes it, so the list never shows a stale cart.
+function refreshCartFromStorage() {
+    cart = YamanCart.load(CUSTOMER_ID);
+    renderCart();
+}
+window.addEventListener('pageshow', refreshCartFromStorage);
+window.addEventListener('storage', function (e) {
+    if (e.key === 'cart_' + CUSTOMER_ID) refreshCartFromStorage();
+});
+
+document.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
 </html>

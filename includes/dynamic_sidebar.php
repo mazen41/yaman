@@ -5,6 +5,11 @@
  * Only shows modules the user has permission to access
  */
 
+// Load app-path helper (yaman_app_path) if not already loaded
+if (!function_exists('yaman_app_path')) {
+    require_once __DIR__ . '/PermissionManager.php';
+}
+
 // Initialize permission manager if not already done
 if (!isset($permissionManager) && isset($_SESSION['user_id'])) {
     require_once __DIR__ . '/PermissionManager.php';
@@ -130,6 +135,11 @@ $all_sidebar_modules = [
 
 
 ];
+
+// Prefix routes with the app folder (e.g. /yaman locally, nothing on the live root)
+foreach ($all_sidebar_modules as $i => $m) {
+    $all_sidebar_modules[$i]['route'] = yaman_app_path($m['route']);
+}
 
 // Get user's permissions from database
 $user_permission_keys = [];

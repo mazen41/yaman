@@ -632,15 +632,10 @@ include '../../includes/header.php';
                 foreach (['delivered_orders','ready_orders','purchased_orders','new_orders'] as $k)
                     $fin[$k] = (int)($fin[$k]??0);
 
-                // Orders matching the selected order status (only when that filter is active)
-                $matched_orders = [];
-                if ($filter_order_status && isset($order_status_groups[$filter_order_status])) {
-                    $mg = $order_status_groups[$filter_order_status];
-                    $mph = implode(',', array_fill(0, count($mg), '?'));
-                    $mo_stmt = $db->prepare("SELECT order_number, final_amount, paid_amount, status, created_at FROM customer_orders WHERE customer_id = ? AND status IN ($mph) ORDER BY created_at DESC");
-                    $mo_stmt->execute(array_merge([$c['id']], $mg));
-                    $matched_orders = $mo_stmt->fetchAll(PDO::FETCH_ASSOC);
-                }
+                // All orders of this customer, shown under the name
+                $mo_stmt = $db->prepare("SELECT order_number, final_amount, paid_amount FROM customer_orders WHERE customer_id = ? ORDER BY created_at DESC");
+                $mo_stmt->execute([$c['id']]);
+                $matched_orders = $mo_stmt->fetchAll(PDO::FETCH_ASSOC);
 
                 $notes_val = trim($c['notes'] ?? '');
             ?>
@@ -667,10 +662,10 @@ include '../../includes/header.php';
                         <div style="margin-top:6px; border-top:1px dashed #cbd5e1; padding-top:4px">
                             <?php foreach ($matched_orders as $mo): ?>
                             <div style="font-size:10px; color:#334155; direction:ltr; text-align:right; white-space:nowrap">
-                                <strong><?= htmlspecialchars($mo['order_number']) ?></strong>
-                                &nbsp;| <?= number_format($mo['final_amount'], 0) ?>
-                                &nbsp;| مدفوع <?= number_format($mo['paid_amount'], 0) ?>
+                                مدفوع <?= number_format($mo['paid_amount'], 0) ?>
                                 &nbsp;| متبقي <?= number_format(max(0, $mo['final_amount'] - $mo['paid_amount']), 0) ?>
+                                &nbsp;| <?= number_format($mo['final_amount'], 0) ?>
+                                &nbsp;| <strong><?= htmlspecialchars($mo['order_number']) ?></strong>
                             </div>
                             <?php endforeach; ?>
                         </div>

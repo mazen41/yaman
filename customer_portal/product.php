@@ -326,6 +326,7 @@ $main_image = !empty($images) ? $images[0]['image_url'] : '';
     <!-- ========================================== -->
     <!-- JAVASCRIPT LOGIC -->
     <!-- ========================================== -->
+    <script src="cart.js"></script>
     <script>
         // --- PRICE FORMATTER ---
         function formatPrice(value) {
@@ -357,7 +358,7 @@ $main_image = !empty($images) ? $images[0]['image_url'] : '';
         const TOKEN = "<?php echo htmlspecialchars($token); ?>";
 
         // --- STATE ---
-        let cart = JSON.parse(localStorage.getItem('cart_' + CUSTOMER_ID)) || [];
+        let cart = YamanCart.load(CUSTOMER_ID);
         let selectedOptions = { color: null, attributes: {} };
         
         // Track requirements for validation
@@ -499,14 +500,14 @@ $main_image = !empty($images) ? $images[0]['image_url'] : '';
                 return;
             }
 
-            // 2. Create Unique Cart Key
-            let keyParts = [PRODUCT_ID];
-            if(selectedOptions.color) keyParts.push(`c${selectedOptions.color}`);
-
-            Object.keys(selectedOptions.attributes).sort().forEach(attrId => {
-                keyParts.push(`a${attrId}v${selectedOptions.attributes[attrId]}`);
+            // 2. Cart key: same format as products.php ("<productId>_v<variantId>" for variants)
+            const keyVariant = ALL_VARIANTS.find(v => {
+                const colorMatch = (!selectedOptions.color && !v.color_id) || (v.color_id == selectedOptions.color);
+                const attrMatch = (Object.keys(selectedOptions.attributes).length === 0) ||
+                                 (v.attribute_value_id == selectedOptions.attributes[Object.keys(selectedOptions.attributes)[0]]);
+                return colorMatch && attrMatch;
             });
-            const cartKey = keyParts.join('_');
+            const cartKey = keyVariant ? `${PRODUCT_ID}_v${keyVariant.id}` : String(PRODUCT_ID);
 
             // 3. Format variant label (using ' / ' so it splits nicely in renderCart)
             let variantLabelParts = [];
@@ -552,7 +553,7 @@ $main_image = !empty($images) ? $images[0]['image_url'] : '';
         }
 
         function saveCart() {
-            localStorage.setItem('cart_' + CUSTOMER_ID, JSON.stringify(cart));
+            YamanCart.save(CUSTOMER_ID, cart);
             renderCart();
         }
 

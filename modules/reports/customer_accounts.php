@@ -66,9 +66,17 @@ try {
         $join_extra .= ' AND co.created_at <= ?';
         $join_params[] = $date_to . ' 23:59:59';
     }
-    if ($order_status_filter !== '') {
-        $join_extra .= ' AND co.status = ?';
-        $join_params[] = $order_status_filter;
+    // customer_orders.status stores status KEYS, so each Arabic label maps to its keys (same groups as customer_summary.php)
+    $order_status_groups = [
+        'جديد'         => ['new', 'جديد'],
+        'تم الشراء'    => ['purchased', 'processing', 'تم الشراء'],
+        'جاهز للتوصيل' => ['ready', 'ready_to_deliver', 'جاهز للتسليم', 'جاهز للتوصيل'],
+        'تم الاستلام'  => ['delivered', 'تم الاستلام'],
+    ];
+    if ($order_status_filter !== '' && isset($order_status_groups[$order_status_filter])) {
+        $grp = $order_status_groups[$order_status_filter];
+        $join_extra .= ' AND co.status IN (' . implode(',', array_fill(0, count($grp), '?')) . ')';
+        foreach ($grp as $grp_status) { $join_params[] = $grp_status; }
     }
     // When filtering by date, hide customers with no orders in that range
     $having_sql = ($has_date_filter || $order_status_filter !== '') ? 'HAVING COUNT(co.id) > 0' : '';
@@ -287,7 +295,7 @@ include '../../includes/header.php';
                         <tr class="hover:bg-gray-50 transition-colors duration-150">
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><?php echo $index + 1; ?></td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><?php echo htmlspecialchars($customer['name']); ?></td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dir-ltr text-right"><?php echo htmlspecialchars($customer['phone']); ?></td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dir-ltr text-right"><?php echo htmlspecialchars($customer['phone'] ?? ''); ?></td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center"><?php echo $customer['total_orders']; ?></td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                 <?php echo number_format($total, 0, ',', '.'); ?> <span class="text-xs font-normal text-gray-500"><?php echo $currency_symbol; ?></span>

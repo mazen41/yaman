@@ -276,7 +276,7 @@ class SecurityManager {
     /**
      * Log security events
      */
-    private function logSecurityEvent($event_type, $details = []) {
+    public function logSecurityEvent($event_type, $details = []) {
         try {
             $stmt = $this->db->prepare("
                 INSERT INTO security_logs (event_type, user_id, ip_address, user_agent, details, created_at)

@@ -312,6 +312,39 @@ try {
     $page_stmt = $db->prepare($page_sql);
     $page_stmt->execute($page_params);
     $transactions = $page_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // ── مراجعة الكل: mark EVERY pending row that matches the current filters (all pages, not just this one) ──
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'review_all') {
+        $pending_stmt = $db->prepare("SELECT id, transaction_type FROM ($base_sql) AS f WHERE " . implode(' AND ', $view_where) . " AND review_status = 'pending'");
+        $pending_stmt->execute($page_params);
+
+        $pending_by_type = [];
+        foreach ($pending_stmt->fetchAll(PDO::FETCH_ASSOC) as $prow) {
+            $pending_by_type[$prow['transaction_type']][] = (int)$prow['id'];
+        }
+
+        $review_tables = [
+            'order'                => 'customer_orders',
+            'basket'               => 'purchase_baskets',
+            'expense'              => 'expenses',
+            'payment'              => 'customer_payments',
+            'order_status_history' => 'order_status_history',
+            'order_state_history'  => 'order_state_history',
+        ];
+
+        $reviewed_count_now = 0;
+        foreach ($pending_by_type as $ttype => $ids) {
+            if (!isset($review_tables[$ttype]) || empty($ids)) { continue; }
+            $ph = implode(',', array_fill(0, count($ids), '?'));
+            $upd = $db->prepare("UPDATE {$review_tables[$ttype]} SET review_status = 'reviewed', reviewed_by = ?, reviewed_at = NOW() WHERE id IN ($ph)");
+            $upd->execute(array_merge([$_SESSION['user_id']], $ids));
+            $reviewed_count_now += $upd->rowCount();
+        }
+
+        $_SESSION['review_all_message'] = 'تمت مراجعة ' . $reviewed_count_now . ' عنصر.';
+        header('Location: ?' . http_build_query($_GET));
+        exit();
+    }
 } catch (PDOException $e) { die("Database Error: " . $e->getMessage()); }
 
 /**
@@ -427,7 +460,7 @@ $pdf_url = 'financial_review_pdf.php' . ($pdf_params ? '?' . $pdf_params : '');
         
         <a href="?filter=order_history&q=<?php echo urlencode($search_query); ?>&amount=<?php echo urlencode($amount_filter); ?>&status=<?php echo urlencode($status_filter); ?>&review_status=<?php echo urlencode($review_status_filter); ?>&bank_account=<?php echo urlencode($bank_account_filter); ?>&date_from=<?php echo urlencode($date_from); ?>&date_to=<?php echo urlencode($date_to); ?>" class="tab-button <?php echo $filter === 'order_history' ? 'active' : ''; ?>">سجل حالات الطلبات <span class="tab-badge"><?php echo $order_status_history_count; ?></span></a>
         
-        <a href="?filter=modified_history&q=<?php echo urlencode($search_query); ?>&amount=<?php echo urlencode($amount_filter); ?>&status=<?php echo urlencode($status_filter); ?>&review_status=<?php echo urlencode($review_status_filter); ?>&bank_account=<?php echo urlencode($bank_account_filter); ?>&date_from=<?php echo urlencode($date_from); ?>&date_to=<?php echo urlencode($date_to); ?>" class="tab-button <?php echo $filter === 'modified_history' ? 'active' : ''; ?>">Modified Status History <span class="tab-badge"><?php echo $modified_history_count; ?></span></a>
+        <a href="?filter=modified_history&q=<?php echo urlencode($search_query); ?>&amount=<?php echo urlencode($amount_filter); ?>&status=<?php echo urlencode($status_filter); ?>&review_status=<?php echo urlencode($review_status_filter); ?>&bank_account=<?php echo urlencode($bank_account_filter); ?>&date_from=<?php echo urlencode($date_from); ?>&date_to=<?php echo urlencode($date_to); ?>" class="tab-button <?php echo $filter === 'modified_history' ? 'active' : ''; ?>">سجل التعديلات <span class="tab-badge"><?php echo $modified_history_count; ?></span></a>
     </div>
 
     <!-- بطاقات أعداد العمليات وحالات المراجعة -->
@@ -436,8 +469,18 @@ $pdf_url = 'financial_review_pdf.php' . ($pdf_params ? '?' . $pdf_params : '');
         <div class="stat-card" style="border-color: #10b981;"><div class="text-2xl font-bold"><?php echo $reviewed_count; ?></div><div class="text-gray-500 text-sm">تمت المراجعة</div></div>
         <div class="stat-card" style="border-color: #f59e0b;"><div class="text-2xl font-bold"><?php echo $pending_count; ?></div><div class="text-gray-500 text-sm">قيد المراجعة</div></div>
         <div class="stat-card" style="border-color: #a855f7;"><div class="text-2xl font-bold"><?php echo $order_status_history_count; ?></div><div class="text-gray-500 text-sm">سجل الحالات</div></div>
-        <div class="stat-card" style="border-color: #f97316;"><div class="text-2xl font-bold"><?php echo $modified_history_count; ?></div><div class="text-gray-500 text-sm">Modified Status History</div></div>
+        <div class="stat-card" style="border-color: #f97316;"><div class="text-2xl font-bold"><?php echo $modified_history_count; ?></div><div class="text-gray-500 text-sm">سجل التعديلات</div></div>
     </div>
+
+    <?php if (!empty($_SESSION['review_all_message'])): $review_all_msg = $_SESSION['review_all_message']; unset($_SESSION['review_all_message']); ?>
+        <div class="mb-4 bg-green-100 border border-green-400 text-green-800 px-4 py-3 rounded"><?php echo htmlspecialchars($review_all_msg); ?></div>
+    <?php endif; ?>
+
+    <!-- مراجعة الكل (كل الصفحات حسب الفلاتر الحالية) -->
+    <form method="post" action="?<?php echo htmlspecialchars(http_build_query($_GET)); ?>" class="mb-4" onsubmit="return confirm('سيتم تحديد كل العناصر قيد المراجعة المطابقة للفلاتر الحالية في كل الصفحات كـ تمت المراجعة. هل تريد المتابعة؟');">
+        <input type="hidden" name="action" value="review_all">
+        <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700"><i class="fas fa-check-double"></i> مراجعة الكل</button>
+    </form>
 
     <!-- فلاتر البحث -->
     <form method="get" class="mb-6 bg-white rounded-xl shadow p-4 flex flex-wrap gap-4 items-end">

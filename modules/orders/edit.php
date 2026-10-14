@@ -449,6 +449,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && !empty($order)) {
             ");
             $log_stmt->execute([$order_id, $order_status, $log_notes, $_SESSION['user_id']]);
 
+            // Status change also goes to order_state_history (same as the status dropdown),
+            // so it shows in the status history tab, not only inside the edit log
+            if ($order['status'] !== $order_status) {
+                $state_old_ar = $status_translations[$order['status']] ?? $order['status'];
+                $state_new_ar = $status_translations[$order_status] ?? $order_status;
+                $state_stmt = $db->prepare("INSERT INTO order_state_history (order_id, status, changed_by_id, notes, created_at) VALUES (?, ?, ?, ?, NOW())");
+                $state_stmt->execute([$order_id, $state_new_ar, $_SESSION['user_id'], "تم تغيير الحالة من '{$state_old_ar}' إلى '{$state_new_ar}'."]);
+            }
+
             $db->commit();
 
             $_SESSION['success_message'] = 'تم تحديث الطلب بنجاح';

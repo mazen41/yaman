@@ -189,6 +189,8 @@ if ($customer['enable_create_self_order'] === 'active') {
         $all_approvals = $stmt_approvals->fetchAll(PDO::FETCH_ASSOC);
 
         foreach ($all_approvals as $approval) {
+            // Rejected requests are hidden from the portal entirely (WhatsApp rejection already sent)
+            if (trim($approval['status'] ?? '') === 'rejected') { continue; }
             $total_discount_amount = (float)($approval['coupon_discount_amount'] ?? 0) + (float)($approval['automatic_discount_amount'] ?? 0);
             $final_amount = (float)($approval['total_after_discounts'] ?? 0) + (float)($approval['shipping_cost'] ?? 0);
             $paid_amount = (float)($approval['paid_amount'] ?? 0);
@@ -239,6 +241,13 @@ if ($customer['enable_create_self_order'] === 'active') {
     } catch (PDOException $e) {
         error_log("Submitted Orders Portal Error: " . $e->getMessage());
     }
+}
+
+// Manual and self-orders are sorted together by creation date, newest first (always, even when self-orders are off)
+if (is_array($orders)) {
+    usort($orders, function ($a, $b) {
+        return strtotime($b['created_at'] ?? '') <=> strtotime($a['created_at'] ?? '');
+    });
 }
 ?>
 <!DOCTYPE html>

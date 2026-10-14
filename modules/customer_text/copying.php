@@ -425,26 +425,26 @@ $generated_id = 'CALC-' . time();
                 <div class="input-group">
                     <label>السعر (SR)</label>
                     <div class="field-container">
-                        <input type="number" step="0.01" name="price_sr" id="price_sr" value="<?php echo $price_sr; ?>" <?= $canEditCalculations ? '' : 'readonly' ?>>
+                        <input type="text" inputmode="decimal" name="price_sr" id="price_sr" placeholder="السعر بالـ SR" value="<?php echo $price_sr; ?>" <?= $canEditCalculations ? '' : 'readonly' ?>>
                         <div class="icon-box"><i class="fas fa-dollar-sign"></i></div>
                     </div>
                 </div>
+                <div class="input-group">
+                    <label>النسبة</label>
+                    <div class="field-container">
+                        <input type="number" step="0.01" min="0" max="100" name="percentage" id="percentage" placeholder="النسبة المئوية" value="<?php echo $percentage; ?>">
+                        <div class="icon-box">%</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Row 2: Date and Quantity -->
+            <div class="input-row">
                 <div class="input-group">
                     <label>القطع</label>
                     <div class="field-container">
                         <input type="number" name="quantity" id="quantity" placeholder="أدخل عدد القطع" value="<?php echo $quantity; ?>" <?= $canEditCalculations ? '' : 'readonly' ?>>
                         <div class="icon-box"><i class="fas fa-shopping-cart"></i></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Row 2: Percentage (editable) and Date -->
-            <div class="input-row">
-                <div class="input-group">
-                    <label>النسبة (العميل %)</label>
-                    <div class="field-container">
-                        <input type="number" step="0.01" min="0" max="100" name="percentage" id="percentage" value="<?php echo $percentage; ?>">
-                        <div class="icon-box">%</div>
                     </div>
                 </div>
                 <div class="input-group">
@@ -460,7 +460,7 @@ $generated_id = 'CALC-' . time();
             <div class="full-width-group">
                 <label style="font-size: 18px; font-weight: bold; margin-bottom: 8px; display: block;">المبلغ المدفوع</label>
                 <div class="field-container" style="flex-direction: row-reverse;">
-                    <input type="number" step="0.01" name="amount_paid_yr" id="amount_paid_yr" placeholder="المبلغ المدفوع" value="<?php echo $amount_paid_yr; ?>" <?= $canEditCalculations ? '' : 'readonly' ?>>
+                    <input type="text" inputmode="decimal" name="amount_paid_yr" id="amount_paid_yr" placeholder="المبلغ المدفوع" value="<?php echo $amount_paid_yr; ?>" <?= $canEditCalculations ? '' : 'readonly' ?>>
                     <div class="icon-box" style="border-right: 2px solid #d1d5db; border-left: none;">YR</div>
                 </div>
             </div>
@@ -605,7 +605,7 @@ $generated_id = 'CALC-' . time();
     }
 
     document.getElementById('price_sr').addEventListener('input', function() {
-        const price_sr_val = parseFloat(this.value);
+        const price_sr_val = parseNum(this.value);
         const percentage_input = document.getElementById('percentage');
         if (!isNaN(price_sr_val) && price_sr_val > 0) {
             percentage_input.value = computeAutoPercentage(price_sr_val);
@@ -615,22 +615,58 @@ $generated_id = 'CALC-' . time();
         if (pctSettingInput) pctSettingInput.value = percentage_input.value;
     });
 
-    function getButtonPercentage(buttonType) {
-        if (buttonType === 'button1') {
-            return parseFloat(document.getElementById('percentage').value) || 0;
-        } else if (buttonType === 'button2') {
-            const el = document.getElementById('percentage2_setting');
-            return el ? (parseFloat(el.value) || 0) : dbPercentages.button2;
-        } else if (buttonType === 'button3') {
-            const el = document.getElementById('percentage3_setting');
-            return el ? (parseFloat(el.value) || 0) : dbPercentages.button3;
+    // ── Thousands separators (display only; calculations use the plain number) ──
+    function parseNum(s) {
+        const n = parseFloat(String(s).replace(/,/g, ''));
+        return isNaN(n) ? NaN : n;
+    }
+
+    function formatThousands(raw) {
+        const s = String(raw).replace(/[^\d.]/g, '');
+        const parts = s.split('.');
+        const intPart = parts[0].replace(/^0+(?=\d)/, '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        return parts.length > 1 ? intPart + '.' + parts[1].slice(0, 2) : intPart;
+    }
+
+    ['price_sr', 'amount_paid_yr'].forEach(function (id) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('input', function () {
+            this.value = formatThousands(this.value);
+        });
+    });
+
+    // ── Customer message layout (matches the WhatsApp example) ──
+    function buildCustomerMessage(d) {
+        const dateParts = String(d.cut_date).split('-');
+        const dateText = dateParts.length === 3 ? dateParts[2] + '-' + dateParts[1] + '-' + dateParts[0] : d.cut_date;
+
+        const lines = [
+            'التاريخ ' + dateText,
+            '● عدد القطع: ' + d.quantity,
+            '● الإجمالي قبل الخصم: YR ' + d.price_yr,
+            '● الإجمالي بعد الخصم: YR ' + d.total_yr,
+            '● الخصم ' + d.percentage + '%: YR ' + d.discount_yr
+        ];
+        if (d.paid !== null) {
+            lines.push('● المبلغ المدفوع: YR ' + d.paid);
+            lines.push('● المبلغ المتبقي: YR ' + d.remaining);
         }
-        return 0;
+        lines.push('');
+        lines.push('فضلاً أكد لنا اعتماد الطلب');
+        lines.push('🚨 هام جداً: اطلب ملصق اعتماد الطلب بعد الإيداع ✅');
+        lines.push('حيث الأناقة تبدأ والثقة لا تنتهي');
+        return lines.join('\n');
+    }
+
+    // All three copy buttons use the percentage shown on the page, so the message matches the screen.
+    function getButtonPercentage(buttonType) {
+        return parseFloat(document.getElementById('percentage').value) || 0;
     }
 
     function copyText(buttonType) {
         const percentage = getButtonPercentage(buttonType);
-        const price_sr   = parseFloat(document.getElementById('price_sr').value) || 0;
+        const price_sr   = parseNum(document.getElementById('price_sr').value) || 0;
         const quantity   = parseInt(document.getElementById('quantity').value) || 0;
         const cut_date   = document.getElementById('cut_date').value;
 
@@ -641,10 +677,20 @@ $generated_id = 'CALC-' . time();
         const discount_amount_yr = discount_amount_sr * EXCHANGE_RATE;
 
         const amount_paid_yr_str = document.getElementById('amount_paid_yr').value;
-        const amount_paid_yr_val = parseFloat(amount_paid_yr_str);
+        const amount_paid_yr_val = parseNum(amount_paid_yr_str);
         const hasPaidInput       = amount_paid_yr_str.trim() !== '' && !isNaN(amount_paid_yr_val);
 
         const remaining_yr = hasPaidInput ? (total_yr - amount_paid_yr_val) : null;
+
+        // SR equivalents for the رسالة مندوب RS / RY templates (paid is typed in YR)
+        const paid_sr_val  = hasPaidInput ? (amount_paid_yr_val / EXCHANGE_RATE) : null;
+        const remaining_sr = hasPaidInput ? (total_sr - paid_sr_val) : null;
+
+        // Date as DD-MM-YYYY (saved templates may contain the raw DB date)
+        const cut_date_parts   = String(cut_date).split('-');
+        const cut_date_display = cut_date_parts.length === 3
+            ? cut_date_parts[2] + '-' + cut_date_parts[1] + '-' + cut_date_parts[0]
+            : cut_date;
 
         // Saudi format (.) / Yemeni format (,)
         const price_sr_format    = price_sr.toFixed(2);
@@ -688,7 +734,9 @@ $generated_id = 'CALC-' . time();
             template = template.replace(/\{IF_PAID\}([\s\S]*?)\{\/IF_PAID\}/gi, '');
             // Backward compatibility for older templates that don't use {IF_PAID}:
             // just blank out the raw paid/remaining placeholders.
-            template = template.replace(/\{PAID_YR\}|\{AMOUNT_PAID\}|\{AMOUNT_PAID_YR\}|\{REMAINING_YR\}/gi, '');
+            // Drop whole lines that show a paid/remaining value when nothing was paid
+            template = template.split('\n').filter(line => !/\{(PAID|AMOUNT_PAID|REMAINING)[A-Z_]*\}/i.test(line)).join('\n');
+            template = template.replace(/\{PAID_YR\}|\{AMOUNT_PAID\}|\{AMOUNT_PAID_YR\}|\{REMAINING_YR\}|\{PAID_SR\}|\{AMOUNT_PAID_SR\}|\{REMAINING_SR\}/gi, '');
         }
 
         const replacements = {
@@ -701,13 +749,17 @@ $generated_id = 'CALC-' . time();
             'DISCOUNT_SR'              : discount_sr_format,
             'DISCOUNT_YR'              : discount_yr_format,
             'QUANTITY'                 : quantity,
-            'CUT_DATE'                 : cut_date,
+            'CUT_DATE'                 : cut_date_display,
             'TOTAL_SR'                 : total_sr_format,
             'TOTAL_YR'                 : total_yr_format,
             'PAID_YR'                  : paid_yr_display,
             'AMOUNT_PAID'              : paid_yr_display,
             'AMOUNT_PAID_YR'           : paid_yr_display,
-            'REMAINING_YR'             : remaining_yr_display
+            'REMAINING_YR'             : remaining_yr_display,
+            'TOTAL_YR_BEFORE_DISCOUNT' : price_yr_format,
+            'PAID_SR'                  : hasPaidInput ? paid_sr_val.toFixed(2) : '',
+            'AMOUNT_PAID_SR'           : hasPaidInput ? paid_sr_val.toFixed(2) : '',
+            'REMAINING_SR'             : hasPaidInput ? remaining_sr.toFixed(2) : ''
         };
 
         // Sort keys longest-first so e.g. AMOUNT_PAID_YR is matched before AMOUNT_PAID
@@ -726,6 +778,20 @@ $generated_id = 'CALC-' . time();
         // variable that doesn't exist), strip it instead of showing the raw variable name.
         finalMsg = finalMsg.replace(/\{[A-Za-z_]+\}/g, '');
 
+        // Customer button uses the new fixed layout; empty paid amount removes both paid lines
+        if (buttonType === 'button1') {
+            finalMsg = buildCustomerMessage({
+                cut_date:   cut_date,
+                quantity:   quantity,
+                price_yr:   price_yr_format,
+                total_yr:   total_yr_format,
+                percentage: percentage,
+                discount_yr: discount_yr_format,
+                paid:       hasPaidInput ? paid_yr_display : null,
+                remaining:  hasPaidInput ? remaining_yr_display : null
+            });
+        }
+
         navigator.clipboard.writeText(finalMsg).then(() => {
             const toast = document.getElementById('toast');
             toast.textContent = `تم نسخ رسالة ${btnName}`;
@@ -741,6 +807,12 @@ $generated_id = 'CALC-' . time();
         document.getElementById('amount_paid_yr').value = '';
         if (pctSettingInput) pctSettingInput.value = dbPercentages.button1;
     }
+
+    // Format pre-filled price / paid values with thousands separators on load
+    ['price_sr', 'amount_paid_yr'].forEach(function (id) {
+        const el = document.getElementById(id);
+        if (el && el.value) el.value = formatThousands(el.value);
+    });
 
     // NOTE: clearFields() is NOT called on page load.
     // All fields load with their saved DB values.

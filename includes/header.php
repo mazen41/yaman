@@ -609,16 +609,16 @@ $app_base   = ($__doc_root !== '' && $__app_dir !== '' && strncasecmp($__app_dir
 
                         <div class="space-y-3">
                             <?php if (isset($_SESSION['user_id'])): ?>
-                                <a href="/profile.php" class="sidebar-link block w-full">
+                                <a href="<?php echo htmlspecialchars(yaman_app_path('/profile.php')); ?>" class="sidebar-link block w-full">
                                     <i class="fas fa-user-edit sidebar-icon"></i>
                                     <span>الملف الشخصي</span>
                                 </a>
-                                <a href="/logout.php" class="sidebar-link block w-full">
+                                <a href="<?php echo htmlspecialchars(yaman_app_path('/logout.php')); ?>" class="sidebar-link block w-full">
                                     <i class="fas fa-sign-out-alt sidebar-icon"></i>
                                     <span>تسجيل الخروج</span>
                                 </a>
                             <?php else: ?>
-                                <a href="/login.php" class="sidebar-link block w-full">
+                                <a href="<?php echo htmlspecialchars(yaman_app_path('/login.php')); ?>" class="sidebar-link block w-full">
                                     <i class="fas fa-sign-in-alt sidebar-icon"></i>
                                     <span>تسجيل الدخول</span>
                                 </a>
@@ -699,7 +699,7 @@ $app_base   = ($__doc_root !== '' && $__app_dir !== '' && strncasecmp($__app_dir
                         </button>
                         <div id="userMenu"
                             class="hidden absolute left-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
-                            <a href="/profile.php" class="block px-4 py-2 text-sm text-gray-700 hover:bg-amber-50"
+                            <a href="<?php echo htmlspecialchars(yaman_app_path('/profile.php')); ?>" class="block px-4 py-2 text-sm text-gray-700 hover:bg-amber-50"
                                 style="&:hover { color: #C7A46D; }">
                                 <i class="fas fa-user-edit ml-2" style="color: #C7A46D;"></i>الملف الشخصي
                             </a>
