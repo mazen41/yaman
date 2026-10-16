@@ -210,7 +210,8 @@ if ($customer['enable_create_self_order'] === 'active') {
             if ($linked_order_id && in_array($linked_order_id, $listed_order_ids, true)) { continue; }
 
             $orders[] = [
-                'id' => $linked_order_id ?: null,
+                // Only link to a real order that is already listed; a dangling final_order_id gives no link
+                'id' => null,
                 'approval_id' => (int)$approval['id'],
                 'order_number' => (string)(int)$approval['id'],
                 'created_at' => $approval['created_at'],
