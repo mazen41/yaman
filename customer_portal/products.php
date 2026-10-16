@@ -177,7 +177,7 @@ foreach ($products as $key => $product) {
             display: flex;
             gap: 12px;
             overflow-x: auto; 
-            padding: 14px 16px 14px 16px; 
+            padding: 14px 16px 6px 16px; 
             scroll-padding: 0 16px;
             align-items: flex-start;
         }
@@ -185,7 +185,7 @@ foreach ($products as $key => $product) {
             display: flex;
             gap: 12px;
             overflow-x: auto;
-            padding: 12px 16px 14px 16px;
+            padding: 10px 16px 6px 16px;
             scroll-padding: 0 16px;
             align-items: flex-start;
         }
@@ -376,7 +376,7 @@ foreach ($products as $key => $product) {
                 </div>
                 <?php endforeach; ?>
             </div>
-            <div id="sub-category-wrapper" class="hidden mt-2 pt-2 pb-2 border-t border-gray-100">
+            <div id="sub-category-wrapper" class="hidden mt-0 pt-0 pb-0 border-t border-gray-100">
                 <?php foreach ($main_categories as $main_cat): if (isset($sub_categories_map[$main_cat['id']]) && count($sub_categories_map[$main_cat['id']]) > 0): ?>
                 <div class="sub-cat-group hidden hide-scrollbar" id="sub-cats-<?php echo $main_cat['id']; ?>">
                     <?php foreach ($sub_categories_map[$main_cat['id']] as $sub_cat): ?>

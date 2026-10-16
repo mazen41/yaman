@@ -450,7 +450,7 @@ $generated_id = 'CALC-' . time();
                 <div class="input-group">
                     <label>التاريخ</label>
                     <div class="field-container">
-                        <input type="text" name="cut_date" id="cut_date" value="<?php echo $cut_date; ?>" <?= $canEditCalculations ? '' : 'readonly' ?>>
+                        <input type="date" name="cut_date" id="cut_date" value="<?php echo $cut_date; ?>" <?= $canEditCalculations ? '' : 'readonly' ?>>
                         <div class="icon-box"><i class="far fa-calendar-alt"></i></div>
                     </div>
                 </div>
@@ -696,12 +696,13 @@ $generated_id = 'CALC-' . time();
         const price_sr_format    = price_sr.toFixed(2);
         const total_sr_format    = total_sr.toFixed(2);
         const discount_sr_format = discount_amount_sr.toFixed(2);
-        const price_yr_format    = price_yr.toFixed(2).replace('.', ',');
-        const total_yr_format    = total_yr.toFixed(2).replace('.', ',');
-        const discount_yr_format = discount_amount_yr.toFixed(2).replace('.', ',');
+        // YR: whole numbers only (no decimals, no separators); SR keeps 2 decimals
+        const price_yr_format    = String(Math.round(price_yr));
+        const total_yr_format    = String(Math.round(total_yr));
+        const discount_yr_format = String(Math.round(discount_amount_yr));
 
-        const paid_yr_display      = hasPaidInput ? amount_paid_yr_val.toFixed(2).replace('.', ',') : '';
-        const remaining_yr_display = hasPaidInput ? remaining_yr.toFixed(2).replace('.', ',') : '';
+        const paid_yr_display      = hasPaidInput ? String(Math.round(amount_paid_yr_val)) : '';
+        const remaining_yr_display = hasPaidInput ? String(Math.round(remaining_yr)) : '';
 
         let template = '';
         let btnName  = '';
@@ -777,20 +778,6 @@ $generated_id = 'CALC-' . time();
         // Safety net: if any {...} placeholder is left over (e.g. a template typo for a
         // variable that doesn't exist), strip it instead of showing the raw variable name.
         finalMsg = finalMsg.replace(/\{[A-Za-z_]+\}/g, '');
-
-        // Customer button uses the new fixed layout; empty paid amount removes both paid lines
-        if (buttonType === 'button1') {
-            finalMsg = buildCustomerMessage({
-                cut_date:   cut_date,
-                quantity:   quantity,
-                price_yr:   price_yr_format,
-                total_yr:   total_yr_format,
-                percentage: percentage,
-                discount_yr: discount_yr_format,
-                paid:       hasPaidInput ? paid_yr_display : null,
-                remaining:  hasPaidInput ? remaining_yr_display : null
-            });
-        }
 
         navigator.clipboard.writeText(finalMsg).then(() => {
             const toast = document.getElementById('toast');

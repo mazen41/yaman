@@ -233,7 +233,8 @@ foreach ($customers as $i => $c) {
 
     // All orders of this customer, listed under the name (same layout as the report page)
     $matched_html = '';
-    foreach ($orders_by_cust[(int)$c['id']] ?? [] as $mo) {
+    // Order lines only when the report is filtered by order status
+    foreach (($filter_order_status ? ($orders_by_cust[(int)$c['id']] ?? []) : []) as $mo) {
         $matched_html .= '<div style="margin-top:2px;border-top:1px dashed #cbd5e1;padding-top:2px;font-size:8px;color:#334155;text-align:right;">'
             . 'مدفوع ' . n($mo['paid_amount'])
             . ' | متبقي ' . n(max(0, $mo['final_amount'] - $mo['paid_amount']))

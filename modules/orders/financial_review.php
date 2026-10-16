@@ -315,12 +315,13 @@ try {
 
     // ── مراجعة الكل: mark EVERY pending row that matches the current filters (all pages, not just this one) ──
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'review_all') {
-        $pending_stmt = $db->prepare("SELECT id, transaction_type FROM ($base_sql) AS f WHERE " . implode(' AND ', $view_where) . " AND review_status = 'pending'");
-        $pending_stmt->execute($page_params);
-
+        // Only the rows shown on the current page (sent as ids[] = "type:id" by the table rows)
         $pending_by_type = [];
-        foreach ($pending_stmt->fetchAll(PDO::FETCH_ASSOC) as $prow) {
-            $pending_by_type[$prow['transaction_type']][] = (int)$prow['id'];
+        foreach ((array)($_POST['ids'] ?? []) as $pair) {
+            [$ptype, $pid] = array_pad(explode(':', (string)$pair, 2), 2, '');
+            if ($ptype !== '' && ctype_digit($pid)) {
+                $pending_by_type[$ptype][] = (int)$pid;
+            }
         }
 
         $review_tables = [
@@ -336,7 +337,7 @@ try {
         foreach ($pending_by_type as $ttype => $ids) {
             if (!isset($review_tables[$ttype]) || empty($ids)) { continue; }
             $ph = implode(',', array_fill(0, count($ids), '?'));
-            $upd = $db->prepare("UPDATE {$review_tables[$ttype]} SET review_status = 'reviewed', reviewed_by = ?, reviewed_at = NOW() WHERE id IN ($ph)");
+            $upd = $db->prepare("UPDATE {$review_tables[$ttype]} SET review_status = 'reviewed', reviewed_by = ?, reviewed_at = NOW() WHERE review_status = 'pending' AND id IN ($ph)");
             $upd->execute(array_merge([$_SESSION['user_id']], $ids));
             $reviewed_count_now += $upd->rowCount();
         }
@@ -477,7 +478,7 @@ $pdf_url = 'financial_review_pdf.php' . ($pdf_params ? '?' . $pdf_params : '');
     <?php endif; ?>
 
     <!-- مراجعة الكل (كل الصفحات حسب الفلاتر الحالية) -->
-    <form method="post" action="?<?php echo htmlspecialchars(http_build_query($_GET)); ?>" class="mb-4" onsubmit="return confirm('سيتم تحديد كل العناصر قيد المراجعة المطابقة للفلاتر الحالية في كل الصفحات كـ تمت المراجعة. هل تريد المتابعة؟');">
+    <form method="post" id="review-all-form" action="?<?php echo htmlspecialchars(http_build_query($_GET)); ?>" class="mb-4" onsubmit="return confirm('سيتم تحديد العناصر قيد المراجعة في هذه الصفحة فقط كـ تمت المراجعة. هل تريد المتابعة؟');">
         <input type="hidden" name="action" value="review_all">
         <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700"><i class="fas fa-check-double"></i> مراجعة الكل</button>
     </form>
@@ -594,7 +595,7 @@ $pdf_url = 'financial_review_pdf.php' . ($pdf_params ? '?' . $pdf_params : '');
                                 }
                                 ?>
                             </td>
-                            <td class="review-status-cell">
+                            <td class="review-status-cell"><?php if ($t['review_status'] === 'pending'): ?><input type="hidden" form="review-all-form" name="ids[]" value="<?php echo htmlspecialchars($t['transaction_type'] . ':' . $t['id']); ?>"><?php endif; ?>
                                 <span class="status-badge status-<?php echo $t['review_status']; ?>">
                                     <?php echo $t['review_status'] === 'reviewed' ? 'تمت المراجعة' : 'قيد المراجعة'; ?>
                                 </span>

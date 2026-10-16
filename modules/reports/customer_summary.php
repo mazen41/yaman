@@ -658,7 +658,7 @@ include '../../includes/header.php';
                             <span style="font-size:9px">بديل:</span> <?= htmlspecialchars($c['alternative_number']) ?>
                         </div>
                         <?php endif; ?>
-                        <?php if (!empty($matched_orders)): ?>
+                        <?php if (!empty($matched_orders) && $filter_order_status): ?>
                         <div style="margin-top:6px; border-top:1px dashed #cbd5e1; padding-top:4px">
                             <?php foreach ($matched_orders as $mo): ?>
                             <div style="font-size:10px; color:#334155; direction:ltr; text-align:right; white-space:nowrap">
