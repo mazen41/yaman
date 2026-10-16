@@ -450,7 +450,7 @@ $generated_id = 'CALC-' . time();
                 <div class="input-group">
                     <label>التاريخ</label>
                     <div class="field-container">
-                        <input type="date" name="cut_date" id="cut_date" value="<?php echo $cut_date; ?>" <?= $canEditCalculations ? '' : 'readonly' ?>>
+                        <input type="date" name="cut_date" id="cut_date" value="<?php echo htmlspecialchars((string)$cut_date); ?>" onclick="try { this.showPicker && this.showPicker(); } catch (e) {}" style="cursor:pointer;">
                         <div class="icon-box"><i class="far fa-calendar-alt"></i></div>
                     </div>
                 </div>
