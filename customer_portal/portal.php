@@ -642,7 +642,9 @@ if (is_array($orders)) {
                                     <div class="flex items-start gap-2">
                                         <div>
                                             <?php if (!empty($order['id'])): ?>
-                                                <a href="order_details.php?token=<?php echo $token; ?>&order_id=<?php echo (int)$order['id']; ?>" class="text-blue-600 font-bold hover:underline"><?php echo htmlspecialchars($order['order_number']); ?></a>
+                                                <a href="order_details.php?token=<?php echo urlencode($token); ?>&order_id=<?php echo (int)$order['id']; ?>" class="text-blue-600 font-bold hover:underline"><?php echo htmlspecialchars($order['order_number']); ?></a>
+                                            <?php elseif (!empty($order['approval_id'])): ?>
+                                                <a href="approval_details.php?token=<?php echo urlencode($token); ?>&approval_id=<?php echo (int)$order['approval_id']; ?>" class="text-blue-600 font-bold hover:underline"><?php echo htmlspecialchars($order['order_number']); ?></a>
                                             <?php else: ?>
                                                 <span class="text-blue-600 font-bold"><?php echo htmlspecialchars($order['order_number']); ?></span>
                                             <?php endif; ?>
@@ -693,7 +695,13 @@ if (is_array($orders)) {
                                 <td class="px-4 py-3 whitespace-nowrap text-sm font-bold <?php echo $remaining > 0.01 ? 'text-red-600' : 'text-green-600'; ?>"><?php echo number_format($remaining); ?></td>
                                                                 <td class="px-4 py-3 whitespace-nowrap text-center">
                                     <?php if (!empty($order['id'])): ?>
-                                    <a href="order_details.php?token=<?php echo $token; ?>&order_id=<?php echo (int)$order['id']; ?>" 
+                                    <a href="order_details.php?token=<?php echo urlencode($token); ?>&order_id=<?php echo (int)$order['id']; ?>" 
+                                       class="inline-flex items-center justify-center px-4 py-2 bg-[#C7A46D] hover:bg-[#B8956A] text-white text-sm font-bold rounded-lg transition-all shadow-sm w-24">
+                                       <i class="fas fa-eye ml-2"></i>
+                                       <span>عرض</span>
+                                    </a>
+                                    <?php elseif (!empty($order['approval_id'])): ?>
+                                    <a href="approval_details.php?token=<?php echo urlencode($token); ?>&approval_id=<?php echo (int)$order['approval_id']; ?>" 
                                        class="inline-flex items-center justify-center px-4 py-2 bg-[#C7A46D] hover:bg-[#B8956A] text-white text-sm font-bold rounded-lg transition-all shadow-sm w-24">
                                        <i class="fas fa-eye ml-2"></i>
                                        <span>عرض</span>
