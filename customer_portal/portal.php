@@ -121,6 +121,8 @@ try {
     $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $total_customer_orders = count($orders);
+    // IDs already listed from customer_orders (self-orders are listed there, so skip their approval row)
+    $listed_order_ids = array_map('intval', array_column($orders, 'id'));
 
     foreach ($orders as $order) {
         $status_key = $order['display_status_key'] ?? ($order['status'] ?? '');
@@ -168,6 +170,7 @@ if ($customer['enable_create_self_order'] === 'active') {
         $query_approvals = "SELECT
                     oa.id,
                     oa.created_at,
+                    oa.final_order_id,
                     oa.status,
                     oa.subtotal_amount,
                     oa.shipping_cost,
@@ -202,8 +205,12 @@ if ($customer['enable_create_self_order'] === 'active') {
             $approval_status_key   = $statusDetails['status_key'];   // e.g. 'pending', 'approved', 'rejected', 'unknown'
             $approval_status_label = $statusDetails['label'];        // Arabic label
 
+            // Self-order linked to a real order: skip the duplicate, or use its real ID
+            $linked_order_id = !empty($approval['final_order_id']) ? (int)$approval['final_order_id'] : 0;
+            if ($linked_order_id && in_array($linked_order_id, $listed_order_ids, true)) { continue; }
+
             $orders[] = [
-                'id' => null,
+                'id' => $linked_order_id ?: null,
                 'approval_id' => (int)$approval['id'],
                 'order_number' => (string)(int)$approval['id'],
                 'created_at' => $approval['created_at'],
@@ -684,11 +691,15 @@ if (is_array($orders)) {
                                 <td class="px-4 py-3 whitespace-nowrap text-sm font-bold text-blue-600"><?php echo number_format($order['paid_amount']); ?></td>
                                 <td class="px-4 py-3 whitespace-nowrap text-sm font-bold <?php echo $remaining > 0.01 ? 'text-red-600' : 'text-green-600'; ?>"><?php echo number_format($remaining); ?></td>
                                                                 <td class="px-4 py-3 whitespace-nowrap text-center">
+                                    <?php if (!empty($order['id'])): ?>
                                     <a href="order_details.php?token=<?php echo $token; ?>&order_id=<?php echo (int)$order['id']; ?>" 
                                        class="inline-flex items-center justify-center px-4 py-2 bg-[#C7A46D] hover:bg-[#B8956A] text-white text-sm font-bold rounded-lg transition-all shadow-sm w-24">
                                        <i class="fas fa-eye ml-2"></i>
                                        <span>عرض</span>
                                     </a>
+                                    <?php else: ?>
+                                    <span class="inline-flex items-center justify-center px-4 py-2 bg-gray-100 text-gray-500 text-sm font-bold rounded-lg w-24">قيد المراجعة</span>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
