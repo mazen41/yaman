@@ -1,168 +1,42 @@
-# نظام إدارة ياسين - Yassin Admin System
+# 📦 Yaman — Order & Shipping Management System
 
-نظام إدارة شامل باللغة العربية مبني بـ PHP و MySQL و TailwindCSS لإدارة الأعمال التجارية.
+A comprehensive business management system built in **PHP & MySQL** with Arabic-first UI, covering orders, shipping, customers, and financials.
 
-## المميزات الرئيسية
+## Features
 
-### إدارات النظام الرئيسية
-- **إدارة العملاء**: إدارة بيانات العملاء والمشتريات
-- **إدارة المشتريات**: إدارة طلبات الشراء والموردين  
-- **إدارة المخزون**: إدارة المخزون والكوبونات
-- **إدارة الحسابات المالية**: إدارة الحسابات والتقارير المالية
-- **آليات البحث والطباعة**: للفواتير والحسابات
-- **إعدادات النظام**: إعدادات وتكوين النظام
+- **Order Management** — create, edit, track, and print orders with full status lifecycle
+- **Shipping & Courier Portal** — dedicated courier login, basket/shipment tracking
+- **Customer Portal** — customers can track orders and view invoices
+- **Coupons & Discounts** — coupon system with discount tiers and loyalty cards
+- **Purchase Orders** — supplier purchase order management
+- **Financial Accounts** — bank accounts, payments, and invoice management
+- **Granular Permissions (RBAC)** — role-based access control with per-user permission management
+- **Sender Portal** — dedicated portal for senders to manage their shipments
+- **Reports** — purchase cards, payment reports, and order summaries
+- **Email Queue** — automated email notifications system
 
-### التقنيات المستخدمة
-- **Backend**: PHP 7.4+
-- **Database**: MySQL 5.7+
-- **Frontend**: HTML5, TailwindCSS, JavaScript
-- **Icons**: Font Awesome
-- **Fonts**: Google Fonts (Cairo)
+## Tech Stack
 
-## متطلبات التشغيل
+- **Backend:** PHP 7.4+, MySQL
+- **Frontend:** HTML5, Tailwind CSS, JavaScript, Font Awesome
+- **Fonts:** Google Fonts (Cairo — Arabic support)
+- **Security:** CSRF protection, session management, security middleware
 
-- PHP 7.4 أو أحدث
-- MySQL 5.7 أو أحدث  
-- Apache/Nginx Web Server
-- XAMPP أو WAMP (للتطوير المحلي)
+## Setup
 
-## التثبيت
-
-### 1. تحضير البيئة
 ```bash
-# تأكد من تشغيل Apache و MySQL
-# في XAMPP Control Panel
+# 1. Copy project to your web server
+# 2. Create database and import schema
+mysql -u root -p < database/schema.sql
+# 3. Configure DB connection
+nano config/database.php
+# 4. Set file permissions
+chmod -R 755 uploads/
+# 5. Visit http://localhost/yaman
 ```
 
-### 2. نسخ الملفات
-```bash
-# انسخ جميع ملفات المشروع إلى مجلد htdocs
-# المسار: C:\xampp\htdocs\yassin-admin-system\
-```
+## Default Login
 
-### 3. إنشاء قاعدة البيانات
-```sql
--- افتح phpMyAdmin
--- أنشئ قاعدة بيانات جديدة باسم: yassin_admin_system
--- استورد ملف: database/schema.sql
-```
-
-### 4. تكوين قاعدة البيانات
-```php
-// في ملف config/database.php
-define('DB_HOST', 'localhost');
-define('DB_NAME', 'yassin_admin_system');
-define('DB_USER', 'root');
-define('DB_PASS', ''); // كلمة مرور MySQL
-```
-
-### 5. الوصول للنظام
-```
-URL: http://localhost/yassin-admin-system/
-Username: admin
-Password: password
-```
-
-## بيانات الدخول الافتراضية
-
-| المستخدم | كلمة المرور | الصلاحية |
-|---------|------------|---------|
-| admin   | password   | مدير النظام |
-
-## هيكل المشروع
-
-```
-yassin-admin-system/
-├── config/
-│   └── database.php          # إعدادات قاعدة البيانات
-├── database/
-│   └── schema.sql           # هيكل قاعدة البيانات
-├── includes/
-│   ├── header.php           # رأس الصفحة
-│   └── footer.php           # تذييل الصفحة
-├── modules/
-│   ├── customers/           # إدارة العملاء
-│   ├── purchases/           # إدارة المشتريات
-│   ├── inventory/           # إدارة المخزون
-│   ├── financial/           # إدارة الحسابات المالية
-│   ├── reports/             # التقارير والبحث
-│   └── settings/            # إعدادات النظام
-├── index.php               # الصفحة الرئيسية
-├── login.php               # صفحة تسجيل الدخول
-├── logout.php              # تسجيل الخروج
-└── README.md               # ملف التوثيق
-```
-
-## إدارة العملاء
-
-### المميزات المتوفرة
-- إضافة عملاء جدد (أفراد أو شركات)
-- عرض قائمة العملاء مع البحث والفلترة
-- تعديل بيانات العملاء
-- حذف/تعطيل العملاء
-- إدارة حدود الائتمان
-- تتبع أرصدة العملاء
-
-### البيانات المحفوظة
-- رقم العميل (تلقائي)
-- اسم العميل
-- نوع العميل (فرد/شركة)
-- معلومات الاتصال (هاتف، إيميل)
-- العنوان
-- حد الائتمان
-- الرصيد الحالي
-
-## قاعدة البيانات
-
-### الجداول الرئيسية
-- `users`: المستخدمين والصلاحيات
-- `customers`: العملاء
-- `suppliers`: الموردين  
-- `products`: المنتجات
-- `purchase_orders`: طلبات الشراء
-- `sales_orders`: طلبات المبيعات
-- `stock_movements`: حركات المخزون
-- `financial_accounts`: الحسابات المالية
-- `coupons`: الكوبونات
-
-## الأمان
-
-- حماية من SQL Injection باستخدام Prepared Statements
-- تشفير كلمات المرور باستخدام password_hash()
-- حماية الجلسات والمصادقة
-- تحقق من صلاحيات المستخدمين
-
-## التطوير والتخصيص
-
-### إضافة وحدة جديدة
-1. أنشئ مجلد جديد في `modules/`
-2. أضف ملف `index.php` للعرض الرئيسي
-3. أضف النماذج المطلوبة (add.php, edit.php, view.php)
-4. أضف الجداول المطلوبة في قاعدة البيانات
-5. أضف الرابط في الصفحة الرئيسية
-
-### تخصيص التصميم
-- جميع الأنماط تستخدم TailwindCSS
-- دعم كامل للغة العربية واتجاه RTL
-- تصميم متجاوب يعمل على جميع الأجهزة
-
-## الدعم والمساهمة
-
-هذا مشروع مفتوح المصدر. يمكنك:
-- الإبلاغ عن الأخطاء
-- اقتراح تحسينات
-- المساهمة في التطوير
-
-## الترخيص
-
-هذا المشروع مرخص تحت رخصة MIT - انظر ملف LICENSE للتفاصيل.
-
-## معلومات الاتصال
-
-- **المطور**: Senior PHP Engineer
-- **التقنيات**: PHP, MySQL, TailwindCSS
-- **اللغة**: العربية مع دعم RTL
-
----
-
-تم تطوير هذا النظام خصيصاً لإدارة الأعمال العربية مع مراعاة الخصوصية الثقافية واللغوية.
+| User | Password | Role |
+|------|----------|------|
+| admin | password | System Admin |
