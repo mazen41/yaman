@@ -520,17 +520,18 @@ include 'includes/header.php';
         let ts = parseInt(el.getAttribute('data-system-timestamp'), 10) * 1000; // ms
         if (isNaN(ts)) return;
 
-        function pad(n) { return n < 10 ? '0' + n : '' + n; }
+        // Always format in Yemen/Aden time, regardless of the browser's timezone
+        const fmt = new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Asia/Aden',
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', hour12: false
+        });
 
         function tick() {
-            const d = new Date(ts);
-            const year = d.getFullYear();
-            const month = pad(d.getMonth() + 1);
-            const day = pad(d.getDate());
-            const hours = pad(d.getHours());
-            const mins = pad(d.getMinutes());
-
-            el.textContent = hours + ':' + mins + ' ' + year + '-' + month + '-' + day;
+            const parts = {};
+            fmt.formatToParts(new Date(ts)).forEach(p => { parts[p.type] = p.value; });
+            const hour = parts.hour === '24' ? '00' : parts.hour;
+            el.textContent = hour + ':' + parts.minute + ' ' + parts.year + '-' + parts.month + '-' + parts.day;
             ts += 1000;
         }
 
