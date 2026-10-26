@@ -65,7 +65,7 @@ foreach (['yamman_logo.png', 'logo.png'] as $f) {
 // ---------- Build PDF ----------
 $mpdf = new Mpdf([
     'mode'            => 'utf-8',
-    'format'          => [101.6, 152.4],   // 4 x 6 in
+    'format'          => [101.6, 106],   // sticker size: 4 in wide x ~4.2 in tall
     'orientation'     => 'P',
     'margin_left'     => 0,
     'margin_right'    => 0,
@@ -85,7 +85,7 @@ $mpdf->SetAuthor($company_name !== '' ? $company_name : 'Yaman');
 
 $css = <<<CSS
 body { font-family: dejavusans; color: #1b2347; font-size: 10pt; }
-.card { width: 384px; border: 1.5px solid #cfb86f; background: #ecd9a0; border-radius: 18px; padding: 10px 14px; }
+.card { width: 376px; height: 396px; overflow: hidden; border: 1.5px solid #cfb86f; background: #ecd9a0; border-radius: 18px; padding: 10px 14px; }
 .brand-name { font-size: 20pt; font-weight: bold; color: #27346b; }
 .brand-sub  { font-size: 10pt; font-weight: bold; }
 .meta       { font-size: 7.5pt; font-weight: bold; color: #1b2347; }
