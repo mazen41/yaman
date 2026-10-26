@@ -895,6 +895,7 @@ include '../../includes/header.php';
 </div>
 
 <!-- SCRIPTS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js"></script>
 <script src="js/label-printer.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
@@ -1033,8 +1034,12 @@ include '../../includes/header.php';
         const checked = document.querySelectorAll('.order-select-cb:checked');
         if (checked.length === 0) { alert('يرجى تحديد طلب واحد على الأقل'); return; }
         const ids = Array.from(checked).map(cb => cb.value).join(',');
-        LabelPrinter.printUrl('print_labels.php?ids=' + ids, { width: '4in', height: '6in' })
-            .catch(err => alert('فشلت الطباعة: ' + err.message));
+        const stamp = new Date().toISOString().slice(0, 10);
+        LabelPrinter.downloadUrl('print_labels.php?ids=' + ids, {
+            width: '4in',
+            height: '6in',
+            filename: 'labels-' + stamp + '.pdf'
+        }).catch(err => alert('فشل إنشاء PDF: ' + err.message));
     }
 
     document.getElementById('confirmDeleteBtn').addEventListener('click', function() {

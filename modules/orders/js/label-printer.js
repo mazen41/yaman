@@ -1,12 +1,14 @@
 /**
- * LabelPrinter - custom print library for order labels.
+ * LabelPrinter - custom label library.
+ * downloadUrl(): fetches a label page, renders only its .labels container
+ * with the page's styles in a hidden frame, and saves it as a PDF.
  *
- * Fetches a server-rendered label page, takes only its .labels container
- * plus the page's styles, and prints it through a hidden iframe.
- * The site layout, toolbar and navigation never reach the printout.
+ * Requires html2pdf.js to be loaded first (see index.php).
  *
  * Usage:
- *   LabelPrinter.printUrl('print_labels.php?ids=1,2,3', { width: '4in', height: '6in' });
+ *   LabelPrinter.downloadUrl('print_labels.php?ids=1,2,3', {
+ *       width: '4in', height: '6in', filename: 'labels.pdf'
+ *   });
  */
 (function (global) {
     'use strict';
@@ -14,8 +16,8 @@
     const DEFAULTS = {
         width: '4in',
         height: '6in',
-        title: 'Labels',
-        timeout: 60000
+        filename: 'labels.pdf',
+        timeout: 15000
     };
 
     function buildDocument(src, opts) {
@@ -24,7 +26,6 @@
             '<head>' +
             '<meta charset="utf-8">' +
             '<base href="' + src.base + '">' +
-            '<title>' + opts.title + '</title>' +
             '<style>' +
             '@page { size: ' + opts.width + ' ' + opts.height + '; margin: 0; }' +
             'html, body { margin: 0; padding: 0; background: #fff; }' +
@@ -35,49 +36,33 @@
             '</html>';
     }
 
-    function printHtml(html, opts) {
-        return new Promise((resolve, reject) => {
-            const iframe = document.createElement('iframe');
-            iframe.setAttribute('aria-hidden', 'true');
-            iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
-            document.body.appendChild(iframe);
+    /** Renders HTML in a hidden iframe and waits for fonts and images. */
+    async function renderFrame(html) {
+        const iframe = document.createElement('iframe');
+        iframe.setAttribute('aria-hidden', 'true');
+        iframe.style.cssText = 'position:fixed;left:-10000px;top:0;width:4in;height:6in;border:0;';
+        document.body.appendChild(iframe);
 
-            let finished = false;
-            const cleanup = () => {
-                if (finished) return;
-                finished = true;
-                setTimeout(() => iframe.remove(), 500);
-                resolve();
-            };
+        const doc = iframe.contentWindow.document;
+        doc.open();
+        doc.write(html);
+        doc.close();
 
-            const win = iframe.contentWindow;
-            const doc = win.document;
-            doc.open();
-            doc.write(html);
-            doc.close();
-
-            // Wait for fonts and images so the label is complete before printing
-            (async () => {
-                if (doc.fonts && doc.fonts.ready) {
-                    await doc.fonts.ready;
-                }
-                await Promise.all(Array.from(doc.images).map(img =>
-                    img.complete ? null : new Promise(r => { img.onload = img.onerror = r; })
-                ));
-
-                win.onafterprint = cleanup;
-                setTimeout(cleanup, opts.timeout);
-                win.focus();
-                win.print();
-            })().catch(err => {
-                iframe.remove();
-                reject(err);
-            });
-        });
+        if (doc.fonts && doc.fonts.ready) {
+            await doc.fonts.ready;
+        }
+        await Promise.all(Array.from(doc.images).map(img =>
+            img.complete ? null : new Promise(r => { img.onload = img.onerror = r; })
+        ));
+        return iframe;
     }
 
-    /** Fetch a label page and print only its .labels container with its styles. */
-    async function printUrl(url, options) {
+    /** Fetch a label page, render its labels, and download them as a PDF. */
+    async function downloadUrl(url, options) {
+        if (typeof html2pdf === 'undefined') {
+            throw new Error('html2pdf.js is not loaded');
+        }
+
         const opts = Object.assign({}, DEFAULTS, options || {});
         const absUrl = new URL(url, location.href).href;
 
@@ -87,8 +72,6 @@
         }
 
         const dom = new DOMParser().parseFromString(await res.text(), 'text/html');
-
-        // Remove toolbar buttons and scripts from the fragment
         dom.querySelectorAll('.no-print, script').forEach(n => n.remove());
 
         const container = dom.querySelector('.labels');
@@ -100,16 +83,34 @@
             .map(n => n.outerHTML)
             .join('\n');
 
-        const html = buildDocument({
+        const iframe = await renderFrame(buildDocument({
             base: absUrl,
             lang: dom.documentElement.getAttribute('lang'),
             dir: dom.documentElement.getAttribute('dir'),
             head: head,
             body: container.outerHTML
-        }, opts);
+        }, opts));
 
-        return printHtml(html, opts);
+        try {
+            const target = iframe.contentWindow.document.querySelector('.labels');
+            const widthIn = parseFloat(opts.width) || 4;
+            const heightIn = parseFloat(opts.height) || 6;
+
+            await html2pdf()
+                .set({
+                    margin: 0,
+                    filename: opts.filename,
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+                    jsPDF: { unit: 'in', format: [widthIn, heightIn], orientation: 'portrait' },
+                    pagebreak: { mode: ['css', 'legacy'] }
+                })
+                .from(target)
+                .save();
+        } finally {
+            setTimeout(() => iframe.remove(), 500);
+        }
     }
 
-    global.LabelPrinter = { printUrl: printUrl };
+    global.LabelPrinter = { downloadUrl: downloadUrl };
 })(window);
