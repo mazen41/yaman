@@ -896,7 +896,7 @@ include '../../includes/header.php';
 
 <!-- SCRIPTS -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js"></script>
-<script src="js/label-printer.js"></script>
+<script src="js/label-printer.js?v=2"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const tableBody = document.getElementById('orders-table-body');
