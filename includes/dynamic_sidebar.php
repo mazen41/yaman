@@ -1,8 +1,8 @@
 <?php
 /**
  * Dynamic Sidebar with Permissions
- * Rendered inside the sidebar in includes/header.php.
- * Only shows modules the user has permission to access.
+ * This replaces the static sidebar in header.php
+ * Only shows modules the user has permission to access
  */
 
 // Load app-path helper (yaman_app_path) if not already loaded
@@ -27,20 +27,51 @@ $all_sidebar_modules = [
     ['name' => 'طلبات العملاء', 'route' => '/modules/orders/index.php', 'icon' => 'fas fa-shopping-bag', 'key' => 'orders', 'section' => 'modules'],
     ['name' => 'رموز SKU للطلبات', 'route' => '/modules/orders/skus.php', 'icon' => 'fas fa-barcode', 'key' => 'orders_skus', 'section' => 'modules'],
     ['name' => 'إدارة الفرز', 'route' => '/modules/sorting/index.php', 'icon' => 'fas fa-qrcode', 'key' => 'sorting', 'section' => 'modules'],
-    ['name' => 'بطاقات العملاء', 'route' => '/modules/customers/customer_cards.php', 'icon' => 'fas fa-id-card', 'key' => 'customer_cards', 'section' => 'modules'],
-    ['name' => 'الموافقات', 'route' => '/modules/orders/approvals.php', 'icon' => 'fas fa-check-circle', 'key' => 'order_approval', 'section' => 'modules'],
-    ['name' => 'حاسبه يمان', 'route' => '/modules/customer_text/copying.php', 'icon' => 'fas fa-copy', 'key' => 'calculations', 'section' => 'modules'],
-    ['name' => 'رسالة التأكيد', 'route' => '/modules/settings/client_message_template.php', 'icon' => 'fas fa-whatsapp', 'key' => 'whatsapp_templates_admin_notification', 'section' => 'modules'],
-    ['name' => 'رساله تأكيد المتجر', 'route' => '/modules/settings/checkout_template_admin.php', 'icon' => 'fas fa-file-invoice', 'key' => 'checkout_template_admin', 'section' => 'shop_management'],
-    // Shop management (dropdown)
-    ['name' => 'الألوان', 'route' => '/modules/colors/index.php', 'icon' => 'fas fa-palette', 'key' => 'colors', 'section' => 'shop_management'],
-    ['name' => 'إدارة طلبات المتجر', 'route' => '/modules/orders/shop_orders_manage.php', 'icon' => 'fas fa-shopping-basket', 'key' => 'shop_orders', 'section' => 'shop_management'],
+    [
+    'name' => 'بطاقات العملاء',
+    'route' => '/modules/customers/customer_cards.php',
+    'icon' => 'fas fa-id-card',
+    'key'  => 'customer_cards',
+    'section' => 'modules'
+],
+
+    [
+    'name' => 'الموافقات',
+    'route' => '/modules/orders/approvals.php',
+    'icon'  => 'fas fa-check-circle',
+    'key'   => 'order_approval',
+    'section' => 'modules',
+],
+[
+    'name'    => 'حاسبه يمان',
+    'route'   => '/modules/customer_text/copying.php',
+    'icon'    => 'fas fa-copy',
+    'key'     => 'calculations',
+    'section' => 'modules',
+],
+[
+    'name'    => 'رسالة التأكيد',
+    'route'   => '/modules/settings/client_message_template.php',
+    'icon'    => 'fas fa-whatsapp',
+    'key'     => 'whatsapp_templates_admin_notification',
+    'section' => 'modules',
+],
+[
+    'name'    => 'رساله تأكيد المتجر',
+    'route'   => '/modules/settings/checkout_template_admin.php',
+    'icon'    => 'fas fa-file-invoice',
+    'key'     => 'checkout_template_admin',
+    'section' => 'shop_management',
+],
+// START: These modules are now grouped under the 'shop_management' section
+  ['name' => 'الألوان', 'route' => '/modules/colors/index.php', 'icon' => 'fas fa-palette', 'key' => 'colors', 'section' => 'shop_management'],
+  ['name' => 'إدارة طلبات المتجر', 'route' => '/modules/orders/shop_orders_manage.php', 'icon' => 'fas fa-shopping-basket', 'key' => 'shop_orders', 'section' => 'shop_management'],
     ['name' => 'المنتجات', 'route' => '/modules/products/index.php', 'icon' => 'fas fa-box', 'key' => 'products', 'section' => 'shop_management'],
     ['name' => 'تصنيفات المنتجات', 'route' => '/modules/categories/index.php', 'icon' => 'fas fa-tags', 'key' => 'product_categories', 'section' => 'shop_management'],
     ['name' => 'سمات المنتجات', 'route' => '/modules/attributes/index.php', 'icon' => 'fas fa-sliders-h', 'key' => 'product_attributes', 'section' => 'shop_management'],
     ['name' => 'سلايدر المنتجات', 'route' => '/modules/settings/product_slides.php', 'icon' => 'fas fa-images', 'key' => 'product_slider', 'section' => 'shop_management'],
     ['name' => 'سلايدر صفحة الدفع', 'route' => '/modules/settings/checkout_slides.php', 'icon' => 'fas fa-images', 'key' => 'checkout_slides', 'section' => 'shop_management'],
-    ['name' => 'كوبونات المتجر', 'route' => '/modules/shop_coupons/index.php', 'icon' => 'fas fa-ticket-alt', 'key' => 'coupons', 'section' => 'shop_management'],
+// END: Shop Management Modules
 
     ['name' => 'المراجعة المالية', 'route' => '/modules/orders/financial_review.php', 'icon' => 'fas fa-file-invoice-dollar', 'key' => 'financial_review', 'section' => 'modules'],
     // إدارة المشتريات (hidden as requested)
@@ -63,13 +94,46 @@ $all_sidebar_modules = [
     ['name' => 'صلاحيات الموظفين', 'route' => '/modules/financial/employee-permissions.php', 'icon' => 'fas fa-user-shield', 'key' => 'permissions', 'section' => 'modules'],
     ['name' => 'إدارة المصروفات', 'route' => '/modules/expenses/index.php', 'icon' => 'fas fa-money-bill-wave', 'key' => 'expenses', 'section' => 'modules'],
     ['name' => 'إدارة الكوبونات', 'route' => '/modules/coupons/index.php', 'icon' => 'fas fa-ticket-alt', 'key' => 'coupons', 'section' => 'modules'],
+     [
+    'name'    => 'كوبونات المتجر',
+    'route'   => '/modules/shop_coupons/index.php',
+    'icon'    => 'fas fa-ticket-alt',
+    'key'     => 'coupons',
+    'section' => 'shop_management',
+],
     ['name' => 'التقارير والطباعة', 'route' => '/modules/reports/index.php', 'icon' => 'fas fa-chart-bar', 'key' => 'reports', 'section' => 'reports'],
     ['name' => 'ملخص العملاء', 'route' => '/modules/reports/customer_summary.php', 'icon' => 'fas fa-users', 'key' => 'customer_summary', 'section' => 'reports'],
     ['name' => 'إعدادات النظام', 'route' => '/modules/settings/index.php', 'icon' => 'fas fa-cog', 'key' => 'settings', 'section' => 'settings'],
-    ['name' => 'القيود اليومية', 'route' => '/modules/accounting/journal.php', 'icon' => 'fas fa-book', 'key' => 'journal', 'section' => 'accounting'],
-    ['name' => 'إعدادات الحسابات', 'route' => '/modules/accounting/settings.php', 'icon' => 'fas fa-cogs', 'key' => 'accounting_settings', 'section' => 'accounting'],
-    ['name' => 'نسخة احتياطية للنظام', 'route' => '/modules/backup/backup.php', 'icon' => 'fas fa-database', 'key' => 'system_backup', 'section' => 'modules'],
-    ['name' => 'تحويلات', 'route' => '/modules/financial/universal_transfer.php', 'icon' => 'fas fa-exchange-alt', 'key' => 'transfering', 'section' => 'modules'],
+[
+    'name' => 'القيود اليومية',
+    'route' => '/modules/accounting/journal.php',
+    'icon'  => 'fas fa-book',
+    'key'   => 'journal',
+    'section' => 'accounting', // Moved to 'accounting' section
+],
+[
+    'name' => 'إعدادات الحسابات',
+    'route' => '/modules/accounting/settings.php',
+    'icon'  => 'fas fa-cogs',
+    'key'   => 'accounting_settings',
+    'section' => 'accounting', // Moved to 'accounting' section
+],
+[
+    'name' => 'نسخة احتياطية للنظام',
+    'route' => '/modules/backup/backup.php',
+    'icon'  => 'fas fa-database',
+    'key'   => 'system_backup',
+    'section' => 'modules',
+],
+[
+    'name' => 'تحويلات',
+    'route' => '/modules/financial/universal_transfer.php',
+    'icon'  => 'fas fa-database',
+    'key'   => 'transfering',
+    'section' => 'modules',
+],
+
+
 ];
 
 // Prefix routes with the app folder (e.g. /yaman locally, nothing on the live root)
@@ -93,13 +157,19 @@ if (isset($_SESSION['user_id'])) {
             // Supports both formats: "customers.manage" and "customers_view"
             $key = $row['permission_key'];
 
+            // Try dot notation first
             if (strpos($key, '.') !== false) {
                 $parts = explode('.', $key);
                 $user_permission_keys[] = $parts[0];
-            } elseif (strpos($key, '_') !== false) {
+            }
+            // Try underscore notation
+            elseif (strpos($key, '_') !== false) {
+                // Remove action suffix (_view, _edit, _add, _delete, _manage)
                 $base_key = preg_replace('/(_(view|edit|add|delete|manage|create|approve|reject))$/', '', $key);
                 $user_permission_keys[] = $base_key;
-            } else {
+            }
+            else {
+                // No delimiter, use as is
                 $user_permission_keys[] = $key;
             }
         }
@@ -131,257 +201,188 @@ foreach ($all_sidebar_modules as $module) {
         continue;
     }
 
-    // Dashboard is always visible (header also links to it, so it is hidden here)
+    // Dashboard is always visible
     if ($module['key'] === 'dashboard') {
+        $visible_modules[] = $module;
         continue;
     }
 
+    // Check if user has permission for this module
     if (in_array($module['key'], $user_permission_keys)) {
         $visible_modules[] = $module;
     }
 }
 
-// Group by section
+// Group by section - IMPORTANT: Added 'shop_management' and 'accounting' sections
 $grouped_modules = [
     'main' => [],
-    'shop_management' => [],
+    'shop_management' => [], // New section for shop-related items
     'modules' => [],
     'reports' => [],
     'settings' => [],
-    'accounting' => []
+    'accounting' => [] // New section for accounting items
 ];
 
 foreach ($visible_modules as $module) {
     $section = $module['section'] ?? 'modules';
+    // Ensure the section key exists, default to 'modules' if not recognized
     if (!isset($grouped_modules[$section])) {
+        // Fallback to general modules if a custom section is not explicitly handled
         $section = 'modules';
     }
     $grouped_modules[$section][] = $module;
 }
-
-$current_page = basename($_SERVER['PHP_SELF'] ?? '');
-$is_route_active = function (string $route) {
-    return strpos($_SERVER['PHP_SELF'] ?? '', $route) !== false;
-};
-
-// Renders one sidebar link
-$render_link = function (array $module) use ($is_route_active) {
-    $active = $is_route_active($module['route']) ? ' is-active' : '';
-    echo '<a href="' . htmlspecialchars($module['route']) . '" class="dsb-link' . $active . '">';
-    echo '<span class="dsb-icon"><i class="' . htmlspecialchars($module['icon']) . '"></i></span>';
-    echo '<span class="dsb-text">' . htmlspecialchars($module['name']) . '</span>';
-    echo '</a>';
-};
-
-// Does any module inside a list match the current page?
-$any_active = function (array $list) use ($is_route_active) {
-    foreach ($list as $m) {
-        if ($is_route_active($m['route'])) return true;
-    }
-    return false;
-};
-
-$shop_is_active = $any_active($grouped_modules['shop_management']);
-$total_visible = count($visible_modules);
 ?>
 
-<style>
-    .dsb { display: flex; flex-direction: column; gap: 18px; font-family: 'Cairo', 'Segoe UI', Tahoma, Arial, sans-serif; }
-    .dsb .fa, .dsb .fas, .dsb .far, .dsb .fab { font-family: 'Font Awesome 6 Free', 'Font Awesome 6 Brands'; }
-
-    .dsb-section-title {
-        font-size: 0.72rem;
-        font-weight: 700;
-        letter-spacing: .06em;
-        text-transform: uppercase;
-        color: #9ca3af;
-        padding: 0 12px;
-        margin: 0 0 8px;
-    }
-    .dsb-group { display: flex; flex-direction: column; gap: 2px; }
-
-    /* Link */
-    .dsb-link {
-        position: relative;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 9px 12px;
-        border-radius: 10px;
-        color: #374151;
-        font-size: 0.92rem;
-        font-weight: 500;
-        text-decoration: none;
-        transition: background-color .15s ease, color .15s ease;
-    }
-    .dsb-link:hover { background: #f5f5f4; color: #111827; }
-    .dsb-link.is-active {
-        background: #faf6ee;
-        color: #8a6a3a;
-        font-weight: 700;
-    }
-    .dsb-link.is-active::before {
-        content: '';
-        position: absolute;
-        right: -10px;
-        top: 8px;
-        bottom: 8px;
-        width: 4px;
-        border-radius: 4px;
-        background: #C7A46D;
-    }
-
-    .dsb-icon {
-        width: 32px; height: 32px;
-        border-radius: 9px;
-        display: flex; align-items: center; justify-content: center;
-        background: #f3f4f6;
-        color: #6b7280;
-        font-size: 0.85rem;
-        flex-shrink: 0;
-        transition: background-color .15s ease, color .15s ease;
-    }
-    .dsb-link:hover .dsb-icon { background: #faf6ee; color: #C7A46D; }
-    .dsb-link.is-active .dsb-icon { background: #C7A46D; color: #fff; }
-
-    .dsb-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-    /* Dropdown */
-    .dsb-dropdown-btn {
-        width: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        padding: 9px 12px;
-        border: none;
-        border-radius: 10px;
-        background: transparent;
-        color: #374151;
-        font-size: 0.92rem;
-        font-weight: 600;
-        font-family: inherit;
-        cursor: pointer;
-        transition: background-color .15s ease;
-    }
-    .dsb-dropdown-btn:hover { background: #f5f5f4; }
-    .dsb-dropdown-btn.is-active { color: #8a6a3a; }
-    .dsb-dropdown-left { display: flex; align-items: center; gap: 12px; }
-    .dsb-dropdown-btn .chev {
-        color: #9ca3af;
-        font-size: 0.75rem;
-        transition: transform .2s ease;
-    }
-    .dsb-dropdown-btn.open .chev { transform: rotate(-90deg); }
-    .dsb-dropdown-content {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-        margin: 4px 0 4px 10px;
-        padding-right: 12px;
-        border-right: 2px solid #f1f5f9;
-    }
-    .dsb-dropdown-content.hidden { display: none; }
-    .dsb-dropdown-content .dsb-link { padding: 7px 10px; font-size: 0.88rem; }
-    .dsb-dropdown-content .dsb-icon { width: 28px; height: 28px; font-size: 0.8rem; }
-
-    .dsb-empty {
-        text-align: center;
-        padding: 28px 16px;
-        color: #6b7280;
-        font-size: 0.9rem;
-    }
-    .dsb-empty i { display: block; font-size: 1.8rem; color: #d1d5db; margin-bottom: 8px; }
-
-    /* Dark mode */
-    html.dark .dsb-link,
-    html.dark .dsb-dropdown-btn { color: #e5e7eb; }
-    html.dark .dsb-link:hover,
-    html.dark .dsb-dropdown-btn:hover { background: #3b444b; color: #fff; }
-    html.dark .dsb-link.is-active { background: #3b444b; color: #C7A46D; }
-    html.dark .dsb-icon { background: #353839; color: #9ca3af; }
-    html.dark .dsb-link:hover .dsb-icon { background: #414a4c; color: #C7A46D; }
-    html.dark .dsb-link.is-active .dsb-icon { background: #C7A46D; color: #fff; }
-    html.dark .dsb-dropdown-content { border-right-color: #414a4c; }
-    html.dark .dsb-section-title { color: #6b7280; }
-</style>
-
-<div class="dsb" id="dynamicSidebar">
-
-    <?php if (!empty($grouped_modules['modules'])): ?>
-    <div>
-        <h3 class="dsb-section-title">الوحدات</h3>
-        <div class="dsb-group">
-            <?php foreach ($grouped_modules['modules'] as $module) { $render_link($module); } ?>
-        </div>
-    </div>
+<!-- Dynamic Sidebar -->
+<div class="space-y-3">
+    <!-- Main Section -->
+    <?php if (!empty($grouped_modules['main'])): ?>
+        <?php foreach ($grouped_modules['main'] as $module): ?>
+            <a href="<?php echo htmlspecialchars($module['route']); ?>"
+               class="sidebar-link block w-full <?php echo strpos($_SERVER['PHP_SELF'], $module['route']) !== false ? 'active' : ''; ?>">
+                <i class="<?php echo htmlspecialchars($module['icon']); ?> sidebar-icon"></i>
+                <span><?php echo htmlspecialchars($module['name']); ?></span>
+            </a>
+        <?php endforeach; ?>
     <?php endif; ?>
 
+    <!-- Shop Management Section (Dropdown) -->
     <?php if (!empty($grouped_modules['shop_management'])): ?>
-    <div>
-        <button type="button"
-                class="dsb-dropdown-btn <?php echo $shop_is_active ? 'is-active open' : ''; ?>"
-                onclick="dsbToggle(this)" aria-expanded="<?php echo $shop_is_active ? 'true' : 'false'; ?>">
-            <span class="dsb-dropdown-left">
-                <span class="dsb-icon"><i class="fas fa-store"></i></span>
-                <span>إدارة المتجر</span>
-            </span>
-            <i class="fas fa-chevron-down chev"></i>
-        </button>
-        <div class="dsb-dropdown-content <?php echo $shop_is_active ? '' : 'hidden'; ?>">
-            <?php foreach ($grouped_modules['shop_management'] as $module) { $render_link($module); } ?>
+        <?php
+            // Check if any link inside this dropdown is the current active page
+            $shop_management_is_active = false;
+            foreach ($grouped_modules['shop_management'] as $module) {
+                if (strpos($_SERVER['PHP_SELF'], $module['route']) !== false) {
+                    $shop_management_is_active = true;
+                    break;
+                }
+            }
+        ?>
+        <div class="pt-3 mt-3 border-t border-gray-200 sidebar-dropdown-wrapper">
+            <button type="button"
+                    class="flex items-center justify-between w-full p-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    onclick="toggleDropdown('shop-management-dropdown')">
+                <div class="flex items-center">
+                    <i class="fas fa-store sidebar-icon mr-3"></i> <!-- Icon for Shop Management -->
+                    <span>إدارة المتجر</span>
+                </div>
+                <i class="fas fa-chevron-right dropdown-icon transform transition-transform duration-200 <?php echo $shop_management_is_active ? 'rotate-90' : ''; ?>"></i>
+            </button>
+            <div id="shop-management-dropdown" class="mt-2 space-y-2 <?php echo $shop_management_is_active ? '' : 'hidden'; ?> sidebar-dropdown-content">
+                <?php foreach ($grouped_modules['shop_management'] as $module): ?>
+                    <a href="<?php echo htmlspecialchars($module['route']); ?>"
+                       class="sidebar-link block w-full pl-8 <?php echo strpos($_SERVER['PHP_SELF'], $module['route']) !== false ? 'active' : ''; ?>">
+                        <i class="<?php echo htmlspecialchars($module['icon']); ?> sidebar-icon text-sm"></i>
+                        <span><?php echo htmlspecialchars($module['name']); ?></span>
+                    </a>
+                <?php endforeach; ?>
+            </div>
         </div>
-    </div>
     <?php endif; ?>
 
+    <!-- Modules Section -->
+    <?php if (!empty($grouped_modules['modules'])): ?>
+        <div class="pt-3 mt-3 border-t border-gray-200">
+            <h3 class="text-xs uppercase text-gray-600 font-bold px-3 mb-3">الوحدات</h3>
+            <?php foreach ($grouped_modules['modules'] as $module): ?>
+                <a href="<?php echo htmlspecialchars($module['route']); ?>"
+                   class="sidebar-link block w-full <?php echo strpos($_SERVER['PHP_SELF'], $module['route']) !== false ? 'active' : ''; ?>">
+                    <i class="<?php echo htmlspecialchars($module['icon']); ?> sidebar-icon"></i>
+                    <span><?php echo htmlspecialchars($module['name']); ?></span>
+                </a>
+            <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
+
+    <!-- Accounting Section -->
     <?php if (!empty($grouped_modules['accounting'])): ?>
-    <div>
-        <h3 class="dsb-section-title">الحسابات</h3>
-        <div class="dsb-group">
-            <?php foreach ($grouped_modules['accounting'] as $module) { $render_link($module); } ?>
+        <div class="pt-3 mt-3 border-t border-gray-200">
+            <h3 class="text-xs uppercase text-gray-600 font-bold px-3 mb-3">الحسابات</h3>
+            <?php foreach ($grouped_modules['accounting'] as $module): ?>
+                <a href="<?php echo htmlspecialchars($module['route']); ?>"
+                   class="sidebar-link block w-full <?php echo strpos($_SERVER['PHP_SELF'], $module['route']) !== false ? 'active' : ''; ?>">
+                    <i class="<?php echo htmlspecialchars($module['icon']); ?> sidebar-icon"></i>
+                    <span><?php echo htmlspecialchars($module['name']); ?></span>
+                </a>
+            <?php endforeach; ?>
         </div>
-    </div>
     <?php endif; ?>
 
+    <!-- Reports Section -->
     <?php if (!empty($grouped_modules['reports'])): ?>
-    <div>
-        <h3 class="dsb-section-title">التقارير</h3>
-        <div class="dsb-group">
-            <?php foreach ($grouped_modules['reports'] as $module) { $render_link($module); } ?>
+        <div class="pt-3 mt-3 border-t border-gray-200">
+            <h3 class="text-xs uppercase text-gray-600 font-bold px-3 mb-3">التقارير</h3>
+            <?php foreach ($grouped_modules['reports'] as $module): ?>
+                <a href="<?php echo htmlspecialchars($module['route']); ?>"
+                   class="sidebar-link block w-full <?php echo strpos($_SERVER['PHP_SELF'], $module['route']) !== false ? 'active' : ''; ?>">
+                    <i class="<?php echo htmlspecialchars($module['icon']); ?> sidebar-icon"></i>
+                    <span><?php echo htmlspecialchars($module['name']); ?></span>
+                </a>
+            <?php endforeach; ?>
         </div>
-    </div>
     <?php endif; ?>
 
+    <!-- Settings Section -->
     <?php if (!empty($grouped_modules['settings'])): ?>
-    <div>
-        <h3 class="dsb-section-title">الإعدادات</h3>
-        <div class="dsb-group">
-            <?php foreach ($grouped_modules['settings'] as $module) { $render_link($module); } ?>
+        <div class="pt-3 mt-3 border-t border-gray-200">
+            <h3 class="text-xs uppercase text-gray-600 font-bold px-3 mb-3">الإعدادات</h3>
+            <?php foreach ($grouped_modules['settings'] as $module): ?>
+                <a href="<?php echo htmlspecialchars($module['route']); ?>"
+                   class="sidebar-link block w-full <?php echo strpos($_SERVER['PHP_SELF'], $module['route']) !== false ? 'active' : ''; ?>">
+                    <i class="<?php echo htmlspecialchars($module['icon']); ?> sidebar-icon"></i>
+                    <span><?php echo htmlspecialchars($module['name']); ?></span>
+                </a>
+            <?php endforeach; ?>
         </div>
-    </div>
     <?php endif; ?>
 
-    <?php if ($total_visible === 0): ?>
-    <div class="dsb-empty">
-        <i class="fas fa-lock"></i>
-        <p style="margin:0;">لا توجد صلاحيات</p>
-        <p style="margin:4px 0 0; font-size:0.8rem; color:#9ca3af;">يرجى التواصل مع المدير</p>
-    </div>
+    <?php if (empty($visible_modules) || count($visible_modules) <= 1): ?>
+        <div class="text-center py-8 px-4">
+            <i class="fas fa-lock text-4xl text-gray-300 mb-3"></i>
+            <p class="text-gray-500 text-sm">لا توجد صلاحيات</p>
+            <p class="text-gray-400 text-xs mt-1">يرجى التواصل مع المدير</p>
+        </div>
     <?php endif; ?>
 </div>
 
+<!-- JavaScript for Dropdown Functionality -->
 <script>
-    function dsbToggle(btn) {
-        const content = btn.nextElementSibling;
-        const isOpen = btn.classList.toggle('open');
-        content.classList.toggle('hidden', !isOpen);
-        btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    function toggleDropdown(dropdownId) {
+        const dropdownContent = document.getElementById(dropdownId);
+        const dropdownButton = dropdownContent.previousElementSibling; // The button itself
+        const dropdownIcon = dropdownButton.querySelector('.dropdown-icon');
+
+        dropdownContent.classList.toggle('hidden');
+        dropdownIcon.classList.toggle('rotate-90');
     }
-    // Keep toggleDropdown working if other code still calls it
-    function toggleDropdown(id) {
-        const content = document.getElementById(id);
-        if (!content) return;
-        const btn = content.previousElementSibling;
-        if (btn) dsbToggle(btn);
-    }
+
+    // This script ensures that if a child link is active, its parent dropdown is open on page load.
+    document.addEventListener('DOMContentLoaded', () => {
+        const dropdownWrappers = document.querySelectorAll('.sidebar-dropdown-wrapper');
+
+        dropdownWrappers.forEach(wrapper => {
+            const dropdownContent = wrapper.querySelector('.sidebar-dropdown-content');
+            if (dropdownContent) {
+                let hasActiveChild = false;
+                const links = dropdownContent.querySelectorAll('.sidebar-link');
+                links.forEach(link => {
+                    // Check if the current link has the 'active' class
+                    if (link.classList.contains('active')) {
+                        hasActiveChild = true;
+                    }
+                });
+
+                if (hasActiveChild) {
+                    // If an active child is found, ensure the dropdown content is visible
+                    dropdownContent.classList.remove('hidden');
+                    // Also, rotate the dropdown icon to indicate it's open
+                    const dropdownIcon = wrapper.querySelector('.dropdown-icon');
+                    if (dropdownIcon && !dropdownIcon.classList.contains('rotate-90')) {
+                        dropdownIcon.classList.add('rotate-90');
+                    }
+                }
+            }
+        });
+    });
 </script>
