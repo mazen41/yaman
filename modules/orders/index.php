@@ -895,6 +895,7 @@ include '../../includes/header.php';
 </div>
 
 <!-- SCRIPTS -->
+<script src="js/label-printer.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const tableBody = document.getElementById('orders-table-body');
@@ -1032,7 +1033,8 @@ include '../../includes/header.php';
         const checked = document.querySelectorAll('.order-select-cb:checked');
         if (checked.length === 0) { alert('يرجى تحديد طلب واحد على الأقل'); return; }
         const ids = Array.from(checked).map(cb => cb.value).join(',');
-        window.open('print_labels.php?ids=' + ids, '_blank');
+        LabelPrinter.printUrl('print_labels.php?ids=' + ids, { width: '4in', height: '6in' })
+            .catch(err => alert('فشلت الطباعة: ' + err.message));
     }
 
     document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
