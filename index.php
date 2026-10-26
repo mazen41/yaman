@@ -29,7 +29,7 @@ $page_title = 'الصفحة الرئيسية';
 date_default_timezone_set('Asia/Aden');
 
 $system_date = date('Y-m-d');
-$system_datetime = date('Y-m-d H:i');
+$system_datetime = date('g:i:s A') . ' ' . date('Y-m-d');
 $system_timestamp = time();
 
 // Get real statistics from database with table existence checks
@@ -521,17 +521,18 @@ include 'includes/header.php';
         if (isNaN(ts)) return;
 
         // Always format in Yemen/Aden time, regardless of the browser's timezone
-        const fmt = new Intl.DateTimeFormat('en-CA', {
+        const timeFmt = new Intl.DateTimeFormat('en-US', {
             timeZone: 'Asia/Aden',
-            year: 'numeric', month: '2-digit', day: '2-digit',
-            hour: '2-digit', minute: '2-digit', hour12: false
+            hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true
+        });
+        const dateFmt = new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Asia/Aden',
+            year: 'numeric', month: '2-digit', day: '2-digit'
         });
 
         function tick() {
-            const parts = {};
-            fmt.formatToParts(new Date(ts)).forEach(p => { parts[p.type] = p.value; });
-            const hour = parts.hour === '24' ? '00' : parts.hour;
-            el.textContent = hour + ':' + parts.minute + ' ' + parts.year + '-' + parts.month + '-' + parts.day;
+            const d = new Date(ts);
+            el.textContent = timeFmt.format(d) + ' ' + dateFmt.format(d);
             ts += 1000;
         }
 
