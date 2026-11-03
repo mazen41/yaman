@@ -322,6 +322,10 @@ include '../../includes/header.php';
    ════════════════════════════════════════════════ */
 @media print {
     @page { size: A4 landscape; margin: 8mm; }
+    html, body { width:100% !important; min-width:0 !important; height:auto !important; overflow:visible !important; background:#fff !important; }
+    #sidebar, nav.top-nav, #theme-toggle, #notifContainer, #userMenu { display:none !important; }
+    #mainContent { width:100% !important; max-width:none !important; margin:0 !important; padding:0 !important; overflow:visible !important; transform:none !important; }
+    .cs-wrap { width:100% !important; max-width:none !important; margin:0 !important; padding:0 !important; }
     /* Hide all no-print elements */
     .no-print { display: none !important; }
 
@@ -333,9 +337,6 @@ include '../../includes/header.php';
     /* Class .col-delivered-paid on both th and td */
     .col-delivered-paid { display: none !important; }
 
-    /* Page setup */
-    @page { margin: 1cm; size: A4 landscape; }
-
     body, .cs-wrap { padding: 0; font-size: 11px; }
 
     .cs-cards { grid-template-columns: repeat(4,1fr); }
@@ -346,9 +347,10 @@ include '../../includes/header.php';
         border: 1px solid #ccc;
     }
 
-    .cs-table { font-size: 10px; }
+    .cs-table { font-size: 8px; }
     .cs-table-wrap, .cs-table-wrap > div { overflow: visible !important; }
     .cs-table { width:100%; table-layout:fixed; }
+    .cs-table th, .cs-table td { padding:4px 3px !important; overflow-wrap:anywhere; }
     .cs-table tr { break-inside: avoid; page-break-inside: avoid; }
 
     /* Force dark header colors to print */
