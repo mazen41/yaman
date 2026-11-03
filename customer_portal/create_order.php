@@ -123,7 +123,8 @@ function getCouponDiscount($db, $coupon_code, $total_amount, $customer_id) {
     $coupon_discount_amount = 0;
 
     try {
-        $stmt = $db->prepare("SELECT * FROM coupons WHERE coupon_code = ? AND is_active = 1");
+        $coupon_code = strtoupper(trim($coupon_code));
+        $stmt = $db->prepare("SELECT * FROM shop_coupons WHERE UPPER(coupon_code) = ? AND is_active = 1");
         $stmt->execute([$coupon_code]);
         $coupon = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -132,13 +133,13 @@ function getCouponDiscount($db, $coupon_code, $total_amount, $customer_id) {
         }
 
         if ($coupon['usage_limit'] !== null) {
-            $usageStmt = $db->prepare("SELECT COUNT(*) FROM order_approvals WHERE coupon_code = ? AND status != 'cancelled'");
+            $usageStmt = $db->prepare("SELECT COUNT(*) FROM order_approvals WHERE UPPER(coupon_code) = ? AND status != 'cancelled'");
             $usageStmt->execute([$coupon_code]);
             if ($usageStmt->fetchColumn() >= $coupon['usage_limit']) return ['discount_amount' => 0, 'message' => 'تم استهلاك الكوبون بالكامل'];
         }
 
         if ($coupon['user_usage_limit'] !== null) {
-            $userUsageStmt = $db->prepare("SELECT COUNT(*) FROM order_approvals WHERE customer_id = ? AND coupon_code = ? AND status != 'cancelled'");
+            $userUsageStmt = $db->prepare("SELECT COUNT(*) FROM order_approvals WHERE customer_id = ? AND UPPER(coupon_code) = ? AND status != 'cancelled'");
             $userUsageStmt->execute([$customer_id, $coupon_code]);
             if ($userUsageStmt->fetchColumn() >= $coupon['user_usage_limit']) return ['discount_amount' => 0, 'message' => 'تجاوزت الحد المسموح لاستخدام هذا الكوبون'];
         }
@@ -170,7 +171,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $items = $_POST['items'] ?? [];
     $notes = trim($_POST['notes'] ?? '');
     
-    $coupon_code = trim($_POST['coupon_code'] ?? ''); 
+    $coupon_code = strtoupper(trim($_POST['coupon_code'] ?? ''));
     $paid_amount = floatval($_POST['paid_amount'] ?? 0);
     
     $clean_items = array_filter($items, function($item) {

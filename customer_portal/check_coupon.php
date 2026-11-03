@@ -16,7 +16,7 @@ if (
     $_SERVER['REQUEST_METHOD'] === 'GET' &&
     isset($_GET['coupon_code'], $_GET['total_amount'], $_GET['customer_id'])
 ) {
-    $coupon_code  = trim($_GET['coupon_code']);
+    $coupon_code  = strtoupper(trim($_GET['coupon_code']));
     $total_amount = floatval($_GET['total_amount']);
     $customer_id  = intval($_GET['customer_id']);
     $current_date = date('Y-m-d');
@@ -37,7 +37,7 @@ if (
                 usage_limit, user_usage_limit,
                 usage_count, start_date, end_date, is_active
             FROM shop_coupons
-            WHERE coupon_code = ? AND is_active = 1
+            WHERE UPPER(coupon_code) = ? AND is_active = 1
         ");
         $stmt->execute([$coupon_code]);
         $coupon = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -79,7 +79,7 @@ if (
                 SELECT COUNT(*)
                 FROM order_approvals
                 WHERE customer_id = ?
-                  AND coupon_code = ?
+                  AND UPPER(coupon_code) = ?
                   AND status != 'cancelled'
             ");
             $userUsageStmt->execute([$customer_id, $coupon_code]);

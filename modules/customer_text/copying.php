@@ -443,15 +443,14 @@ $generated_id = 'CALC-' . time();
                 <div class="input-group">
                     <label>القطع</label>
                     <div class="field-container">
-                        <input type="number" name="quantity" id="quantity" placeholder="أدخل عدد القطع" value="<?php echo $quantity; ?>" <?= $canEditCalculations ? '' : 'readonly' ?>>
+                        <input type="text" inputmode="numeric" name="quantity" id="quantity" placeholder="أدخل عدد القطع" value="<?php echo $quantity; ?>" <?= $canEditCalculations ? '' : 'readonly' ?>>
                         <div class="icon-box"><i class="fas fa-shopping-cart"></i></div>
                     </div>
                 </div>
                 <div class="input-group">
                     <label>التاريخ</label>
                     <div class="field-container">
-                        <input type="date" name="cut_date" id="cut_date" value="<?php echo htmlspecialchars((string)$cut_date); ?>" onclick="try { this.showPicker && this.showPicker(); } catch (e) {}" style="cursor:pointer;">
-                        <div class="icon-box"><i class="far fa-calendar-alt"></i></div>
+                        <input type="date" name="cut_date" id="cut_date" value="<?php echo date('Y-m-d'); ?>" style="cursor:pointer;">
                     </div>
                 </div>
             </div>
@@ -615,6 +614,25 @@ $generated_id = 'CALC-' . time();
         if (pctSettingInput) pctSettingInput.value = percentage_input.value;
     });
 
+    // ── Number formats for the copied messages ──
+    // YR: whole numbers with thousands commas (84,000). SR: 2 decimals with thousands commas (1,880.00).
+    function groupThousands(s) {
+        return s.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+    function fmtYR(v) {
+        return groupThousands(String(Math.round(v)));
+    }
+    function fmtSR(v) {
+        const parts = v.toFixed(2).split('.');
+        return groupThousands(parts[0]) + '.' + parts[1];
+    }
+    function todayStr() {
+        const d = new Date();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return d.getFullYear() + '-' + m + '-' + day;
+    }
+
     // ── Thousands separators (display only; calculations use the plain number) ──
     function parseNum(s) {
         const n = parseFloat(String(s).replace(/,/g, ''));
@@ -628,7 +646,7 @@ $generated_id = 'CALC-' . time();
         return parts.length > 1 ? intPart + '.' + parts[1].slice(0, 2) : intPart;
     }
 
-    ['price_sr', 'amount_paid_yr'].forEach(function (id) {
+    ['price_sr', 'amount_paid_yr', 'quantity'].forEach(function (id) {
         const el = document.getElementById(id);
         if (!el) return;
         el.addEventListener('input', function () {
@@ -667,7 +685,7 @@ $generated_id = 'CALC-' . time();
     function copyText(buttonType) {
         const percentage = getButtonPercentage(buttonType);
         const price_sr   = parseNum(document.getElementById('price_sr').value) || 0;
-        const quantity   = parseInt(document.getElementById('quantity').value) || 0;
+        const quantity   = parseInt(document.getElementById('quantity').value.replace(/,/g, ''), 10) || 0;
         const cut_date   = document.getElementById('cut_date').value;
 
         const discount_amount_sr = price_sr * (percentage / 100);
@@ -693,16 +711,15 @@ $generated_id = 'CALC-' . time();
             : cut_date;
 
         // Saudi format (.) / Yemeni format (,)
-        const price_sr_format    = price_sr.toFixed(2);
-        const total_sr_format    = total_sr.toFixed(2);
-        const discount_sr_format = discount_amount_sr.toFixed(2);
-        // YR: whole numbers only (no decimals, no separators); SR keeps 2 decimals
-        const price_yr_format    = String(Math.round(price_yr));
-        const total_yr_format    = String(Math.round(total_yr));
-        const discount_yr_format = String(Math.round(discount_amount_yr));
+        const price_sr_format    = fmtSR(price_sr);
+        const total_sr_format    = fmtSR(total_sr);
+        const discount_sr_format = fmtSR(discount_amount_sr);
+        const price_yr_format    = fmtYR(price_yr);
+        const total_yr_format    = fmtYR(total_yr);
+        const discount_yr_format = fmtYR(discount_amount_yr);
 
-        const paid_yr_display      = hasPaidInput ? String(Math.round(amount_paid_yr_val)) : '';
-        const remaining_yr_display = hasPaidInput ? String(Math.round(remaining_yr)) : '';
+        const paid_yr_display      = hasPaidInput ? fmtYR(amount_paid_yr_val) : '';
+        const remaining_yr_display = hasPaidInput ? fmtYR(remaining_yr) : '';
 
         let template = '';
         let btnName  = '';
@@ -758,9 +775,9 @@ $generated_id = 'CALC-' . time();
             'AMOUNT_PAID_YR'           : paid_yr_display,
             'REMAINING_YR'             : remaining_yr_display,
             'TOTAL_YR_BEFORE_DISCOUNT' : price_yr_format,
-            'PAID_SR'                  : hasPaidInput ? paid_sr_val.toFixed(2) : '',
-            'AMOUNT_PAID_SR'           : hasPaidInput ? paid_sr_val.toFixed(2) : '',
-            'REMAINING_SR'             : hasPaidInput ? remaining_sr.toFixed(2) : ''
+            'PAID_SR'                  : hasPaidInput ? fmtSR(paid_sr_val) : '',
+            'AMOUNT_PAID_SR'           : hasPaidInput ? fmtSR(paid_sr_val) : '',
+            'REMAINING_SR'             : hasPaidInput ? fmtSR(remaining_sr) : ''
         };
 
         // Sort keys longest-first so e.g. AMOUNT_PAID_YR is matched before AMOUNT_PAID
@@ -792,8 +809,12 @@ $generated_id = 'CALC-' . time();
         document.getElementById('price_sr').value       = '';
         document.getElementById('quantity').value       = '';
         document.getElementById('amount_paid_yr').value = '';
+        document.getElementById('cut_date').value       = todayStr();
         if (pctSettingInput) pctSettingInput.value = dbPercentages.button1;
     }
+
+    // Date always starts on today's date
+    document.getElementById('cut_date').value = todayStr();
 
     // Format pre-filled price / paid values with thousands separators on load
     ['price_sr', 'amount_paid_yr'].forEach(function (id) {

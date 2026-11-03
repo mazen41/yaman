@@ -16,6 +16,7 @@ if (!hasPermission($user_id, 'customer_summary', 'view')) {
 }
 
 $is_pdf = isset($_GET['pdf']);
+$is_admin = isUserAdmin($user_id, $db);
 
 // ── Fetch data for filters (SAME as customers/index.php) ─────────────────────
 try {
@@ -296,6 +297,8 @@ include '../../includes/header.php';
 /* ── Foot ── */
 .cs-table tfoot tr { background: #f1f5f9; font-weight: 800; border-top: 2px solid #cbd5e1; }
 .cs-table tfoot td { padding: 10px 8px; border: 1px solid #e2e8f0; font-weight: 800; }
+.summary-total-row { background:#1e293b !important; color:#fff; font-weight:800; }
+.summary-total-row td { padding:9px 6px; border:1px solid #334155; text-align:center; }
 
 /* ── Number formatting in cells ── */
 .num-remaining { color: #dc2626; font-weight: 800; }
@@ -318,6 +321,7 @@ include '../../includes/header.php';
    PRINT RULES
    ════════════════════════════════════════════════ */
 @media print {
+    @page { size: A4 landscape; margin: 8mm; }
     /* Hide all no-print elements */
     .no-print { display: none !important; }
 
@@ -343,6 +347,9 @@ include '../../includes/header.php';
     }
 
     .cs-table { font-size: 10px; }
+    .cs-table-wrap, .cs-table-wrap > div { overflow: visible !important; }
+    .cs-table { width:100%; table-layout:fixed; }
+    .cs-table tr { break-inside: avoid; page-break-inside: avoid; }
 
     /* Force dark header colors to print */
     .cs-table thead tr.hd-row-1 th {
@@ -599,6 +606,7 @@ include '../../includes/header.php';
                     </td>
                 </tr>
             <?php else: ?>
+            <?php $summary_totals = ['delivered_orders'=>0,'ready_orders'=>0,'purchased_orders'=>0,'new_orders'=>0]; ?>
             <?php foreach ($customers as $i => $c):
                 // قيم مالية للحالات الأربع الجديدة
                 try {
@@ -631,10 +639,19 @@ include '../../includes/header.php';
                     $fin[$k] = max(0,(float)($fin[$k]??0));
                 foreach (['delivered_orders','ready_orders','purchased_orders','new_orders'] as $k)
                     $fin[$k] = (int)($fin[$k]??0);
+                foreach ($summary_totals as $k => $unused) $summary_totals[$k] += $fin[$k];
 
                 // All orders of this customer, shown under the name
-                $mo_stmt = $db->prepare("SELECT order_number, final_amount, paid_amount FROM customer_orders WHERE customer_id = ? ORDER BY created_at DESC");
-                $mo_stmt->execute([$c['id']]);
+                $mo_sql = "SELECT order_number, final_amount, paid_amount FROM customer_orders WHERE customer_id = ?";
+                $mo_params = [$c['id']];
+                if ($filter_order_status && isset($order_status_groups[$filter_order_status])) {
+                    $mo_group = $order_status_groups[$filter_order_status];
+                    $mo_sql .= " AND status IN (" . implode(',', array_fill(0, count($mo_group), '?')) . ")";
+                    $mo_params = array_merge($mo_params, $mo_group);
+                }
+                $mo_sql .= " ORDER BY created_at DESC";
+                $mo_stmt = $db->prepare($mo_sql);
+                $mo_stmt->execute($mo_params);
                 $matched_orders = $mo_stmt->fetchAll(PDO::FETCH_ASSOC);
 
                 $notes_val = trim($c['notes'] ?? '');
@@ -712,6 +729,15 @@ include '../../includes/header.php';
                     </td>
                 </tr>
             <?php endforeach; ?>
+            <?php if ($is_admin): ?>
+                <tr class="summary-total-row">
+                    <td class="no-print"></td><td colspan="3">الإجمالي (<?= count($customers) ?> عميل)</td>
+                    <td><?= number_format($ttl_orders) ?></td><td colspan="2"></td>
+                    <td><?= number_format($summary_totals['ready_orders']) ?></td><td colspan="2"></td>
+                    <td><?= number_format($summary_totals['purchased_orders']) ?></td><td colspan="2"></td>
+                    <td><?= number_format($summary_totals['new_orders']) ?></td><td colspan="3"></td>
+                </tr>
+            <?php endif; ?>
             <?php endif; ?>
             </tbody>
         </table>

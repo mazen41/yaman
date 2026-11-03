@@ -15,6 +15,7 @@ $user_id = $_SESSION['user_id'] ?? 0;
 if (!hasPermission($user_id, 'customer_summary', 'view')) {
     http_response_code(403); exit('غير مصرح');
 }
+$is_admin = isUserAdmin($user_id, $db);
 
 $autoload = __DIR__ . '/../../vendor/autoload.php';
 if (!file_exists($autoload)) {
@@ -170,13 +171,14 @@ if (!empty($customers)) {
     }
 
     $ord_stmt = $db->prepare("
-        SELECT customer_id, order_number, final_amount, paid_amount
+        SELECT customer_id, order_number, final_amount, paid_amount, status
         FROM customer_orders
         WHERE customer_id IN ($in_ph)
         ORDER BY created_at DESC
     ");
     $ord_stmt->execute($cust_ids);
     foreach ($ord_stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
+        if ($filter_order_status && isset($order_status_groups[$filter_order_status]) && !in_array($r['status'], $order_status_groups[$filter_order_status], true)) continue;
         $orders_by_cust[(int)$r['customer_id']][] = $r;
     }
 }
@@ -295,12 +297,15 @@ $summary_html = '
 </table>';
 
 // ── Totals row ────────────────────────────────────────────────────────────────
-$totals_html = '
+$totals_html = $is_admin ? '
 <tr style="background:#1e293b;color:#ffffff;font-weight:bold;">
     <td colspan="3" style="text-align:right;">الإجمالي (' . $count . ' عميل)</td>
     <td style="text-align:center;">' . n($ttl_orders) . '</td>
-    <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-</tr>';
+    <td></td><td></td><td style="text-align:center;">' . n(array_sum(array_column($fin_by_cust, 'ready_orders'))) . '</td>
+    <td></td><td></td><td style="text-align:center;">' . n(array_sum(array_column($fin_by_cust, 'purchased_orders'))) . '</td>
+    <td></td><td></td><td style="text-align:center;">' . n(array_sum(array_column($fin_by_cust, 'new_orders'))) . '</td>
+    <td></td><td></td><td></td>
+</tr>' : '';
 
 // ── Full HTML ─────────────────────────────────────────────────────────────────
 $html = '<!DOCTYPE html>
@@ -388,6 +393,7 @@ $mpdf = new Mpdf([
     'margin_bottom'    => 14,
     'margin_left'      => 8,
     'margin_right'     => 8,
+    'defaultPagebreakType' => 'slice',
     'autoScriptToLang' => true,
     'autoLangToFont'   => true,
     'tempDir'          => $mpdf_temp,

@@ -1033,7 +1033,7 @@ include '../../includes/header.php';
         const checked = document.querySelectorAll('.order-select-cb:checked');
         if (checked.length === 0) { alert('يرجى تحديد طلب واحد على الأقل'); return; }
         const ids = Array.from(checked).map(cb => cb.value).join(',');
-        window.location.href = 'labels_pdf.php?ids=' + ids;
+        window.open('print_labels.php?ids=' + ids, '_blank');
     }
 
     document.getElementById('confirmDeleteBtn').addEventListener('click', function() {

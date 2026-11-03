@@ -130,9 +130,8 @@ try {
     
     // --- MODIFIED: For the 'المتبقي' (Remaining) card, use the absolute grand total ---
     // With a date filter active, show the remaining for the filtered range instead of the all-time total
-    $total_remaining  = $has_date_filter
-        ? array_sum(array_column($customers, 'total_remaining_amount'))
-        : $absolute_grand_total_remaining; 
+    // Totals follow the active filters (search, status, order status, dates)
+    $total_remaining  = array_sum(array_column($customers, 'total_remaining_amount'));
     // --- END MODIFIED ---
 
 } catch (PDOException $e) {
