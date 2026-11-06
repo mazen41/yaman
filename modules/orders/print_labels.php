@@ -109,7 +109,9 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
   .phone-top { font-size: 6.5pt; font-weight: 900; color: var(--navy); direction: ltr; unicode-bidi: isolate; white-space: nowrap; }
 
   /* Customer name, divider, then one field per row */
-  .name { font-size: 8pt; font-weight: 900; margin-top: 0.6mm; line-height: 1.2; overflow-wrap: anywhere; }
+  .name-row { display: flex; justify-content: space-between; align-items: center; gap: 1mm; margin-top: 0.6mm; }
+  .name { font-size: 8pt; font-weight: 900; line-height: 1.2; min-width: 0; overflow-wrap: anywhere; }
+  .ordinfo { font-size: 6pt; font-weight: 900; color: var(--navy); white-space: nowrap; }
   .divider { border-top: 0.3mm solid var(--navy); margin: 0.6mm 0 0.8mm; }
 
   /* Label column is sized to the widest label, so every value starts on the same line */
@@ -124,7 +126,7 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
   .fk { font-weight: 900; color: var(--navy); white-space: nowrap; }
   .fv { font-weight: 700; min-width: 0; overflow-wrap: anywhere; }
   .fv.ltr { direction: ltr; text-align: right; unicode-bidi: isolate; }
-  .fv.addr { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .fv.addr { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 
   /* Bottom bar */
   .bottom { margin-top: auto; display: flex; gap: 1mm; align-items: stretch; }
@@ -174,7 +176,10 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
         <?php endif; ?>
     </div>
 
-    <div class="name"><?= htmlspecialchars($o['name']) ?></div>
+    <div class="name-row">
+        <span class="name"><?= htmlspecialchars($o['name']) ?></span>
+        <span class="ordinfo">الطلب: <?= htmlspecialchars($o['order_number']) ?> | القطع: <?= (int)$o['piece_count'] ?></span>
+    </div>
     <div class="divider"></div>
 
     <div class="fields">
@@ -195,7 +200,6 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
         <span class="chip rem <?= $is_paid ? '' : '' ?>">
             <?php if ($is_paid): ?>مدفوع<?php else: ?>المتبقي: <?= number_format($remaining, 0) ?> <small><?= htmlspecialchars($currency_label) ?></small><?php endif; ?>
         </span>
-        <span class="chip">الطلب: <?= htmlspecialchars($o['order_number']) ?> | القطع: <?= (int)$o['piece_count'] ?></span>
     </div>
 
   </div>
