@@ -236,7 +236,8 @@ foreach ($customers as $i => $c) {
     // All orders of this customer, listed under the name (same layout as the report page)
     $matched_html = '';
     // Order lines only when the report is filtered by order status
-    foreach (($filter_order_status ? ($orders_by_cust[(int)$c['id']] ?? []) : []) as $mo) {
+    // Shown for selected rows (print selected) and when a status filter is active
+    foreach ((($filter_order_status || $selected_ids) ? ($orders_by_cust[(int)$c['id']] ?? []) : []) as $mo) {
         $matched_html .= '<div style="margin-top:2px;border-top:1px dashed #cbd5e1;padding-top:2px;font-size:8px;color:#334155;text-align:right;">'
             . 'مدفوع ' . n($mo['paid_amount'])
             . ' | متبقي ' . n(max(0, $mo['final_amount'] - $mo['paid_amount']))
@@ -265,16 +266,15 @@ foreach ($customers as $i => $c) {
         </td>
         <td style=\"text-align:center;color:#1e293b;\">" . ($location ? h($location) : '—') . ($c['location_area'] ? '<br><span style="font-size:9px;">' . h($c['location_area']) . '</span>' : '') . ($c['address'] ? '<br><span style="font-size:9px;white-space:pre-wrap;">' . h($c['address']) . '</span>' : '') . "</td>
         <td style=\"text-align:center;font-weight:700;\">" . $fin['delivered_orders'] . "</td>
-        <td style=\"text-align:center;\">&nbsp;</td>
         <td style=\"text-align:center;\">" . $cell_rem($fin['delivered_remaining']) . "</td>
         <td style=\"text-align:center;font-weight:700;\">" . $fin['ready_orders'] . "</td>
         <td style=\"text-align:center;\">" . $cell_paid_ready($fin['ready_paid']) . "</td>
         <td style=\"text-align:center;\">" . $cell_rem($fin['ready_remaining']) . "</td>
         <td style=\"text-align:center;font-weight:700;\">" . $fin['purchased_orders'] . "</td>
-        <td style=\"text-align:center;\">&nbsp;</td>
+        <td style=\"text-align:center;\">" . $cell_paid_ready($fin['purchased_paid']) . "</td>
         <td style=\"text-align:center;\">" . $cell_rem($fin['purchased_remaining']) . "</td>
         <td style=\"text-align:center;font-weight:700;\">" . $fin['new_orders'] . "</td>
-        <td style=\"text-align:center;\">&nbsp;</td>
+        <td style=\"text-align:center;\">" . $cell_paid_ready($fin['new_paid']) . "</td>
         <td style=\"text-align:center;\">" . $cell_rem($fin['new_remaining']) . "</td>
         <td style=\"text-align:right;font-size:9px;color:#1e293b;\">" . ($notes ? h($notes) : '') . "</td>
     </tr>\n";
@@ -301,7 +301,7 @@ $totals_html = $is_admin ? '
 <tr style="background:#1e293b;color:#ffffff;font-weight:bold;">
     <td colspan="3" style="text-align:right;">الإجمالي (' . $count . ' عميل)</td>
     <td style="text-align:center;">' . n($ttl_orders) . '</td>
-    <td></td><td></td><td style="text-align:center;">' . n(array_sum(array_column($fin_by_cust, 'ready_orders'))) . '</td>
+    <td></td><td style="text-align:center;">' . n(array_sum(array_column($fin_by_cust, 'ready_orders'))) . '</td>
     <td></td><td></td><td style="text-align:center;">' . n(array_sum(array_column($fin_by_cust, 'purchased_orders'))) . '</td>
     <td></td><td></td><td style="text-align:center;">' . n(array_sum(array_column($fin_by_cust, 'new_orders'))) . '</td>
     <td></td><td></td><td></td>
@@ -350,7 +350,7 @@ table.main-tbl tfoot td { padding:6px 5px;border:1px solid #e2e8f0;font-weight:7
         <th rowspan="2" style="width:26px;background:#1e293b;color:#ffffff;">م</th>
         <th rowspan="2" style="min-width:100px;text-align:right;background:#1e293b;color:#ffffff;">الاسم</th>
         <th rowspan="2" style="width:70px;background:#1e293b;color:#ffffff;">الموقع - العنوان</th>
-        <th colspan="3" style="background:#1a3a5c;color:#ffffff;text-align:center;">تم الاستلام</th>
+        <th colspan="2" style="background:#1a3a5c;color:#ffffff;text-align:center;">تم الاستلام</th>
         <th colspan="3" style="background:#14532d;color:#ffffff;text-align:center;">جاهز للتوصيل</th>
         <th colspan="3" style="background:#4c1d95;color:#ffffff;text-align:center;">تم الشراء</th>
         <th colspan="3" style="background:#7c2d12;color:#ffffff;text-align:center;">جديد</th>
@@ -358,7 +358,6 @@ table.main-tbl tfoot td { padding:6px 5px;border:1px solid #e2e8f0;font-weight:7
     </tr>
     <tr>
         <th style="width:46px;background:#1a3a5c;color:#ffffff;">عدد الطلبات</th>
-        <th style="width:50px;background:#1a3a5c;color:#86efac;">مدفوع</th>
         <th style="width:50px;background:#1a3a5c;color:#fca5a5;font-weight:800;">متبقي</th>
         <th style="width:46px;background:#14532d;color:#ffffff;">عدد الطلبات</th>
         <th style="width:50px;background:#14532d;color:#86efac;">مدفوع</th>

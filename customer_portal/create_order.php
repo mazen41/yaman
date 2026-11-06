@@ -124,7 +124,7 @@ function getCouponDiscount($db, $coupon_code, $total_amount, $customer_id) {
 
     try {
         $coupon_code = strtoupper(trim($coupon_code));
-        $stmt = $db->prepare("SELECT * FROM shop_coupons WHERE UPPER(coupon_code) = ? AND is_active = 1");
+        $stmt = $db->prepare("SELECT * FROM coupons WHERE UPPER(coupon_code) = ? AND is_active = 1");
         $stmt->execute([$coupon_code]);
         $coupon = $stmt->fetch(PDO::FETCH_ASSOC);
 

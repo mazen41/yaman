@@ -8,18 +8,20 @@ if (empty($ids)) { die('<p style="text-align:center;padding:40px;">لا توجد
 
 $placeholders = implode(',', array_fill(0, count($ids), '?'));
 $stmt = $db->prepare("
-    SELECT co.id, co.order_number, c.name, c.address, c.mobile_number,
+    SELECT co.id, co.order_number, c.name, c.mobile_number, c.location_area, c.address,
+           ci.name AS city_name,
            co.final_amount, co.paid_amount,
            COALESCE((SELECT SUM(oi.quantity) FROM order_items oi WHERE oi.order_id = co.id), 0) AS piece_count
     FROM customer_orders co
     JOIN customers c ON c.id = co.customer_id
+    LEFT JOIN cities ci ON ci.id = c.city_id
     WHERE co.id IN ($placeholders)
     ORDER BY co.order_number ASC
 ");
 $stmt->execute($ids);
 $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Company info from System Settings (key/value table: setting_key / setting_value)
+// Company phone and currency from System Settings (key/value table)
 $settings = [];
 try {
     foreach ($db->query("SELECT setting_key, setting_value FROM system_settings") as $row) {
@@ -28,9 +30,25 @@ try {
 } catch (PDOException $e) {
     $settings = [];
 }
-$company_name    = trim($settings['company_name'] ?? '');
-$currency_label  = trim($settings['currency'] ?? '') !== '' ? trim($settings['currency']) : 'ريال';
-$show_company_name = ($company_name !== '' && strcasecmp($company_name, 'Yaman') !== 0);
+$currency_label = trim($settings['currency'] ?? '') !== '' ? trim($settings['currency']) : 'ريال';
+
+// Company phone without country code (e.g. "+967 777 123 456" -> "777123456")
+function label_local_phone($raw) {
+    $d = preg_replace('/\D+/', '', (string)$raw);
+    if (strpos($d, '00') === 0) $d = substr($d, 2);
+    if (strpos($d, '967') === 0 && strlen($d) > 9) $d = substr($d, 3);
+    return $d;
+}
+$company_phone = label_local_phone($settings['company_phone'] ?? '');
+
+// Logo from project assets (first one that exists)
+$logo_src = null;
+foreach (['yamman_logo.png', 'logo.png'] as $logo_file) {
+    if (file_exists(__DIR__ . '/../../assets/images/' . $logo_file)) {
+        $logo_src = '../../assets/images/' . $logo_file;
+        break;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -78,22 +96,33 @@ $show_company_name = ($company_name !== '' && strcasecmp($company_name, 'Yaman')
     overflow: hidden;
   }
 
+  /* Header: order number + logo/brand on the right, company phone on the left */
   .head {
-    display: flex; justify-content: space-between; align-items: center;
+    display: flex; justify-content: space-between; align-items: center; gap: 1mm;
     border-bottom: 0.3mm dashed var(--navy);
     padding-bottom: 0.8mm;
   }
-  .order-no { font-size: 11pt; font-weight: 900; line-height: 1.1; direction: ltr; unicode-bidi: isolate; }
-  .brand { font-size: 6.5pt; font-weight: 800; line-height: 1.2; text-align: left; color: var(--navy); }
+  .hright { display: flex; align-items: center; gap: 1.5mm; }
+  .order-no { font-size: 12pt; font-weight: 900; line-height: 1.1; direction: ltr; unicode-bidi: isolate; }
+  .brand { display: flex; align-items: center; gap: 1mm; }
+  .brand img { height: 6mm; width: auto; max-width: 7mm; object-fit: contain; }
+  .brand-text { display: flex; flex-direction: column; line-height: 1.15; }
+  .brand-en { font-size: 6.5pt; font-weight: 900; color: var(--navy); direction: ltr; unicode-bidi: isolate; }
+  .brand-ar { font-size: 6.5pt; font-weight: 800; color: var(--navy-deep); }
+  .phone-top { font-size: 7pt; font-weight: 900; color: var(--navy); direction: ltr; unicode-bidi: isolate; white-space: nowrap; }
 
-  .row {
-    display: flex; gap: 1mm; align-items: baseline;
-    font-size: 7.5pt; font-weight: 700; line-height: 1.3; margin-top: 0.8mm;
+  /* Customer details: name full width, then city / area / phone side by side, address full width */
+  .name { font-size: 8.5pt; font-weight: 900; margin-top: 0.8mm; line-height: 1.2; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .details {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0.6mm 2mm;
+    margin-top: 0.8mm;
   }
-  .row .lbl { font-weight: 900; color: var(--navy); white-space: nowrap; }
-  .row .val { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-  .row .val.ltr { direction: ltr; unicode-bidi: isolate; text-align: right; }
-  .row.addr .val {
+  .kv { font-size: 6.8pt; font-weight: 700; line-height: 1.25; min-width: 0; }
+  .kv .lbl { font-weight: 900; color: var(--navy); }
+  .kv .val { overflow-wrap: anywhere; }
+  .kv .val.ltr { direction: ltr; unicode-bidi: isolate; display: inline-block; }
+  .kv.full { grid-column: 1 / -1; }
+  .kv.addr .val {
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
   }
 
@@ -130,24 +159,36 @@ $show_company_name = ($company_name !== '' && strcasecmp($company_name, 'Yaman')
     $remaining = max(0, $o['final_amount'] - $o['paid_amount']);
     $is_paid = $remaining <= 0.01;
     $address = trim((string)($o['address'] ?? ''));
+    $area    = trim((string)($o['location_area'] ?? ''));
+    $city    = trim((string)($o['city_name'] ?? ''));
     $mobile  = trim((string)($o['mobile_number'] ?? ''));
 ?>
 <div class="label">
   <div class="card">
 
     <div class="head">
-        <span class="order-no"><?= htmlspecialchars($o['order_number']) ?></span>
-        <span class="brand">
-            Yaman<?php if ($show_company_name): ?><br><?= htmlspecialchars($company_name) ?><?php endif; ?>
-        </span>
+        <div class="hright">
+            <span class="order-no"><?= htmlspecialchars($o['order_number']) ?></span>
+            <div class="brand">
+                <?php if ($logo_src): ?><img src="<?= htmlspecialchars($logo_src) ?>" alt="Yaman"><?php endif; ?>
+                <div class="brand-text">
+                    <span class="brand-en">YAMAN STORE</span>
+                    <span class="brand-ar">متجر يمان</span>
+                </div>
+            </div>
+        </div>
+        <?php if ($company_phone !== ''): ?>
+        <span class="phone-top"><?= htmlspecialchars($company_phone) ?></span>
+        <?php endif; ?>
     </div>
 
-    <div class="row"><span class="lbl">الاسم:</span><span class="val"><?= htmlspecialchars($o['name']) ?></span></div>
+    <div class="name"><?= htmlspecialchars($o['name']) ?></div>
 
-    <div class="row addr"><span class="lbl">العنوان التفصيلي:</span><span class="val"><?= $address !== '' ? nl2br(htmlspecialchars($address)) : '-' ?></span></div>
-
-    <div class="row">
-        <span class="lbl">الرقم:</span><span class="val ltr"><?= $mobile !== '' ? htmlspecialchars($mobile) : '-' ?></span>
+    <div class="details">
+        <div class="kv"><span class="lbl">المدينة:</span> <span class="val"><?= $city !== '' ? htmlspecialchars($city) : '-' ?></span></div>
+        <div class="kv"><span class="lbl">المنطقة / الحي:</span> <span class="val"><?= $area !== '' ? htmlspecialchars($area) : '-' ?></span></div>
+        <div class="kv"><span class="lbl">الرقم:</span> <span class="val ltr"><?= $mobile !== '' ? htmlspecialchars($mobile) : '-' ?></span></div>
+        <div class="kv addr full"><span class="lbl">العنوان التفصيلي:</span> <span class="val"><?= $address !== '' ? nl2br(htmlspecialchars($address)) : '-' ?></span></div>
     </div>
 
     <div class="bottom">

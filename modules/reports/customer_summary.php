@@ -803,7 +803,7 @@ include '../../includes/header.php';
             printSelBtn.addEventListener('click', function() {
                 const ids = Array.from(document.querySelectorAll('.cs-row-check:checked')).map(function(cb) { return cb.value; });
                 if (!ids.length) return;
-                window.open('customer_summary_pdf.php?ids=' + encodeURIComponent(ids.join(',')), '_blank');
+                window.open('customer_summary_pdf.php?ids=' + encodeURIComponent(ids.join(',')) + '&filter_order_status=<?= urlencode($filter_order_status) ?>', '_blank');
             });
         }
 

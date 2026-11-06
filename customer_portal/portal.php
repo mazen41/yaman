@@ -205,9 +205,10 @@ if ($customer['enable_create_self_order'] === 'active') {
             $approval_status_key   = $statusDetails['status_key'];   // e.g. 'pending', 'approved', 'rejected', 'unknown'
             $approval_status_label = $statusDetails['label'];        // Arabic label
 
-            // Self-order linked to a real order: skip the duplicate, or use its real ID
+            // Converted self-orders are shown only through their customer_orders row.
+            // If that order is deleted from the orders module, this entry disappears too.
             $linked_order_id = !empty($approval['final_order_id']) ? (int)$approval['final_order_id'] : 0;
-            if ($linked_order_id && in_array($linked_order_id, $listed_order_ids, true)) { continue; }
+            if ($linked_order_id) { continue; }
 
             $orders[] = [
                 // Only link to a real order that is already listed; a dangling final_order_id gives no link

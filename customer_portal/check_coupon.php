@@ -29,14 +29,14 @@ if (
     }
 
     try {
-        // ── 1. Fetch coupon from shop_coupons ──────────────────────────────
+        // ── 1. Fetch coupon from coupons (modules/coupons) ─────────────────
         $stmt = $db->prepare("
             SELECT
                 id, discount_type, discount_value,
                 min_order_amount, max_discount_amount,
                 usage_limit, user_usage_limit,
-                usage_count, start_date, end_date, is_active
-            FROM shop_coupons
+                start_date, end_date, is_active
+            FROM coupons
             WHERE UPPER(coupon_code) = ? AND is_active = 1
         ");
         $stmt->execute([$coupon_code]);
@@ -64,9 +64,11 @@ if (
             exit;
         }
 
-        // ── 4. Validate global usage limit (uses usage_count column) ───────
+        // ── 4. Validate global usage limit (counts order_approvals) ────────
         if ($coupon['usage_limit'] !== null) {
-            if (intval($coupon['usage_count']) >= intval($coupon['usage_limit'])) {
+            $usageStmt = $db->prepare("SELECT COUNT(*) FROM order_approvals WHERE UPPER(coupon_code) = ? AND status != 'cancelled'");
+            $usageStmt->execute([strtoupper($coupon_code)]);
+            if ((int)$usageStmt->fetchColumn() >= intval($coupon['usage_limit'])) {
                 $response['message'] = 'تم استهلاك هذا الكوبون بالكامل.';
                 echo json_encode($response);
                 exit;
@@ -100,7 +102,7 @@ if (
         if ($coupon['discount_type'] === 'percentage') {
             $discount_amount  = $total_amount * (floatval($coupon['discount_value']) / 100);
             $discount_display = number_format($coupon['discount_value'], 0) . '%';
-        } elseif ($coupon['discount_type'] === 'fixed') {
+        } else {
             $discount_amount  = floatval($coupon['discount_value']);
             $discount_display = number_format($coupon['discount_value'], 0) . ' ' . $currency;
         }
