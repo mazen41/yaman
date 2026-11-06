@@ -112,7 +112,8 @@ foreach (['yamman_logo.png', 'logo.png'] as $logo_file) {
   .phone-top { font-size: 7pt; font-weight: 900; color: var(--navy); direction: ltr; unicode-bidi: isolate; white-space: nowrap; }
 
   /* Customer details: name full width, then city / area / phone side by side, address full width */
-  .name { font-size: 8.5pt; font-weight: 900; margin-top: 0.8mm; line-height: 1.2; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .name { font-size: 8.5pt; font-weight: 900; margin-top: 0.8mm; line-height: 1.2; overflow-wrap: anywhere; }
+  .divider { border-top: 0.3mm solid var(--navy); margin-top: 0.8mm; }
   .details {
     display: grid; grid-template-columns: 1fr 1fr; gap: 0.6mm 2mm;
     margin-top: 0.8mm;
@@ -172,7 +173,6 @@ foreach (['yamman_logo.png', 'logo.png'] as $logo_file) {
                 <?php if ($logo_src): ?><img src="<?= htmlspecialchars($logo_src) ?>" alt="Yaman"><?php endif; ?>
                 <div class="brand-text">
                     <span class="brand-en">YAMAN STORE</span>
-                    <span class="brand-ar">متجر يمان</span>
                 </div>
             </div>
         </div>
@@ -182,15 +182,17 @@ foreach (['yamman_logo.png', 'logo.png'] as $logo_file) {
     </div>
 
     <div class="name"><?= htmlspecialchars($o['name']) ?></div>
+    <div class="divider"></div>
 
     <div class="details">
-        <div class="kv"><span class="lbl">المدينة:</span> <span class="val"><?= $city !== '' ? htmlspecialchars($city) : '-' ?></span></div>
+        <div class="kv full"><span class="lbl">المدينة:</span> <span class="val">صنعاء - شارع تونس خلف استوديو القاهره</span></div>
         <div class="kv"><span class="lbl">المنطقة / الحي:</span> <span class="val"><?= $area !== '' ? htmlspecialchars($area) : '-' ?></span></div>
         <div class="kv"><span class="lbl">الرقم:</span> <span class="val ltr"><?= $mobile !== '' ? htmlspecialchars($mobile) : '-' ?></span></div>
         <div class="kv addr full"><span class="lbl">العنوان التفصيلي:</span> <span class="val"><?= $address !== '' ? nl2br(htmlspecialchars($address)) : '-' ?></span></div>
     </div>
 
     <div class="bottom">
+        <span class="chip">الطلب: <?= htmlspecialchars($o['order_number']) ?></span>
         <span class="chip">القطع: <?= (int)$o['piece_count'] ?></span>
         <span class="chip <?= $is_paid ? '' : 'due' ?>">
             <?php if ($is_paid): ?>مدفوع<?php else: ?>المتبقي: <?= number_format($remaining, 0) ?> <small><?= htmlspecialchars($currency_label) ?></small><?php endif; ?>
