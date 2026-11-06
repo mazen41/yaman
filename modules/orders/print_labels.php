@@ -48,7 +48,7 @@ foreach (['yamman_logo.png', 'logo.png'] as $logo_file) {
     }
 }
 
-// Fixed city / address line shown on every label
+// Fixed city line shown on every label
 $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو القاهره';
 ?>
 <!DOCTYPE html>
@@ -93,11 +93,11 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
     background: var(--paper);
     border: 0.3mm solid var(--navy);
     border-radius: 2mm;
-    padding: 0.9mm 1.4mm;
+    padding: 1mm 1.5mm;
     overflow: hidden;
   }
 
-  /* Header: logo + brand on the right, company phone on the left */
+  /* Header: logo + brand on the left, company phone on the right */
   .head {
     display: flex; justify-content: space-between; align-items: center; gap: 1mm;
     border-bottom: 0.3mm dashed var(--navy);
@@ -108,32 +108,33 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
   .brand-en { font-size: 6.5pt; font-weight: 900; color: var(--navy); direction: ltr; unicode-bidi: isolate; }
   .phone-top { font-size: 6.5pt; font-weight: 900; color: var(--navy); direction: ltr; unicode-bidi: isolate; white-space: nowrap; }
 
-  /* Customer details */
-  .name { font-size: 7.5pt; font-weight: 900; margin-top: 0.5mm; line-height: 1.2; overflow-wrap: anywhere; }
-  .divider { border-top: 0.3mm solid var(--navy); margin-top: 0.5mm; }
-  .rows { margin-top: 0.6mm; display: flex; flex-direction: column; gap: 0.4mm; }
-  .row { display: flex; gap: 1.5mm; font-size: 6.2pt; font-weight: 700; line-height: 1.2; min-width: 0; }
-  .row > div { display: flex; gap: 0.6mm; min-width: 0; }
-  .row > div.half { flex: 1 1 0; }
-  .row > div.full { flex: 1 1 100%; }
-  .lbl { font-weight: 900; color: var(--navy); white-space: nowrap; }
-  .val { overflow-wrap: anywhere; }
-  .val.ltr { direction: ltr; unicode-bidi: isolate; }
+  /* Customer name, divider, then one field per row */
+  .name { font-size: 8pt; font-weight: 900; margin-top: 0.6mm; line-height: 1.2; overflow-wrap: anywhere; }
+  .divider { border-top: 0.3mm solid var(--navy); margin: 0.6mm 0 0.8mm; }
+
+  /* Label column is sized to the widest label, so every value starts on the same line */
+  .fields {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    column-gap: 1.2mm;
+    row-gap: 0.5mm;
+    font-size: 6.5pt;
+    line-height: 1.25;
+  }
+  .fk { font-weight: 900; color: var(--navy); white-space: nowrap; }
+  .fv { font-weight: 700; min-width: 0; overflow-wrap: anywhere; }
+  .fv.ltr { direction: ltr; text-align: right; unicode-bidi: isolate; }
+  .fv.addr { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
   /* Bottom bar */
-  .bottom {
-    margin-top: auto;
-    display: flex; align-items: center; gap: 1mm;
-  }
+  .bottom { margin-top: auto; display: flex; gap: 1mm; align-items: stretch; }
   .chip {
     border: 0.3mm solid var(--navy); border-radius: 1mm;
     background: #fff; color: var(--navy);
-    padding: 0.4mm 1.2mm; font-size: 6.2pt; font-weight: 900; white-space: nowrap;
-    text-align: center;
+    padding: 0.5mm 1.2mm; font-size: 6.5pt; font-weight: 900; white-space: nowrap;
+    display: flex; align-items: center; justify-content: center;
   }
-  .chip.info { flex: 0 0 auto; }
-  .chip.rem { flex: 1 1 auto; }
-  .chip.due { background: var(--navy); color: #fff; }
+  .chip.rem { flex: 1 1 auto; background: var(--navy); color: #fff; }
   .chip small { font-size: 5.8pt; font-weight: 700; margin-right: 0.5mm; }
 
   /* ===== Print ===== */
@@ -176,24 +177,25 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
     <div class="name"><?= htmlspecialchars($o['name']) ?></div>
     <div class="divider"></div>
 
-    <div class="rows">
-        <div class="row">
-            <div class="full"><span class="lbl">المدينة:</span><span class="val"><?= htmlspecialchars($fixed_city_line) ?></span></div>
-        </div>
-        <div class="row">
-            <div class="half"><span class="lbl">المنطقة / الحي:</span><span class="val"><?= $area !== '' ? htmlspecialchars($area) : '-' ?></span></div>
-            <div class="half"><span class="lbl">الرقم:</span><span class="val ltr"><?= $mobile !== '' ? htmlspecialchars($mobile) : '-' ?></span></div>
-        </div>
-        <div class="row">
-            <div class="full"><span class="lbl">العنوان التفصيلي:</span><span class="val"><?= $address !== '' ? htmlspecialchars($address) : '-' ?></span></div>
-        </div>
+    <div class="fields">
+        <span class="fk">المدينة:</span>
+        <span class="fv"><?= htmlspecialchars($fixed_city_line) ?></span>
+
+        <span class="fk">المنطقة / الحي:</span>
+        <span class="fv"><?= $area !== '' ? htmlspecialchars($area) : '-' ?></span>
+
+        <span class="fk">الرقم:</span>
+        <span class="fv ltr"><?= $mobile !== '' ? htmlspecialchars($mobile) : '-' ?></span>
+
+        <span class="fk">العنوان التفصيلي:</span>
+        <span class="fv addr"><?= $address !== '' ? htmlspecialchars($address) : '-' ?></span>
     </div>
 
     <div class="bottom">
-        <span class="chip rem <?= $is_paid ? '' : 'due' ?>">
+        <span class="chip rem <?= $is_paid ? '' : '' ?>">
             <?php if ($is_paid): ?>مدفوع<?php else: ?>المتبقي: <?= number_format($remaining, 0) ?> <small><?= htmlspecialchars($currency_label) ?></small><?php endif; ?>
         </span>
-        <span class="chip info">الطلب: <?= htmlspecialchars($o['order_number']) ?> | القطع: <?= (int)$o['piece_count'] ?></span>
+        <span class="chip">الطلب: <?= htmlspecialchars($o['order_number']) ?> | القطع: <?= (int)$o['piece_count'] ?></span>
     </div>
 
   </div>
