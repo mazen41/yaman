@@ -93,7 +93,7 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
     background: var(--paper);
     border: 0.3mm solid var(--navy);
     border-radius: 2mm;
-    padding: 1mm 1.5mm;
+    padding: 0.8mm 1.4mm;
     overflow: hidden;
   }
 
@@ -119,10 +119,11 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
     display: grid;
     grid-template-columns: max-content 1fr;
     column-gap: 1.2mm;
-    row-gap: 0.5mm;
-    font-size: 6.5pt;
-    line-height: 1.25;
+    row-gap: 0.4mm;
+    font-size: 6.2pt;
+    line-height: 1.2;
   }
+  .fline { grid-column: 1 / -1; font-size: 6.2pt; font-weight: 700; white-space: nowrap; overflow: hidden; }
   .fk { font-weight: 900; color: var(--navy); white-space: nowrap; }
   .fv { font-weight: 700; min-width: 0; overflow-wrap: anywhere; }
   .fv.ltr { direction: ltr; text-align: right; unicode-bidi: isolate; }
@@ -183,8 +184,7 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
     <div class="divider"></div>
 
     <div class="fields">
-        <span class="fk">المدينة:</span>
-        <span class="fv"><?= htmlspecialchars($fixed_city_line) ?></span>
+        <div class="fline"><span class="fk">المدينة:</span> <span class="fv"><?= htmlspecialchars($fixed_city_line) ?></span></div>
 
         <span class="fk">المنطقة / الحي:</span>
         <span class="fv"><?= $area !== '' ? htmlspecialchars($area) : '-' ?></span>
