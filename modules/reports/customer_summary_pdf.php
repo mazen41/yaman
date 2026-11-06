@@ -208,6 +208,8 @@ if ($selected_ids) {
 }
 
 // ── Build table rows ──────────────────────────────────────────────────────────
+// Column totals (same clamped values as the rows)
+$col_tot = ['d_orders'=>0,'d_rem'=>0,'r_orders'=>0,'r_paid'=>0,'r_rem'=>0,'p_orders'=>0,'p_paid'=>0,'p_rem'=>0,'n_orders'=>0,'n_paid'=>0,'n_rem'=>0];
 $rows_html = '';
 foreach ($customers as $i => $c) {
 
@@ -244,6 +246,18 @@ foreach ($customers as $i => $c) {
             . ' | ' . n($mo['final_amount'])
             . ' | <strong>' . h($mo['order_number']) . '</strong></div>';
     }
+
+    $col_tot['d_orders'] += $fin['delivered_orders'];
+    $col_tot['d_rem']    += $fin['delivered_remaining'];
+    $col_tot['r_orders'] += $fin['ready_orders'];
+    $col_tot['r_paid']   += $fin['ready_paid'];
+    $col_tot['r_rem']    += $fin['ready_remaining'];
+    $col_tot['p_orders'] += $fin['purchased_orders'];
+    $col_tot['p_paid']   += $fin['purchased_paid'];
+    $col_tot['p_rem']    += $fin['purchased_remaining'];
+    $col_tot['n_orders'] += $fin['new_orders'];
+    $col_tot['n_paid']   += $fin['new_paid'];
+    $col_tot['n_rem']    += $fin['new_remaining'];
 
     $bg    = ($i % 2 === 0) ? '#ffffff' : '#e8edf2';
     $notes = trim($c['notes'] ?? '');
@@ -300,11 +314,18 @@ $summary_html = '
 $totals_html = $is_admin ? '
 <tr style="background:#1e293b;color:#ffffff;font-weight:bold;">
     <td colspan="3" style="text-align:right;">الإجمالي (' . $count . ' عميل)</td>
-    <td style="text-align:center;">' . n($ttl_orders) . '</td>
-    <td></td><td style="text-align:center;">' . n(array_sum(array_column($fin_by_cust, 'ready_orders'))) . '</td>
-    <td></td><td></td><td style="text-align:center;">' . n(array_sum(array_column($fin_by_cust, 'purchased_orders'))) . '</td>
-    <td></td><td></td><td style="text-align:center;">' . n(array_sum(array_column($fin_by_cust, 'new_orders'))) . '</td>
-    <td></td><td></td><td></td>
+    <td style="text-align:center;">' . n($col_tot['d_orders']) . '</td>
+    <td style="text-align:center;">' . n($col_tot['d_rem']) . '</td>
+    <td style="text-align:center;">' . n($col_tot['r_orders']) . '</td>
+    <td style="text-align:center;">' . n($col_tot['r_paid']) . '</td>
+    <td style="text-align:center;">' . n($col_tot['r_rem']) . '</td>
+    <td style="text-align:center;">' . n($col_tot['p_orders']) . '</td>
+    <td style="text-align:center;">' . n($col_tot['p_paid']) . '</td>
+    <td style="text-align:center;">' . n($col_tot['p_rem']) . '</td>
+    <td style="text-align:center;">' . n($col_tot['n_orders']) . '</td>
+    <td style="text-align:center;">' . n($col_tot['n_paid']) . '</td>
+    <td style="text-align:center;">' . n($col_tot['n_rem']) . '</td>
+    <td></td>
 </tr>' : '';
 
 // ── Full HTML ─────────────────────────────────────────────────────────────────

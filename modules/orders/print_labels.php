@@ -92,7 +92,7 @@ foreach (['yamman_logo.png', 'logo.png'] as $logo_file) {
     background: var(--paper);
     border: 0.3mm solid var(--navy);
     border-radius: 2mm;
-    padding: 1.2mm 1.8mm;
+    padding: 0.9mm 1.4mm;
     overflow: hidden;
   }
 
@@ -105,20 +105,20 @@ foreach (['yamman_logo.png', 'logo.png'] as $logo_file) {
   .hright { display: flex; align-items: center; gap: 1.5mm; }
   .order-no { font-size: 12pt; font-weight: 900; line-height: 1.1; direction: ltr; unicode-bidi: isolate; }
   .brand { display: flex; align-items: center; gap: 1mm; }
-  .brand img { height: 6mm; width: auto; max-width: 7mm; object-fit: contain; }
+  .brand img { height: 5mm; width: auto; max-width: 6mm; object-fit: contain; }
   .brand-text { display: flex; flex-direction: column; line-height: 1.15; }
   .brand-en { font-size: 6.5pt; font-weight: 900; color: var(--navy); direction: ltr; unicode-bidi: isolate; }
   .brand-ar { font-size: 6.5pt; font-weight: 800; color: var(--navy-deep); }
-  .phone-top { font-size: 7pt; font-weight: 900; color: var(--navy); direction: ltr; unicode-bidi: isolate; white-space: nowrap; }
+  .phone-top { font-size: 6.5pt; font-weight: 900; color: var(--navy); direction: ltr; unicode-bidi: isolate; white-space: nowrap; }
 
   /* Customer details: name full width, then city / area / phone side by side, address full width */
-  .name { font-size: 8.5pt; font-weight: 900; margin-top: 0.8mm; line-height: 1.2; overflow-wrap: anywhere; }
-  .divider { border-top: 0.3mm solid var(--navy); margin-top: 0.8mm; }
+  .name { font-size: 7.5pt; font-weight: 900; margin-top: 0.5mm; line-height: 1.2; overflow-wrap: anywhere; }
+  .divider { border-top: 0.3mm solid var(--navy); margin-top: 0.5mm; }
   .details {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 0.6mm 2mm;
-    margin-top: 0.8mm;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0.3mm 1.5mm;
+    margin-top: 0.5mm;
   }
-  .kv { font-size: 6.8pt; font-weight: 700; line-height: 1.25; min-width: 0; }
+  .kv { font-size: 6.2pt; font-weight: 700; line-height: 1.15; min-width: 0; }
   .kv .lbl { font-weight: 900; color: var(--navy); }
   .kv .val { overflow-wrap: anywhere; }
   .kv .val.ltr { direction: ltr; unicode-bidi: isolate; display: inline-block; }
@@ -134,7 +134,7 @@ foreach (['yamman_logo.png', 'logo.png'] as $logo_file) {
   .chip {
     border: 0.3mm solid var(--navy); border-radius: 1mm;
     background: #fff; color: var(--navy);
-    padding: 0.4mm 1.4mm; font-size: 7pt; font-weight: 900; white-space: nowrap;
+    padding: 0.2mm 1mm; font-size: 6.2pt; font-weight: 900; white-space: nowrap;
   }
   .chip.due { background: var(--navy); color: #fff; }
   .chip small { font-size: 6pt; font-weight: 700; margin-right: 0.6mm; }

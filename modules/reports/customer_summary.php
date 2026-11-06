@@ -608,7 +608,7 @@ include '../../includes/header.php';
                     </td>
                 </tr>
             <?php else: ?>
-            <?php $summary_totals = ['delivered_orders'=>0,'ready_orders'=>0,'purchased_orders'=>0,'new_orders'=>0]; ?>
+            <?php $summary_totals = ['delivered_orders'=>0,'delivered_paid'=>0,'delivered_remaining'=>0,'ready_orders'=>0,'ready_paid'=>0,'ready_remaining'=>0,'purchased_orders'=>0,'purchased_paid'=>0,'purchased_remaining'=>0,'new_orders'=>0,'new_paid'=>0,'new_remaining'=>0]; ?>
             <?php foreach ($customers as $i => $c):
                 // قيم مالية للحالات الأربع الجديدة
                 try {
@@ -734,10 +734,19 @@ include '../../includes/header.php';
             <?php if ($is_admin): ?>
                 <tr class="summary-total-row">
                     <td class="no-print"></td><td colspan="3">الإجمالي (<?= count($customers) ?> عميل)</td>
-                    <td><?= number_format($ttl_orders) ?></td><td colspan="2"></td>
-                    <td><?= number_format($summary_totals['ready_orders']) ?></td><td colspan="2"></td>
-                    <td><?= number_format($summary_totals['purchased_orders']) ?></td><td colspan="2"></td>
-                    <td><?= number_format($summary_totals['new_orders']) ?></td><td colspan="3"></td>
+                    <td><?= number_format($summary_totals['delivered_orders']) ?></td>
+                    <td><?= number_format($summary_totals['delivered_paid']) ?></td>
+                    <td><?= number_format($summary_totals['delivered_remaining']) ?></td>
+                    <td><?= number_format($summary_totals['ready_orders']) ?></td>
+                    <td><?= number_format($summary_totals['ready_paid']) ?></td>
+                    <td><?= number_format($summary_totals['ready_remaining']) ?></td>
+                    <td><?= number_format($summary_totals['purchased_orders']) ?></td>
+                    <td><?= number_format($summary_totals['purchased_paid']) ?></td>
+                    <td><?= number_format($summary_totals['purchased_remaining']) ?></td>
+                    <td><?= number_format($summary_totals['new_orders']) ?></td>
+                    <td><?= number_format($summary_totals['new_paid']) ?></td>
+                    <td><?= number_format($summary_totals['new_remaining']) ?></td>
+                    <td></td>
                 </tr>
             <?php endif; ?>
             <?php endif; ?>
