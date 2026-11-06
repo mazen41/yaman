@@ -168,7 +168,6 @@ foreach (['yamman_logo.png', 'logo.png'] as $logo_file) {
 
     <div class="head">
         <div class="hright">
-            <span class="order-no"><?= htmlspecialchars($o['order_number']) ?></span>
             <div class="brand">
                 <?php if ($logo_src): ?><img src="<?= htmlspecialchars($logo_src) ?>" alt="Yaman"><?php endif; ?>
                 <div class="brand-text">
