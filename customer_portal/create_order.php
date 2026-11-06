@@ -668,7 +668,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         const couponCodeInput = document.getElementById('coupon_code');
         const couponCode = couponCodeInput.value.trim();
         const couponMessageElement = document.getElementById('couponMessage');
-        const subtotal = parseFloat(document.getElementById('subtotalDisplay').textContent) || 0;
+        const subtotal = parseFloat(document.getElementById('subtotalDisplay').textContent.replace(/,/g, '')) || 0;
 
         currentCouponDiscountAmount = 0; 
         currentCouponDisplayPercentage = ''; 
