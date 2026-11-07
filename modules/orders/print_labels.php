@@ -108,10 +108,8 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
   .brand-en { font-size: 6.5pt; font-weight: 900; color: var(--navy); direction: ltr; unicode-bidi: isolate; }
   .phone-top { font-size: 6.5pt; font-weight: 900; color: var(--navy); direction: ltr; unicode-bidi: isolate; white-space: nowrap; }
 
-  /* Body: left=name+location+phones, right=order chips stacked */
-  .body-row { display: flex; gap: 1.5mm; margin-top: 0.8mm; flex: 1 1 auto; min-height: 0; }
-  .body-left { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 0.5mm; }
-  .body-right { display: flex; flex-direction: column; gap: 0.8mm; align-items: center; justify-content: center; flex-shrink: 0; }
+  /* Body: name then location then phones stacked */
+  .body-row { display: flex; flex-direction: column; gap: 0.5mm; margin-top: 0.8mm; flex: 1 1 auto; min-height: 0; overflow: hidden; }
 
   .name { font-size: 7pt; font-weight: 900; line-height: 1.2; overflow-wrap: anywhere; }
 
@@ -173,7 +171,6 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
     </div>
 
     <div class="body-row">
-      <div class="body-left">
         <span class="name"><?= htmlspecialchars($o['name']) ?></span>
         <?php $location_full = trim(implode(' - ', array_filter([$city_name, $address]))); ?>
         <div class="location-line"><span class="fk">الموقع:</span> <span class="loc-val"><?= htmlspecialchars($location_full ?: '-') ?></span></div>
@@ -184,14 +181,11 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
           <span class="ltr-val"> / <?= htmlspecialchars($alt_mobile) ?></span>
           <?php endif; ?>
         </div>
-      </div>
-      <div class="body-right">
-        <span class="chip ordchip">طلب<br><?= htmlspecialchars($o['order_number']) ?></span>
-        <span class="chip ordchip">قطع<br><?= (int)$o['piece_count'] ?></span>
-      </div>
     </div>
 
     <div class="bottom">
+        <span class="chip ordchip">طلب: <?= htmlspecialchars($o['order_number']) ?></span>
+        <span class="chip ordchip">قطع: <?= (int)$o['piece_count'] ?></span>
         <span class="chip rem">
             <?php if ($is_paid): ?>مدفوع<?php else: ?>المتبقي: <?= number_format($remaining, 0) ?> <small>YR</small><?php endif; ?>
         </span>
