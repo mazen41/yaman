@@ -181,13 +181,9 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
     <div class="name-row">
         <span class="name"><?= htmlspecialchars($o['name']) ?></span>
     </div>
-    <div class="divider"></div>
 
     <div class="fields">
         <div class="fline"><span class="fk">الموقع:</span> <span class="fv"><?= htmlspecialchars($fixed_city_line) ?></span></div>
-
-        <span class="fk">المنطقة / الحي:</span>
-        <span class="fv"><?= $area !== '' ? htmlspecialchars($area) : '-' ?></span>
 
         <span class="fk">الرقم:</span>
         <span class="fv ltr"><?= $mobile !== '' ? htmlspecialchars($mobile) : '-' ?></span>
@@ -197,7 +193,8 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
     </div>
 
     <div class="bottom">
-        <span class="chip ordchip">طلب:<?= htmlspecialchars($o['order_number']) ?> | قطع:<?= (int)$o['piece_count'] ?></span>
+        <span class="chip ordchip">طلب: <?= htmlspecialchars($o['order_number']) ?></span>
+        <span class="chip ordchip">قطع: <?= (int)$o['piece_count'] ?></span>
         <span class="chip rem">
             <?php if ($is_paid): ?>مدفوع<?php else: ?>المتبقي: <?= number_format($remaining, 0) ?> <small>YR</small><?php endif; ?>
         </span>
