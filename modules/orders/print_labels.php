@@ -8,7 +8,7 @@ if (empty($ids)) { die('<p style="text-align:center;padding:40px;">لا توجد
 
 $placeholders = implode(',', array_fill(0, count($ids), '?'));
 $stmt = $db->prepare("
-    SELECT co.id, co.order_number, c.name, c.mobile_number, c.location_area, c.address, c.city_name,
+    SELECT co.id, co.order_number, c.name, c.mobile_number, c.alternative_number, c.location_area, c.address, c.city_name,
            co.final_amount, co.paid_amount,
            COALESCE((SELECT SUM(oi.quantity) FROM order_items oi WHERE oi.order_id = co.id), 0) AS piece_count
     FROM customer_orders co
@@ -108,39 +108,31 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
   .brand-en { font-size: 6.5pt; font-weight: 900; color: var(--navy); direction: ltr; unicode-bidi: isolate; }
   .phone-top { font-size: 6.5pt; font-weight: 900; color: var(--navy); direction: ltr; unicode-bidi: isolate; white-space: nowrap; }
 
-  /* Customer name, divider, then one field per row */
-  .name-row { display: flex; justify-content: space-between; align-items: center; gap: 1mm; margin-top: 0.6mm; }
-  .name { font-size: 8pt; font-weight: 900; line-height: 1.2; min-width: 0; overflow-wrap: anywhere; }
-  .ordinfo { font-size: 6pt; font-weight: 900; color: var(--navy); white-space: nowrap; }
-  .divider { border-top: 0.3mm solid var(--navy); margin: 0.6mm 0 0.8mm; }
+  /* Body: left=name+location+phones, right=order chips stacked */
+  .body-row { display: flex; gap: 1.5mm; margin-top: 0.8mm; flex: 1 1 auto; min-height: 0; }
+  .body-left { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 0.5mm; }
+  .body-right { display: flex; flex-direction: column; gap: 0.8mm; align-items: center; justify-content: center; flex-shrink: 0; }
 
-  /* Label column is sized to the widest label, so every value starts on the same line */
-  .fields {
-    display: grid;
-    grid-template-columns: max-content 1fr;
-    column-gap: 1.2mm;
-    row-gap: 0.4mm;
-    font-size: 6.2pt;
-    line-height: 1.2;
-  }
-  .fline { grid-column: 1 / -1; font-size: 6.2pt; font-weight: 700; white-space: nowrap; overflow: hidden; }
+  .name { font-size: 7pt; font-weight: 900; line-height: 1.2; overflow-wrap: anywhere; }
+
+  .location-line { font-size: 5.8pt; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .phones-line { font-size: 5.8pt; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .fk { font-weight: 900; color: var(--navy); white-space: nowrap; }
-  .fv { font-weight: 700; min-width: 0; overflow-wrap: anywhere; }
-  .fv.ltr { direction: ltr; text-align: right; unicode-bidi: isolate; }
-  .fv.addr { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-  .fv.addr2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+  .loc-val { font-weight: 700; overflow-wrap: anywhere; }
+  .ltr-val { direction: ltr; unicode-bidi: isolate; font-weight: 700; }
 
   /* Bottom bar */
   .bottom { margin-top: auto; display: flex; gap: 1mm; align-items: stretch; }
   .chip {
     border: 0.3mm solid var(--navy); border-radius: 1mm;
     background: #fff; color: var(--navy);
-    padding: 0.5mm 1.2mm; font-size: 6.5pt; font-weight: 900; white-space: nowrap;
-    display: flex; align-items: center; justify-content: center;
+    padding: 0.5mm 1.2mm; font-size: 6pt; font-weight: 900;
+    display: flex; align-items: center; justify-content: center; text-align: center;
+    line-height: 1.2;
   }
-  .chip.rem { flex: 1 1 auto; background: var(--navy); color: #fff; }
-  .chip.ordchip { font-size: 5.8pt; white-space: nowrap; }
-  .chip small { font-size: 5.8pt; font-weight: 700; margin-right: 0.5mm; }
+  .chip.rem { flex: 1 1 auto; background: var(--navy); color: #fff; font-size: 6.5pt; }
+  .chip.ordchip { font-size: 5.5pt; min-width: 9mm; flex-direction: column; }
+  .chip small { font-size: 5.5pt; font-weight: 700; margin-right: 0.5mm; }
 
   /* ===== Print ===== */
   @page { size: 60mm 40mm; margin: 0; }
@@ -162,10 +154,10 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
 <?php foreach ($orders as $o):
     $remaining = max(0, $o['final_amount'] - $o['paid_amount']);
     $is_paid = $remaining <= 0.01;
-    $address   = trim((string)($o['address'] ?? ''));
-    $area      = trim((string)($o['location_area'] ?? ''));
-    $city_name = trim((string)($o['city_name'] ?? ''));
-    $mobile  = trim((string)($o['mobile_number'] ?? ''));
+    $address    = trim((string)($o['address'] ?? ''));
+    $city_name  = trim((string)($o['city_name'] ?? ''));
+    $mobile     = trim((string)($o['mobile_number'] ?? ''));
+    $alt_mobile = trim((string)($o['alternative_number'] ?? ''));
 ?>
 <div class="label">
   <div class="card">
@@ -180,21 +172,26 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
         <?php endif; ?>
     </div>
 
-    <div class="name-row">
+    <div class="body-row">
+      <div class="body-left">
         <span class="name"><?= htmlspecialchars($o['name']) ?></span>
-    </div>
-
-    <div class="fields">
         <?php $location_full = trim(implode(' - ', array_filter([$city_name, $address]))); ?>
-        <div class="fline"><span class="fk">الموقع:</span> <span class="fv addr2"><?= htmlspecialchars($location_full ?: '-') ?></span></div>
-
-        <span class="fk">الرقم:</span>
-        <span class="fv ltr"><?= $mobile !== '' ? htmlspecialchars($mobile) : '-' ?></span>
+        <div class="location-line"><span class="fk">الموقع:</span> <span class="loc-val"><?= htmlspecialchars($location_full ?: '-') ?></span></div>
+        <div class="phones-line">
+          <span class="fk">الرقم:</span>
+          <span class="ltr-val"><?= $mobile !== '' ? htmlspecialchars($mobile) : '-' ?></span>
+          <?php if ($alt_mobile !== ''): ?>
+          <span class="ltr-val"> / <?= htmlspecialchars($alt_mobile) ?></span>
+          <?php endif; ?>
+        </div>
+      </div>
+      <div class="body-right">
+        <span class="chip ordchip">طلب<br><?= htmlspecialchars($o['order_number']) ?></span>
+        <span class="chip ordchip">قطع<br><?= (int)$o['piece_count'] ?></span>
+      </div>
     </div>
 
     <div class="bottom">
-        <span class="chip ordchip">طلب: <?= htmlspecialchars($o['order_number']) ?></span>
-        <span class="chip ordchip">قطع: <?= (int)$o['piece_count'] ?></span>
         <span class="chip rem">
             <?php if ($is_paid): ?>مدفوع<?php else: ?>المتبقي: <?= number_format($remaining, 0) ?> <small>YR</small><?php endif; ?>
         </span>
