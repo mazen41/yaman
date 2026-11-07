@@ -129,7 +129,8 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
     line-height: 1.2;
   }
   .chip.rem { flex: 1 1 auto; background: var(--navy); color: #fff; font-size: 6.5pt; }
-  .chip.ordchip { font-size: 5.5pt; min-width: 9mm; flex-direction: column; }
+  .chip.ordchip { font-size: 5.5pt; }
+  .ord-stack { display: flex; flex-direction: column; gap: 0.5mm; }
   .chip small { font-size: 5.5pt; font-weight: 700; margin-right: 0.5mm; }
 
   /* ===== Print ===== */
@@ -184,8 +185,10 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
     </div>
 
     <div class="bottom">
-        <span class="chip ordchip">طلب: <?= htmlspecialchars($o['order_number']) ?></span>
-        <span class="chip ordchip">قطع: <?= (int)$o['piece_count'] ?></span>
+        <div class="ord-stack">
+            <span class="chip ordchip">طلب: <?= htmlspecialchars($o['order_number']) ?></span>
+            <span class="chip ordchip">قطع: <?= (int)$o['piece_count'] ?></span>
+        </div>
         <span class="chip rem">
             <?php if ($is_paid): ?>مدفوع<?php else: ?>المتبقي: <?= number_format($remaining, 0) ?> <small>YR</small><?php endif; ?>
         </span>
