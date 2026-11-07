@@ -138,6 +138,7 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
     display: flex; align-items: center; justify-content: center;
   }
   .chip.rem { flex: 1 1 auto; background: var(--navy); color: #fff; }
+  .chip.ordchip { font-size: 5.8pt; white-space: nowrap; }
   .chip small { font-size: 5.8pt; font-weight: 700; margin-right: 0.5mm; }
 
   /* ===== Print ===== */
@@ -179,12 +180,11 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
 
     <div class="name-row">
         <span class="name"><?= htmlspecialchars($o['name']) ?></span>
-        <span class="ordinfo">الطلب: <?= htmlspecialchars($o['order_number']) ?> | القطع: <?= (int)$o['piece_count'] ?></span>
     </div>
     <div class="divider"></div>
 
     <div class="fields">
-        <div class="fline"><span class="fk">المدينة:</span> <span class="fv"><?= htmlspecialchars($fixed_city_line) ?></span></div>
+        <div class="fline"><span class="fk">الموقع:</span> <span class="fv"><?= htmlspecialchars($fixed_city_line) ?></span></div>
 
         <span class="fk">المنطقة / الحي:</span>
         <span class="fv"><?= $area !== '' ? htmlspecialchars($area) : '-' ?></span>
@@ -197,8 +197,9 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
     </div>
 
     <div class="bottom">
-        <span class="chip rem <?= $is_paid ? '' : '' ?>">
-            <?php if ($is_paid): ?>مدفوع<?php else: ?>المتبقي: <?= number_format($remaining, 0) ?> <small><?= htmlspecialchars($currency_label) ?></small><?php endif; ?>
+        <span class="chip ordchip">ط:<?= htmlspecialchars($o['order_number']) ?> | ق:<?= (int)$o['piece_count'] ?></span>
+        <span class="chip rem">
+            <?php if ($is_paid): ?>مدفوع<?php else: ?>المتبقي: <?= number_format($remaining, 0) ?> <small>YR</small><?php endif; ?>
         </span>
     </div>
 
