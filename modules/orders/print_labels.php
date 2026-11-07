@@ -8,7 +8,7 @@ if (empty($ids)) { die('<p style="text-align:center;padding:40px;">لا توجد
 
 $placeholders = implode(',', array_fill(0, count($ids), '?'));
 $stmt = $db->prepare("
-    SELECT co.id, co.order_number, c.name, c.mobile_number, c.location_area, c.address,
+    SELECT co.id, co.order_number, c.name, c.mobile_number, c.location_area, c.address, c.city_name,
            co.final_amount, co.paid_amount,
            COALESCE((SELECT SUM(oi.quantity) FROM order_items oi WHERE oi.order_id = co.id), 0) AS piece_count
     FROM customer_orders co
@@ -128,6 +128,7 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
   .fv { font-weight: 700; min-width: 0; overflow-wrap: anywhere; }
   .fv.ltr { direction: ltr; text-align: right; unicode-bidi: isolate; }
   .fv.addr { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .fv.addr2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 
   /* Bottom bar */
   .bottom { margin-top: auto; display: flex; gap: 1mm; align-items: stretch; }
@@ -161,8 +162,9 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
 <?php foreach ($orders as $o):
     $remaining = max(0, $o['final_amount'] - $o['paid_amount']);
     $is_paid = $remaining <= 0.01;
-    $address = trim((string)($o['address'] ?? ''));
-    $area    = trim((string)($o['location_area'] ?? ''));
+    $address   = trim((string)($o['address'] ?? ''));
+    $area      = trim((string)($o['location_area'] ?? ''));
+    $city_name = trim((string)($o['city_name'] ?? ''));
     $mobile  = trim((string)($o['mobile_number'] ?? ''));
 ?>
 <div class="label">
@@ -183,13 +185,11 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
     </div>
 
     <div class="fields">
-        <div class="fline"><span class="fk">الموقع:</span> <span class="fv"><?= htmlspecialchars($fixed_city_line) ?></span></div>
+        <?php $location_full = trim(implode(' - ', array_filter([$city_name, $address]))); ?>
+        <div class="fline"><span class="fk">الموقع:</span> <span class="fv addr2"><?= htmlspecialchars($location_full ?: '-') ?></span></div>
 
         <span class="fk">الرقم:</span>
         <span class="fv ltr"><?= $mobile !== '' ? htmlspecialchars($mobile) : '-' ?></span>
-
-        <span class="fk">العنوان التفصيلي:</span>
-        <span class="fv addr"><?= $address !== '' ? htmlspecialchars($address) : '-' ?></span>
     </div>
 
     <div class="bottom">
