@@ -177,10 +177,7 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
         <div class="location-line"><span class="fk">الموقع:</span> <span class="loc-val"><?= htmlspecialchars($location_full ?: '-') ?></span></div>
         <div class="phones-line">
           <span class="fk">الرقم:</span>
-          <span class="ltr-val"><?= $mobile !== '' ? htmlspecialchars($mobile) : '-' ?></span>
-          <?php if ($alt_mobile !== ''): ?>
-          <span class="ltr-val"> / <?= htmlspecialchars($alt_mobile) ?></span>
-          <?php endif; ?>
+          <span class="ltr-val"><?= $mobile !== '' ? htmlspecialchars($mobile) : '-' ?><?= $alt_mobile !== '' ? ' / ' . htmlspecialchars($alt_mobile) : '' ?></span>
         </div>
     </div>
 
