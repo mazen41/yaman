@@ -186,8 +186,8 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
 
     <div class="bottom">
         <div class="ord-stack">
-            <span class="chip ordchip">طلب: <?= htmlspecialchars($o['order_number']) ?></span>
-            <span class="chip ordchip">قطع: <?= (int)$o['piece_count'] ?></span>
+            <span class="chip ordchip">رقم الطلب: <?= htmlspecialchars($o['order_number']) ?></span>
+            <span class="chip ordchip">عدد القطع: <?= (int)$o['piece_count'] ?></span>
         </div>
         <span class="chip rem">
             <?php if ($is_paid): ?>مدفوع<?php else: ?>المتبقي: <?= number_format($remaining, 0) ?> <small>YR</small><?php endif; ?>
