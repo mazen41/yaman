@@ -656,6 +656,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     // Removed itemCounter and related functions as "Add another product" button is removed.
     let currentCouponDiscountAmount = 0;
     let currentCouponDisplayPercentage = '';
+    let cachedAutomaticDiscountPercentage = 0;
+    let cachedAutomaticDiscountAmount = 0;
+    let lastSubtotalForDiscount = -1;
 
     const whatsappNumber = <?php echo json_encode($whatsapp_number); ?>;
     const orderSuccessData = <?php echo json_encode($order_success_data); ?>;
@@ -724,24 +727,37 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         let automaticDiscountPercentage = 0;
         let automaticDiscountAmount = 0;
 
-        if (customerTypeIdForDiscount && subtotal > 0) {
-            try {
-                const response = await fetch(`../modules/orders/get_customer_discount.php?customer_type_id=${customerTypeIdForDiscount}&amount=${subtotal}`);
-                const data = await response.json();
+        // Only re-fetch automatic discount when subtotal actually changed
+        if (subtotal !== lastSubtotalForDiscount) {
+            lastSubtotalForDiscount = subtotal;
+            if (customerTypeIdForDiscount && subtotal > 0) {
+                try {
+                    const response = await fetch(`../modules/orders/get_customer_discount.php?customer_type_id=${customerTypeIdForDiscount}&amount=${subtotal}`);
+                    const data = await response.json();
 
-                if (data.success && data.discount_percentage > 0) {
-                    automaticDiscountPercentage = data.discount_percentage;
-                    automaticDiscountAmount = subtotal * (automaticDiscountPercentage / 100);
-                    document.getElementById('automaticDiscountRow').classList.remove('hidden');
-                } else {
+                    if (data.success && data.discount_percentage > 0) {
+                        automaticDiscountPercentage = data.discount_percentage;
+                        automaticDiscountAmount = subtotal * (automaticDiscountPercentage / 100);
+                        document.getElementById('automaticDiscountRow').classList.remove('hidden');
+                    } else {
+                        document.getElementById('automaticDiscountRow').classList.add('hidden');
+                    }
+                } catch (error) {
+                    console.error("Error fetching customer discount:", error);
                     document.getElementById('automaticDiscountRow').classList.add('hidden');
                 }
-            } catch (error) {
-                console.error("Error fetching customer discount:", error);
+            } else {
                 document.getElementById('automaticDiscountRow').classList.add('hidden');
             }
+            cachedAutomaticDiscountPercentage = automaticDiscountPercentage;
+            cachedAutomaticDiscountAmount = automaticDiscountAmount;
         } else {
-            document.getElementById('automaticDiscountRow').classList.add('hidden');
+            // Subtotal unchanged — reuse cached automatic discount
+            automaticDiscountPercentage = cachedAutomaticDiscountPercentage;
+            automaticDiscountAmount = cachedAutomaticDiscountAmount;
+            if (automaticDiscountAmount > 0) {
+                document.getElementById('automaticDiscountRow').classList.remove('hidden');
+            }
         }
 
         let totalAfterDiscounts = subtotal - automaticDiscountAmount - currentCouponDiscountAmount;

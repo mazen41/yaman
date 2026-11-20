@@ -11,7 +11,7 @@ require_once '../../config/database.php';
 require_once '../../includes/accounting_functions.php'; // We will use the function from our plan
 
 $page_title = 'القيود اليومية';
-$success_message = '';
+$success_message = isset($_GET['success']) ? 'تم إنشاء القيد اليدوي بنجاح.' : '';
 $error_message = '';
 
 // Handle Manual Entry Submission
@@ -56,7 +56,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
         create_journal_entry($db, $entry_date, $description, $items, 'manual', null, $_SESSION['user_id']);
         
         $db->commit();
-        $success_message = 'تم إنشاء القيد اليدوي بنجاح.';
+        header('Location: ' . $_SERVER['PHP_SELF'] . '?success=1');
+        exit();
 
     } catch (Exception $e) {
         if ($db->inTransaction()) $db->rollBack();
