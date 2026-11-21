@@ -1,4 +1,9 @@
 <?php
+// TEMPORARY DEBUG: show and log PHP errors on this page. Remove after fixing.
+ini_set('display_errors', '1');
+ini_set('log_errors', '1');
+ini_set('error_log', __DIR__ . '/bank_debug.log');
+error_reporting(E_ALL);
 session_start();
 
 // Authentication
