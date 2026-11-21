@@ -44,17 +44,20 @@ try {
     // --- TOTAL ASSETS ---
     $total_assets = $daily_cash_balance + $daily_bank_balance + $daily_other_balance + $prepaid_cards_balance;
 
-    // --- 4. LIABILITIES ---
+    // --- 4. RECEIVABLES (ذمم العملاء) — هذا أصل وليس التزاماً ---
+    // المبالغ المتبقية على العملاء هي أموال ستدخل للشركة = أصل
     $customer_outstanding_balance = (float) $db->query("SELECT COALESCE(SUM(final_amount - paid_amount), 0) FROM customer_orders WHERE (final_amount - paid_amount) > 0.01")->fetchColumn();
-    $accounts_payable = 0.00; // Placeholder, you might want to fetch this from a 'supplier_payments' or 'expenses' table
-    $total_liabilities = $accounts_payable + $customer_outstanding_balance;
 
-    // --- 5. EQUITY (حقوق الملكية) ---
-    // Equity is the balancing figure: Assets - Liabilities
+    // أضف ذمم العملاء للأصول
+    $total_assets = $daily_cash_balance + $daily_bank_balance + $daily_other_balance + $prepaid_cards_balance + $customer_outstanding_balance;
+
+    // --- 5. LIABILITIES ---
+    $accounts_payable = 0.00;
+    $total_liabilities = $accounts_payable;
+
+    // --- 6. EQUITY ---
     $total_equity = $total_assets - $total_liabilities;
-
-    // *** THE FIX: grand total on RIGHT side is always forced to equal LEFT side ***
-    $total_liabilities_and_equity = $total_assets; // Mathematically ensures balance
+    $total_liabilities_and_equity = $total_liabilities + $total_equity;
 
 } catch (PDOException $e) {
     $error_message = "حدث خطأ في استعلام قاعدة البيانات: " . $e->getMessage();
@@ -257,6 +260,15 @@ include '../../includes/header.php';
                             <?php echo number_format($prepaid_cards_balance, 2); ?> ر.ي
                         </span>
                     </div>
+                    <div class="bs-item">
+                        <span class="bs-item-label">
+                            <i class="fas fa-user-clock text-orange-500"></i>
+                            ذمم العملاء (مبالغ متبقية)
+                        </span>
+                        <span class="bs-item-value text-orange-700">
+                            <?php echo number_format($customer_outstanding_balance, 2); ?> ر.ي
+                        </span>
+                    </div>
                 </div>
                 <div class="bs-total assets-total">
                     <span class="bs-total-label text-green-800">
@@ -276,16 +288,6 @@ include '../../includes/header.php';
                 <div class="bs-content">
 
                     <h3 class="font-bold text-sm uppercase tracking-wide text-gray-400 mb-3">الالتزامات</h3>
-
-                    <div class="bs-item">
-                        <span class="bs-item-label">
-                            <i class="fas fa-user-clock text-orange-500"></i>
-                            أرصدة العملاء المتبقية
-                        </span>
-                        <span class="bs-item-value text-orange-700">
-                            <?php echo number_format($customer_outstanding_balance, 2); ?> ر.ي
-                        </span>
-                    </div>
 
                     <div class="bs-item">
                         <span class="bs-item-label">

@@ -111,7 +111,7 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
   /* Body: name then location then phones stacked */
   .body-row { display: flex; flex-direction: column; gap: 0.5mm; margin-top: 0.8mm; flex: 1 1 auto; min-height: 0; overflow: hidden; }
 
-  .name { font-size: 7pt; font-weight: 900; line-height: 1.2; overflow-wrap: anywhere; border: 0.4mm solid #000; padding: 0.5mm 1.5mm; display: inline-block; max-width: 100%; }
+  .name { font-size: 7pt; font-weight: 900; line-height: 1.2; overflow-wrap: anywhere; border: 0.3mm solid var(--navy); border-radius: 1mm; background: var(--navy); color: #fff; padding: 0.5mm 1.5mm; display: inline-block; max-width: 100%; }
 
   .location-line { font-size: 5.8pt; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .phones-line { font-size: 5.8pt; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

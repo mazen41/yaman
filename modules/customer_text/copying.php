@@ -475,8 +475,8 @@ $generated_id = 'CALC-' . time();
 
             <!-- Main Copy Buttons -->
             <div class="button-stack">
-                <button type="button" class="action-btn" onclick="copyText('button1')">العميل</button>
                 <button type="button" class="action-btn" onclick="copyText('button2')">مندوب RS</button>
+                <button type="button" class="action-btn" onclick="copyText('button1')">العميل</button>
                 <button type="button" class="action-btn" onclick="copyText('button3')">مندوب RY</button>
             </div>
 
