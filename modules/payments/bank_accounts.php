@@ -652,6 +652,20 @@ include '../../includes/header.php';
     .btn-icon.delete:hover { background: #be123c; color: #fff; }
     .btn-icon.toggle-active { background: #f0f9ff; color: #0369a1; border: 1px solid #bae6fd; }
     .btn-icon.toggle-active:hover { background: #0369a1; color: #fff; }
+    /* Labeled action buttons on account cards */
+    .ac-actions .btn-icon {
+        width: auto !important;
+        height: auto !important;
+        min-width: 0;
+        padding: .5rem .8rem;
+        display: inline-flex;
+        align-items: center;
+        gap: .4rem;
+        font-size: .82rem;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+    .ac-actions { flex-wrap: wrap; gap: .5rem; }
 
     /* ============ FORM CARD ============ */
     .form-card {
@@ -1028,27 +1042,32 @@ include '../../includes/header.php';
                                 onclick="openWithdrawModal(<?php echo $account['id']; ?>, '<?php echo htmlspecialchars($account['bank_name'] . ' - ' . $account['account_name'], ENT_QUOTES); ?>', <?php echo (float)$account['current_balance']; ?>)"
                                 title="سحب مبلغ">
                             <i class="fas fa-hand-holding-usd"></i>
+                            <span>سحب</span>
                         </button>
                         <button class="btn-icon deposit"
                                 onclick="openDepositModal(<?php echo $account['id']; ?>, '<?php echo htmlspecialchars($account['bank_name'] . ' - ' . $account['account_name'], ENT_QUOTES); ?>')"
                                 title="إيداع مبلغ">
                             <i class="fas fa-money-bill-wave"></i>
+                            <span>إيداع</span>
                         </button>
                         <button class="btn-icon edit"
                                 onclick="openEditModal(<?php echo htmlspecialchars(json_encode($account), ENT_QUOTES); ?>)"
                                 title="تعديل">
                             <i class="fas fa-edit"></i>
+                            <span>تعديل بيانات</span>
                         </button>
                         <a href="bank_accounts.php?action=toggle_status&id=<?php echo $account['id']; ?>"
                            class="btn-icon toggle-active"
                            title="<?php echo $account['is_active'] ? 'إلغاء التفعيل' : 'تفعيل'; ?>"
                            onclick="return confirm('<?php echo $account['is_active'] ? 'إلغاء تفعيل هذا الحساب؟' : 'تفعيل هذا الحساب؟'; ?>')">
                             <i class="fas fa-<?php echo $account['is_active'] ? 'pause-circle' : 'play-circle'; ?>"></i>
+                            <span><?php echo $account['is_active'] ? 'إلغاء التفعيل' : 'تفعيل'; ?></span>
                         </a>
                         <button class="btn-icon delete"
                                 onclick="openDeleteModal(<?php echo $account['id']; ?>, '<?php echo htmlspecialchars($account['bank_name'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($account['account_number'], ENT_QUOTES); ?>')"
                                 title="حذف">
                             <i class="fas fa-trash"></i>
+                            <span>حذف</span>
                         </button>
                     </div>
                 </div>

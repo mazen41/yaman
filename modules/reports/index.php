@@ -290,6 +290,15 @@ include '../../includes/header.php';
             </h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
 
+                <!-- Bank Deposits & Withdrawals Report -->
+                <div class="report-card" onclick="window.location.href='bank_transactions_report.php'">
+                    <div class="report-icon" style="background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%); color: white;">
+                        <i class="fas fa-exchange-alt"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-900 mb-2">تقرير الإيداعات والسحوبات</h3>
+                    <p class="text-gray-600 text-sm mb-4">كل إيداع وسحب من الحسابات البنكية مع الرصيد قبل وبعد كل عملية</p>
+                </div>
+
                 <!-- Balance Sheet -->
                 <div class="report-card" onclick="window.location.href='balance_sheet.php'">
                     <div class="report-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
