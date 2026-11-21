@@ -53,7 +53,7 @@ try {
 
     // --- إجمالي الأصول ---
     $total_assets = $daily_cash_balance + $daily_bank_balance + $daily_other_balance
-                  + $prepaid_cards_balance + $customer_outstanding_balance;
+                  + $prepaid_cards_balance + $customer_outstanding_balance + $bank_balance_sar;
 
     // --- 5. الالتزامات ---
     $accounts_payable = 0.00;
@@ -155,6 +155,14 @@ include '../../includes/header.php';
         background-color: #f0fdf4;
         border-top-color: #16a34a;
     }
+    .bs-how {
+        display: block;
+        font-size: 0.8rem;
+        font-weight: 400;
+        color: #6b7280;
+        line-height: 1.6;
+        margin-top: 0.25rem;
+    }
     .note-box {
         background-color: #fffbeb;
         border: 1px solid #fde68a;
@@ -224,6 +232,7 @@ include '../../includes/header.php';
                         <span class="bs-item-label">
                             <i class="fas fa-money-bill-wave text-green-500"></i>
                             إجمالي المقبوضات النقدية
+                            <small class="bs-how">مجموع كل الدفعات النقدية من جدول دفعات العملاء (طريقة الدفع = نقد) منذ بداية النظام.</small>
                         </span>
                         <span class="bs-item-value text-green-700">
                             <?php echo number_format($daily_cash_balance, 2); ?> ر.ي
@@ -233,6 +242,7 @@ include '../../includes/header.php';
                         <span class="bs-item-label">
                             <i class="fas fa-exchange-alt text-teal-500"></i>
                             مدفوعات بالتحويل البنكي
+                            <small class="bs-how">مجموع الدفعات بطريقة تحويل من جدول دفعات العملاء. معروض للمعلومية فقط، لأنه داخل أرصدة البنوك أصلاً ولا يُضاف مرة ثانية.</small>
                         </span>
                         <span class="bs-item-value text-teal-700">
                             <?php echo number_format($transfer_payments, 2); ?> ر.ي
@@ -242,6 +252,7 @@ include '../../includes/header.php';
                         <span class="bs-item-label">
                             <i class="fas fa-university text-blue-500"></i>
                             أرصدة الحسابات البنكية (ر.ي)
+                            <small class="bs-how">الرصيد الحالي للحسابات المسجلة بالريال اليمني (عمود الرصيد الحالي في جدول الحسابات البنكية). حالياً لا يوجد حساب بالريال اليمني، لذلك يظهر صفراً.</small>
                         </span>
                         <span class="bs-item-value text-blue-700">
                             <?php echo number_format($daily_bank_balance, 2); ?> ر.ي
@@ -251,10 +262,11 @@ include '../../includes/header.php';
                     <div class="bs-item">
                         <span class="bs-item-label">
                             <i class="fas fa-university text-yellow-500"></i>
-                            أرصدة الحسابات البنكية (ر.س)
+                            أرصدة الحسابات البنكية (ر.ي)
+                            <small class="bs-how">مجموع الرصيد الحالي لكل الحسابات المسجلة بعملة ر.س في النظام. تُعامل كريال يمني دون تحويل، وتُضاف إلى إجمالي الأصول.</small>
                         </span>
                         <span class="bs-item-value text-yellow-700">
-                            <?php echo number_format($bank_balance_sar, 2); ?> ر.س
+                            <?php echo number_format($bank_balance_sar, 2); ?> ر.ي
                         </span>
                     </div>
                     <?php endif; ?>
@@ -262,6 +274,7 @@ include '../../includes/header.php';
                         <span class="bs-item-label">
                             <i class="fas fa-wallet text-gray-500"></i>
                             طرق دفع أخرى (شيك، بطاقة...)
+                            <small class="bs-how">الدفعات من العملاء بطرق غير النقد والتحويل (شيك، بطاقة، وغيرها)، وأي دفعة لم تُحدَّد لها طريقة دفع.</small>
                         </span>
                         <span class="bs-item-value text-gray-700">
                             <?php echo number_format($daily_other_balance, 2); ?> ر.ي
@@ -271,6 +284,7 @@ include '../../includes/header.php';
                         <span class="bs-item-label">
                             <i class="fas fa-credit-card text-indigo-500"></i>
                             أرصدة بطاقات الشراء
+                            <small class="bs-how">مجموع الأرصدة المتبقية في بطاقات الشراء المدفوعة مسبقاً، للبطاقات التي رصيدها أكبر من صفر (جدول بطاقات الشراء، عمود الرصيد).</small>
                         </span>
                         <span class="bs-item-value text-indigo-700">
                             <?php echo number_format($prepaid_cards_balance, 2); ?> ر.ي
@@ -280,6 +294,7 @@ include '../../includes/header.php';
                         <span class="bs-item-label">
                             <i class="fas fa-user-clock text-orange-500"></i>
                             ذمم العملاء (مبالغ متبقية)
+                            <small class="bs-how">الفرق بين المبلغ النهائي لكل طلب وما دفعه العميل عليه (جدول الطلبات)، للطلبات التي بقي عليها أكثر من 0.01. مستحقة للشركة وستدخل عند تحصيلها.</small>
                         </span>
                         <span class="bs-item-value text-orange-700">
                             <?php echo number_format($customer_outstanding_balance, 2); ?> ر.ي
@@ -304,11 +319,11 @@ include '../../includes/header.php';
                 <div class="bs-content">
 
                     <div class="bs-item">
-                        <span class="bs-item-label"><i class="fas fa-money-bill-wave text-green-500"></i>إجمالي المقبوضات النقدية</span>
+                        <span class="bs-item-label"><i class="fas fa-money-bill-wave text-green-500"></i>إجمالي المقبوضات النقدية<small class="bs-how">من جدول دفعات العملاء، طريقة الدفع = نقد، منذ بداية النظام.</small></span>
                         <span class="bs-item-value text-green-700"><?php echo number_format($daily_cash_balance, 2); ?> ر.ي</span>
                     </div>
                     <div class="bs-item">
-                        <span class="bs-item-label"><i class="fas fa-exchange-alt text-teal-500"></i>مقبوضات التحويل البنكي</span>
+                        <span class="bs-item-label"><i class="fas fa-exchange-alt text-teal-500"></i>مقبوضات التحويل البنكي<small class="bs-how">مجموع الدفعات بطريقة تحويل من جدول دفعات العملاء. داخلة أصلاً في أرصدة البنوك، لذلك لا تُضاف مرة ثانية.</small></span>
                         <span class="bs-item-value text-teal-700"><?php echo number_format($transfer_payments, 2); ?> ر.ي</span>
                     </div>
                     <div class="bs-item">
@@ -317,21 +332,21 @@ include '../../includes/header.php';
                     </div>
                     <?php if ($bank_balance_sar > 0): ?>
                     <div class="bs-item">
-                        <span class="bs-item-label"><i class="fas fa-university text-yellow-500"></i>أرصدة البنوك (ر.س)</span>
-                        <span class="bs-item-value text-yellow-700"><?php echo number_format($bank_balance_sar, 2); ?> ر.س</span>
+                        <span class="bs-item-label"><i class="fas fa-university text-yellow-500"></i>أرصدة البنوك (ر.ي)<small class="bs-how">مجموع أرصدة الحسابات المسجلة بعملة ر.س، تُعامل كريال يمني وتُضاف إلى إجمالي الأصول.</small></span>
+                        <span class="bs-item-value text-yellow-700"><?php echo number_format($bank_balance_sar, 2); ?> ر.ي</span>
                     </div>
                     <?php endif; ?>
                     <div class="bs-item">
-                        <span class="bs-item-label"><i class="fas fa-credit-card text-indigo-500"></i>بطاقات الشراء</span>
+                        <span class="bs-item-label"><i class="fas fa-credit-card text-indigo-500"></i>بطاقات الشراء<small class="bs-how">مجموع الأرصدة المتبقية في بطاقات الشراء المدفوعة مسبقاً (رصيدها أكبر من صفر).</small></span>
                         <span class="bs-item-value text-indigo-700"><?php echo number_format($prepaid_cards_balance, 2); ?> ر.ي</span>
                     </div>
                     <div class="bs-item">
-                        <span class="bs-item-label"><i class="fas fa-user-clock text-orange-500"></i>ذمم العملاء (متبقي عليهم)</span>
+                        <span class="bs-item-label"><i class="fas fa-user-clock text-orange-500"></i>ذمم العملاء (متبقي عليهم)<small class="bs-how">الفرق بين المبلغ النهائي لكل طلب وما دفعه العميل، للطلبات التي بقي عليها مبلغ. مستحقة للشركة.</small></span>
                         <span class="bs-item-value text-orange-700"><?php echo number_format($customer_outstanding_balance, 2); ?> ر.ي</span>
                     </div>
                     <?php if ($daily_other_balance > 0): ?>
                     <div class="bs-item">
-                        <span class="bs-item-label"><i class="fas fa-wallet text-gray-500"></i>طرق دفع أخرى</span>
+                        <span class="bs-item-label"><i class="fas fa-wallet text-gray-500"></i>طرق دفع أخرى<small class="bs-how">الدفعات من العملاء بطرق غير النقد والتحويل (شيك، بطاقة، وغيرها).</small></span>
                         <span class="bs-item-value text-gray-700"><?php echo number_format($daily_other_balance, 2); ?> ر.ي</span>
                     </div>
                     <?php endif; ?>
@@ -350,15 +365,15 @@ include '../../includes/header.php';
         <div class="note-box mt-6">
             <p><i class="fas fa-info-circle"></i> <strong>ملاحظات:</strong></p>
             <ul class="list-disc pr-5 mt-2 space-y-3">
-                <li><strong>إجمالي المقبوضات النقدية:</strong> مجموع كل المبالغ التي استلمناها نقداً من العملاء منذ بداية النظام، ويُحسب من سجل دفعات العملاء التي طريقة دفعها "نقد". هذا إجمالي ما دخل نقداً، وليس الكاش الموجود حالياً في الصندوق، لأنه لا يُخصم منه المصروفات.</li>
-                <li><strong>مقبوضات التحويل البنكي:</strong> مجموع كل المبالغ التي وصلتنا من العملاء عبر تحويل بنكي، ويُحسب من سجل دفعات العملاء التي طريقة دفعها "تحويل". هذه المبالغ تدخل مباشرة إلى البنوك، لذلك لا تُحسب ضمن النقد.</li>
-                <li><strong>أرصدة البنوك (ر.ي):</strong> الرصيد الحالي الفعلي لجميع الحسابات البنكية المسجلة بالريال اليمني، ويُؤخذ مباشرة من الرصيد الحالي لكل حساب في جدول الحسابات البنكية.</li>
-                <li><strong>أرصدة البنوك (ر.س):</strong> نفس الفكرة للحسابات بالريال السعودي. تظهر للعلم فقط ولا تُضاف إلى إجمالي الأصول بالريال اليمني.</li>
-                <li><strong>طرق دفع أخرى (شيك، بطاقة...):</strong> مجموع المدفوعات من العملاء بأي طريقة غير النقد والتحويل، مثل الشيكات أو البطاقات.</li>
-                <li><strong>أرصدة بطاقات الشراء:</strong> مجموع الأرصدة المتبقية في بطاقات الشراء المدفوعة مسبقاً (التي رصيدها أكبر من صفر). تُعتبر أصلاً لأنها قيمة دُفعت ولم تُستخدم بعد.</li>
-                <li><strong>ذمم العملاء:</strong> مجموع المبالغ المتبقية على العملاء من الطلبات، أي الفرق بين المبلغ النهائي للطلب وما دفعه العميل. تُحسب من الطلبات التي ما زال فيها مبلغ غير مسدد. هذه مبالغ مستحقة لنا وستدخل للشركة لاحقاً.</li>
-                <li><strong>إجمالي الأصول:</strong> مجموع كل ما سبق: النقد + أرصدة البنوك (ر.ي) + طرق الدفع الأخرى + بطاقات الشراء + ذمم العملاء. لا يشمل أرصدة البنوك بالريال السعودي.</li>
-                <li><strong>الالتزامات وحقوق الملكية:</strong> الالتزامات صفر حالياً لأن النظام لا يسجل ديوناً على الشركة، لذلك تساوي حقوق الملكية إجمالي الأصول.</li>
+                <li><strong>إجمالي المقبوضات النقدية:</strong> مجموع كل الدفعات النقدية التي استلمناها من العملاء منذ بداية النظام. المصدر: جدول دفعات العملاء (customer_payments) والدفعات التي طريقة دفعها "نقد"، ويشمل الدفعات التي ما زالت بانتظار المراجعة. هذا إجمالي ما دخل نقداً، وليس رصيد الصندوق الحالي، لأنه لا يُخصم منه المصروفات.</li>
+                <li><strong>مقبوضات التحويل البنكي:</strong> مجموع الدفعات التي طريقة دفعها "تحويل" من جدول دفعات العملاء. هذه المبالغ دخلت إلى الحسابات البنكية، لذلك هي موجودة أصلاً ضمن أرصدة البنوك، ولا تُضاف مرة ثانية إلى الأصول. يُعرض هذا الرقم للمعلومية فقط.</li>
+                <li><strong>أرصدة البنوك (ر.ي):</strong> الرصيد الحالي لكل حساب بنكي كما هو مسجل في جدول الحسابات البنكية (عمود الرصيد الحالي). تُعامل جميع الأرصدة كريال يمني، ويُضاف مجموعها إلى إجمالي الأصول.</li>
+                <li><strong>طرق دفع أخرى (شيك، بطاقة...):</strong> مجموع الدفعات من العملاء بأي طريقة غير النقد والتحويل، بالإضافة إلى أي دفعة لم يُحدَّد لها طريقة دفع.</li>
+                <li><strong>أرصدة بطاقات الشراء:</strong> مجموع الأرصدة المتبقية في بطاقات الشراء المدفوعة مسبقاً، للبطاقات التي رصيدها أكبر من صفر (جدول بطاقات الشراء، عمود الرصيد). تُعتبر أصلاً لأنها مال دُفع ولم يُستخدم بعد.</li>
+                <li><strong>ذمم العملاء:</strong> مجموع المبالغ المتبقية على العملاء من الطلبات، أي الفرق بين المبلغ النهائي لكل طلب وما دفعه العميل عليه (جدول الطلبات: المبلغ النهائي ناقص المبلغ المدفوع)، للطلبات التي بقي عليها أكثر من 0.01. هذه مبالغ مستحقة لنا، وستدخل للشركة عند تحصيلها.</li>
+                <li><strong>إجمالي الأصول:</strong> مجموع: النقد + طرق الدفع الأخرى + أرصدة بطاقات الشراء + ذمم العملاء + أرصدة البنوك (تُعامل كريال يمني دون تحويل).</li>
+                <li><strong>الالتزامات وحقوق الملكية:</strong> الالتزامات صفر حالياً، لأن النظام لا يسجل ديوناً على الشركة. لذلك تساوي حقوق الملكية إجمالي الأصول.</li>
+                <li><strong>كيف تتحقق من الأرقام:</strong> افتح صفحة دفعات العملاء وفلتر حسب طريقة الدفع (نقد) واجمع المبالغ، وصفحة الحسابات البنكية لمجموع الأرصدة، وصفحة بطاقات الشراء لمجموع الأرصدة الموجبة، وصفحة الطلبات لمجموع المبالغ المتبقية. الأرقام تُحسب لحظة فتح هذه الصفحة.</li>
             </ul>
         </div>
 

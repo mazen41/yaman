@@ -10,94 +10,98 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 require_once '../../config/database.php';
+require_once '../../includes/check_permissions.php';
+
+$user_id = (int)$_SESSION['user_id'];
+if (!hasPermission($user_id, 'financial', 'edit')) {
+    header('Location: ../../no-permissions.php');
+    exit();
+}
+
+if (empty($_SESSION['universal_transfer_csrf'])) {
+    $_SESSION['universal_transfer_csrf'] = bin2hex(random_bytes(32));
+}
 
 $page_title = 'التحويل المباشر بين الحسابات';
 $error_message = '';
-$success_message = '';
+$success_message = $_SESSION['universal_transfer_success'] ?? '';
+unset($_SESSION['universal_transfer_success']);
+$currencyLabel = static function ($currency) {
+    $currency = strtoupper((string)$currency);
+    return ['SAR' => 'ريال سعودي', 'YER' => 'ريال يمني'][$currency] ?? $currency;
+};
 
 // Handle form submission for the transfer
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $from_type = $_POST['from_type'] ?? '';
-    $from_id = filter_input(INPUT_POST, 'from_id', FILTER_VALIDATE_INT);
-    $to_type = $_POST['to_type'] ?? '';
-    $to_id = filter_input(INPUT_POST, 'to_id', FILTER_VALIDATE_INT);
-    $amount = filter_input(INPUT_POST, 'amount', FILTER_VALIDATE_FLOAT);
-    $description = trim($_POST['description'] ?? '');
-    $transaction_date = $_POST['transaction_date'] ?? date('Y-m-d');
+    $from_type = is_string($_POST['from_type'] ?? null) ? $_POST['from_type'] : '';
+    $from_id_raw = $_POST['from_id'] ?? null;
+    $to_type = is_string($_POST['to_type'] ?? null) ? $_POST['to_type'] : '';
+    $to_id_raw = $_POST['to_id'] ?? null;
+    $amount_raw = $_POST['amount'] ?? null;
+    $from_id = is_scalar($from_id_raw) ? filter_var((string)$from_id_raw, FILTER_VALIDATE_INT) : false;
+    $to_id = is_scalar($to_id_raw) ? filter_var((string)$to_id_raw, FILTER_VALIDATE_INT) : false;
+    $amount = is_scalar($amount_raw) ? filter_var((string)$amount_raw, FILTER_VALIDATE_FLOAT) : false;
+    $description = is_scalar($_POST['description'] ?? '') ? trim((string)($_POST['description'] ?? '')) : '';
+    $transaction_date = is_string($_POST['transaction_date'] ?? null) ? $_POST['transaction_date'] : '';
 
     try {
-        // --- 1. Basic Validation ---
-        if (!$from_type || !$from_id || !$to_type || !$to_id || !$amount) {
+        $posted_token = is_string($_POST['csrf_token'] ?? null) ? $_POST['csrf_token'] : '';
+        if (!hash_equals($_SESSION['universal_transfer_csrf'], $posted_token)) {
+            throw new Exception('انتهت صلاحية الصفحة. حدّث الصفحة وحاول مرة أخرى.');
+        }
+        if (!in_array($from_type, ['bank', 'account'], true) || !in_array($to_type, ['bank', 'account'], true)
+            || $from_id === false || $from_id < 1 || $to_id === false || $to_id < 1 || $amount === false || !is_finite((float)$amount)) {
             throw new Exception('يرجى ملء جميع الحقول المطلوبة (النوع، الحساب، المبلغ).');
         }
-        if ($from_type === $to_type && $from_id === $to_id) {
+        if ($from_type === $to_type && (int)$from_id === (int)$to_id) {
             throw new Exception('لا يمكن التحويل من وإلى نفس الحساب.');
         }
         if ($amount <= 0) {
             throw new Exception('يجب أن يكون مبلغ التحويل أكبر من صفر.');
         }
+        $date = DateTime::createFromFormat('!Y-m-d', $transaction_date);
+        if (!$date || $date->format('Y-m-d') !== $transaction_date) {
+            throw new Exception('تاريخ التحويل غير صحيح.');
+        }
 
-        // --- 2. Start Database Transaction for safety ---
         $db->beginTransaction();
 
-        $from_display_name = '';
-        $to_display_name = '';
+        // Table/label names come only from the allowlisted account type values.
+        $accountDetails = function ($type, $id, $lock = true) use ($db) {
+            $table = $type === 'bank' ? 'bank_accounts' : 'accounts';
+            $nameSql = $type === 'bank' ? "CONCAT(bank_name, ' - ', COALESCE(account_name, ''))" : 'name';
+            $sql = "SELECT {$nameSql} AS display_name, currency, current_balance FROM {$table} WHERE id = ? AND is_active = 1" . ($lock ? ' FOR UPDATE' : '');
+            $stmt = $db->prepare($sql);
+            $stmt->execute([$id]);
+            return $stmt->fetch(PDO::FETCH_ASSOC);
+        };
 
-        // --- 3. Process the SOURCE Account (FROM) ---
-        if ($from_type === 'bank') {
-            // Get current balance and lock the row to prevent race conditions
-            $stmt_from = $db->prepare("SELECT bank_name, account_name, current_balance FROM bank_accounts WHERE id = ? AND is_active = 1 FOR UPDATE");
-            $stmt_from->execute([$from_id]);
-            $from_account = $stmt_from->fetch(PDO::FETCH_ASSOC);
+        $from_account = $accountDetails($from_type, $from_id);
+        if (!$from_account) throw new Exception('الحساب المصدر غير موجود أو غير نشط.');
+        $to_account = $accountDetails($to_type, $to_id);
+        if (!$to_account) throw new Exception('الحساب الهدف غير موجود أو غير نشط.');
 
-            if (!$from_account) throw new Exception('الحساب البنكي المصدر غير موجود أو غير نشط.');
-            if ($from_account['current_balance'] < $amount) throw new Exception('الرصيد في الحساب البنكي المصدر غير كافٍ.');
-
-            $from_display_name = $from_account['bank_name'] . ' - ' . $from_account['account_name'];
-
-            // Decrease balance
-            $update_from = $db->prepare("UPDATE bank_accounts SET current_balance = current_balance - ? WHERE id = ?");
-            $update_from->execute([$amount, $from_id]);
-
-        } elseif ($from_type === 'account') {
-            // Get current balance and lock the row
-            $stmt_from = $db->prepare("SELECT name, current_balance FROM accounts WHERE id = ? AND is_active = 1 FOR UPDATE");
-            $stmt_from->execute([$from_id]);
-            $from_account = $stmt_from->fetch(PDO::FETCH_ASSOC);
-
-            if (!$from_account) throw new Exception('الحساب المالي المصدر غير موجود أو غير نشط.');
-            if ($from_account['current_balance'] < $amount) throw new Exception('الرصيد في الحساب المالي المصدر غير كافٍ.');
-
-            $from_display_name = $from_account['name'];
-
-            // Decrease balance
-            $update_from = $db->prepare("UPDATE accounts SET current_balance = current_balance - ? WHERE id = ?");
-            $update_from->execute([$amount, $from_id]);
+        $from_currency = strtoupper(trim($from_account['currency'] ?? ''));
+        $to_currency = strtoupper(trim($to_account['currency'] ?? ''));
+        if ($from_currency === '' || $to_currency === '' || $from_currency !== $to_currency) {
+            throw new Exception('لا يمكن التحويل بين حسابين بعملتين مختلفتين. اختر حسابين بنفس العملة.');
+        }
+        if ((float)$from_account['current_balance'] < (float)$amount) {
+            throw new Exception('الرصيد في الحساب المصدر غير كافٍ.');
         }
 
-        // --- 4. Process the DESTINATION Account (TO) ---
-        if ($to_type === 'bank') {
-            $stmt_to = $db->prepare("SELECT bank_name, account_name FROM bank_accounts WHERE id = ? AND is_active = 1");
-            $stmt_to->execute([$to_id]);
-            $to_account = $stmt_to->fetch(PDO::FETCH_ASSOC);
-            if (!$to_account) throw new Exception('الحساب البنكي الهدف غير موجود أو غير نشط.');
-            $to_display_name = $to_account['bank_name'] . ' - ' . $to_account['account_name'];
+        $from_display_name = $from_account['display_name'];
+        $to_display_name = $to_account['display_name'];
 
-            // Increase balance
-            $update_to = $db->prepare("UPDATE bank_accounts SET current_balance = current_balance + ? WHERE id = ?");
-            $update_to->execute([$amount, $to_id]);
+        $from_table = $from_type === 'bank' ? 'bank_accounts' : 'accounts';
+        $to_table = $to_type === 'bank' ? 'bank_accounts' : 'accounts';
+        $update_from = $db->prepare("UPDATE {$from_table} SET current_balance = current_balance - ? WHERE id = ? AND current_balance >= ?");
+        $update_from->execute([$amount, $from_id, $amount]);
+        if ($update_from->rowCount() !== 1) throw new Exception('تعذر خصم المبلغ. راجع رصيد الحساب وحاول مرة أخرى.');
 
-        } elseif ($to_type === 'account') {
-            $stmt_to = $db->prepare("SELECT name FROM accounts WHERE id = ? AND is_active = 1");
-            $stmt_to->execute([$to_id]);
-            $to_account = $stmt_to->fetch(PDO::FETCH_ASSOC);
-            if (!$to_account) throw new Exception('الحساب المالي الهدف غير موجود أو غير نشط.');
-            $to_display_name = $to_account['name'];
-
-            // Increase balance
-            $update_to = $db->prepare("UPDATE accounts SET current_balance = current_balance + ? WHERE id = ?");
-            $update_to->execute([$amount, $to_id]);
-        }
+        $update_to = $db->prepare("UPDATE {$to_table} SET current_balance = current_balance + ? WHERE id = ? AND is_active = 1");
+        $update_to->execute([$amount, $to_id]);
+        if ($update_to->rowCount() !== 1) throw new Exception('تعذر إضافة المبلغ إلى الحساب الهدف.');
 
         // --- 5. Log the transaction in our new table ---
         $log_stmt = $db->prepare(
@@ -114,12 +118,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $to_id,
             $to_display_name,
             $description,
-            $_SESSION['user_id']
+            $user_id
         ]);
 
         // --- 6. Commit all changes if successful ---
         $db->commit();
-        $success_message = "تم تحويل مبلغ " . number_format($amount, 2) . " بنجاح من '{$from_display_name}' إلى '{$to_display_name}'.";
+        $_SESSION['universal_transfer_success'] = "تم تحويل مبلغ " . number_format($amount, 2) . ' ' . $currencyLabel($from_currency) . " بنجاح من '{$from_display_name}' إلى '{$to_display_name}'.";
+        header('Location: universal_transfer.php');
+        exit();
 
     } catch (Exception $e) {
         // If anything fails, undo all changes
@@ -132,11 +138,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Fetch all active bank accounts and financial accounts for the dropdowns
 try {
-    $bank_accounts_stmt = $db->query("SELECT id, bank_name, account_name, current_balance FROM bank_accounts WHERE is_active = 1 ORDER BY bank_name, account_name ASC");
+    $bank_accounts_stmt = $db->query("SELECT id, bank_name, account_name, current_balance, currency FROM bank_accounts WHERE is_active = 1 ORDER BY bank_name, account_name ASC");
     $bank_accounts = $bank_accounts_stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // Fetch all accounts from the Chart of Accounts
-    $accounts_stmt = $db->query("SELECT id, name, code, current_balance FROM accounts WHERE is_active = 1 ORDER BY code ASC");
+    $accounts_stmt = $db->query("SELECT id, name, code, current_balance, currency FROM accounts WHERE is_active = 1 ORDER BY code ASC");
     $all_accounts = $accounts_stmt->fetchAll(PDO::FETCH_ASSOC);
 
 } catch (PDOException $e) {
@@ -202,8 +208,8 @@ include '../../includes/header.php';
         </a>
     </div>
 
-    <?php if ($success_message): ?><div class="alert alert-success"><i class="fas fa-check-circle"></i> <?php echo $success_message; ?></div><?php endif; ?>
-    <?php if ($error_message): ?><div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> <?php echo $error_message; ?></div><?php endif; ?>
+    <?php if ($success_message): ?><div class="alert alert-success"><i class="fas fa-check-circle"></i> <?php echo htmlspecialchars($success_message, ENT_QUOTES, 'UTF-8'); ?></div><?php endif; ?>
+    <?php if ($error_message): ?><div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> <?php echo htmlspecialchars($error_message, ENT_QUOTES, 'UTF-8'); ?></div><?php endif; ?>
 
     <div class="card">
         <div class="card-header">
@@ -211,6 +217,7 @@ include '../../includes/header.php';
         </div>
         <form method="POST" action="universal_transfer.php" id="universalTransferForm">
             <div class="card-body">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['universal_transfer_csrf'], ENT_QUOTES, 'UTF-8'); ?>">
                 <div class="row">
                     <div class="col-md-6">
                         <div class="form-group">
@@ -220,7 +227,7 @@ include '../../includes/header.php';
                     </div>
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label for="amount"><span class="required">*</span> المبلغ</label>
+                            <label for="amount"><span class="required">*</span> المبلغ (<span id="transferCurrencyLabel">اختر حسابين بنفس العملة</span>)</label>
                             <input type="number" step="0.01" min="0.01" id="amount" name="amount" class="form-control" placeholder="0.00" required>
                         </div>
                     </div>
@@ -252,8 +259,8 @@ include '../../includes/header.php';
                                 <select name="from_id_bank" id="from_bank_id" class="form-control" onchange="updateBalanceDisplay('from', this)">
                                     <option value="">-- اختر حساب بنكي --</option>
                                     <?php foreach ($bank_accounts as $account): ?>
-                                        <option value="<?php echo $account['id']; ?>" data-balance="<?php echo htmlspecialchars($account['current_balance']); ?>">
-                                            <?php echo htmlspecialchars($account['bank_name'] . ' - ' . $account['account_name']); ?>
+                                        <option value="<?php echo (int)$account['id']; ?>" data-balance="<?php echo htmlspecialchars($account['current_balance']); ?>" data-currency="<?php echo htmlspecialchars(strtoupper($account['currency'])); ?>">
+                                            <?php echo htmlspecialchars($account['bank_name'] . ' - ' . $account['account_name'] . ' (' . $currencyLabel($account['currency']) . ')'); ?>
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
@@ -269,8 +276,8 @@ include '../../includes/header.php';
                                 <select name="from_id_account" id="from_account_id" class="form-control" onchange="updateBalanceDisplay('from', this)" disabled>
                                     <option value="">-- اختر حساب مالي --</option>
                                     <?php foreach ($all_accounts as $account): ?>
-                                        <option value="<?php echo $account['id']; ?>" data-balance="<?php echo htmlspecialchars($account['current_balance']); ?>">
-                                            [<?php echo htmlspecialchars($account['code']); ?>] <?php echo htmlspecialchars($account['name']); ?>
+                                        <option value="<?php echo (int)$account['id']; ?>" data-balance="<?php echo htmlspecialchars($account['current_balance']); ?>" data-currency="<?php echo htmlspecialchars(strtoupper($account['currency'])); ?>">
+                                            [<?php echo htmlspecialchars($account['code']); ?>] <?php echo htmlspecialchars($account['name'] . ' (' . $currencyLabel($account['currency']) . ')'); ?>
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
@@ -304,8 +311,8 @@ include '../../includes/header.php';
                                 <select name="to_id_bank" id="to_bank_id" class="form-control" onchange="updateBalanceDisplay('to', this)">
                                     <option value="">-- اختر حساب بنكي --</option>
                                     <?php foreach ($bank_accounts as $account): ?>
-                                        <option value="<?php echo $account['id']; ?>" data-balance="<?php echo htmlspecialchars($account['current_balance']); ?>">
-                                            <?php echo htmlspecialchars($account['bank_name'] . ' - ' . $account['account_name']); ?>
+                                        <option value="<?php echo (int)$account['id']; ?>" data-balance="<?php echo htmlspecialchars($account['current_balance']); ?>" data-currency="<?php echo htmlspecialchars(strtoupper($account['currency'])); ?>">
+                                            <?php echo htmlspecialchars($account['bank_name'] . ' - ' . $account['account_name'] . ' (' . $currencyLabel($account['currency']) . ')'); ?>
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
@@ -321,8 +328,8 @@ include '../../includes/header.php';
                                 <select name="to_id_account" id="to_account_id" class="form-control" onchange="updateBalanceDisplay('to', this)" disabled>
                                     <option value="">-- اختر حساب مالي --</option>
                                     <?php foreach ($all_accounts as $account): ?>
-                                        <option value="<?php echo $account['id']; ?>" data-balance="<?php echo htmlspecialchars($account['current_balance']); ?>">
-                                            [<?php echo htmlspecialchars($account['code']); ?>] <?php echo htmlspecialchars($account['name']); ?>
+                                        <option value="<?php echo (int)$account['id']; ?>" data-balance="<?php echo htmlspecialchars($account['current_balance']); ?>" data-currency="<?php echo htmlspecialchars(strtoupper($account['currency'])); ?>">
+                                            [<?php echo htmlspecialchars($account['code']); ?>] <?php echo htmlspecialchars($account['name'] . ' (' . $currencyLabel($account['currency']) . ')'); ?>
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
@@ -376,8 +383,20 @@ include '../../includes/header.php';
             if (fromType === toType && fromSelect.value === toSelect.value) {
                 alert('خطأ: لا يمكن التحويل من وإلى نفس الحساب!');
                 event.preventDefault();
+                return;
+            }
+
+            const fromCurrency = fromSelect.options[fromSelect.selectedIndex].dataset.currency;
+            const toCurrency = toSelect.options[toSelect.selectedIndex].dataset.currency;
+            if (!fromCurrency || !toCurrency || fromCurrency !== toCurrency) {
+                alert('لا يمكن التحويل بين حسابين بعملتين مختلفتين. اختر حسابين بنفس العملة.');
+                event.preventDefault();
             }
         });
+        document.querySelectorAll('#from_bank_id, #from_account_id, #to_bank_id, #to_account_id').forEach(function(select) {
+            select.addEventListener('change', updateTransferCurrencyLabel);
+        });
+        updateTransferCurrencyLabel();
     });
 
     function updateHiddenInput(name, value) {
@@ -413,6 +432,7 @@ include '../../includes/header.php';
             accountSelect.removeAttribute('disabled');
             updateBalanceDisplay(direction, accountSelect); // Update balance display
         }
+        updateTransferCurrencyLabel();
     }
 
     function updateBalanceDisplay(direction, selectElement) {
@@ -424,7 +444,8 @@ include '../../includes/header.php';
         if (selectedOption = selectElement.options[selectElement.selectedIndex]) {
             if (selectedOption.value && selectedOption.hasAttribute('data-balance')) {
                 const balance = parseFloat(selectedOption.getAttribute('data-balance'));
-                balanceValueSpan.textContent = balance.toLocaleString('ar-SA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ريال';
+                const currency = selectedOption.dataset.currency || '';
+                balanceValueSpan.textContent = balance.toLocaleString('ar-SA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + currency;
                 balanceDisplayDiv.style.display = 'block';
             } else {
                 balanceValueSpan.textContent = '0.00 ريال'; // Reset if no account selected or no balance
@@ -433,6 +454,26 @@ include '../../includes/header.php';
         } else { // No option is selected
              balanceValueSpan.textContent = '0.00 ريال';
              balanceDisplayDiv.style.display = 'none';
+        }
+    }
+
+    function updateTransferCurrencyLabel() {
+        const fromType = document.querySelector('input[name="from_type"]:checked').value;
+        const toType = document.querySelector('input[name="to_type"]:checked').value;
+        const fromSelect = document.getElementById(`from_${fromType}_id`);
+        const toSelect = document.getElementById(`to_${toType}_id`);
+        const fromCurrency = fromSelect.options[fromSelect.selectedIndex]?.dataset.currency;
+        const toCurrency = toSelect.options[toSelect.selectedIndex]?.dataset.currency;
+        const label = document.getElementById('transferCurrencyLabel');
+        if (fromCurrency && toCurrency && fromCurrency === toCurrency) {
+            label.textContent = fromCurrency;
+            label.style.color = '#166534';
+        } else if (fromCurrency && toCurrency) {
+            label.textContent = 'العملتان مختلفتان';
+            label.style.color = '#b91c1c';
+        } else {
+            label.textContent = 'اختر حسابين بنفس العملة';
+            label.style.color = '';
         }
     }
 </script>
