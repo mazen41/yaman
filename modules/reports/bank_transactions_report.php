@@ -1,4 +1,7 @@
 <?php
+// TEMPORARY DEBUG: show PHP errors on this page. Remove after fixing.
+ini_set('display_errors', '1');
+error_reporting(E_ALL);
 session_start();
 if (!isset($_SESSION['user_id'])) {
     header('Location: ../../login.php');
