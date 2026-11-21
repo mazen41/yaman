@@ -121,10 +121,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $_SESSION['error_message'] = 'مبلغ الإيداع غير صالح.';
             } else {
                 $db->beginTransaction();
-                $db->prepare("UPDATE bank_accounts SET current_balance = current_balance + ?, updated_at=NOW() WHERE id = ?")->execute([$deposit_amount, $deposit_acc_id]);
-                $db->prepare("INSERT INTO bank_transactions (bank_account_id, transaction_type, amount, description, created_by) VALUES (?, 'deposit', ?, ?, ?)")->execute([$deposit_acc_id, $deposit_amount, $deposit_description, $_SESSION['user_id']]);
+                $cur = $db->prepare("SELECT current_balance FROM bank_accounts WHERE id = ? FOR UPDATE");
+                $cur->execute([$deposit_acc_id]);
+                $before = (float)$cur->fetchColumn();
+                $after  = $before + $deposit_amount;
+                $db->prepare("UPDATE bank_accounts SET current_balance = ?, updated_at=NOW() WHERE id = ?")->execute([$after, $deposit_acc_id]);
+                $db->prepare("INSERT INTO bank_account_transactions (account_id, transaction_type, amount, balance_before, balance_after, description, created_by) VALUES (?, 'deposit', ?, ?, ?, ?, ?)")->execute([$deposit_acc_id, $deposit_amount, $before, $after, $deposit_description, $_SESSION['user_id']]);
                 $db->commit();
                 $_SESSION['success_message'] = "✓ تم إيداع مبلغ " . number_format($deposit_amount, 2) . " بنجاح.";
+            }
+            header('Location: bank_accounts.php');
+            exit();
+        }
+
+        // --- WITHDRAW money ---
+        elseif ($_POST['action'] === 'withdraw' && isset($_POST['account_id_withdraw'])) {
+            $withdraw_acc_id      = intval($_POST['account_id_withdraw']);
+            $withdraw_amount      = filter_input(INPUT_POST, 'withdraw_amount', FILTER_VALIDATE_FLOAT);
+            $withdraw_description = trim($_POST['withdraw_description'] ?? 'سحب نقدي');
+
+            if ($withdraw_amount === false || $withdraw_amount === null || $withdraw_amount <= 0) {
+                $_SESSION['error_message'] = 'مبلغ السحب غير صالح.';
+            } else {
+                $db->beginTransaction();
+                $cur = $db->prepare("SELECT current_balance FROM bank_accounts WHERE id = ? FOR UPDATE");
+                $cur->execute([$withdraw_acc_id]);
+                $before = (float)$cur->fetchColumn();
+
+                if ($withdraw_amount > $before) {
+                    $db->rollBack();
+                    $_SESSION['error_message'] = 'الرصيد غير كافٍ. الرصيد الحالي ' . number_format($before, 2) . ' والمبلغ المطلوب ' . number_format($withdraw_amount, 2) . '.';
+                } else {
+                    $after = $before - $withdraw_amount;
+                    $db->prepare("UPDATE bank_accounts SET current_balance = ?, updated_at=NOW() WHERE id = ?")->execute([$after, $withdraw_acc_id]);
+                    $db->prepare("INSERT INTO bank_account_transactions (account_id, transaction_type, amount, balance_before, balance_after, description, created_by) VALUES (?, 'withdrawal', ?, ?, ?, ?, ?)")->execute([$withdraw_acc_id, $withdraw_amount, $before, $after, $withdraw_description, $_SESSION['user_id']]);
+                    $db->commit();
+                    $_SESSION['success_message'] = "✓ تم سحب مبلغ " . number_format($withdraw_amount, 2) . " بنجاح.";
+                }
             }
             header('Location: bank_accounts.php');
             exit();
@@ -613,6 +646,8 @@ include '../../includes/header.php';
     .btn-icon.edit:hover   { background: #c2410c; color: #fff; }
     .btn-icon.deposit { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
     .btn-icon.deposit:hover { background: #166534; color: #fff; }
+    .btn-icon.withdraw { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+    .btn-icon.withdraw:hover { background: #991b1b; color: #fff; }
     .btn-icon.delete { background: #fff1f2; color: #be123c; border: 1px solid #fecdd3; }
     .btn-icon.delete:hover { background: #be123c; color: #fff; }
     .btn-icon.toggle-active { background: #f0f9ff; color: #0369a1; border: 1px solid #bae6fd; }
@@ -989,6 +1024,11 @@ include '../../includes/header.php';
 
                     <!-- Action buttons -->
                     <div class="ac-actions">
+                        <button class="btn-icon withdraw"
+                                onclick="openWithdrawModal(<?php echo $account['id']; ?>, '<?php echo htmlspecialchars($account['bank_name'] . ' - ' . $account['account_name'], ENT_QUOTES); ?>', <?php echo (float)$account['current_balance']; ?>)"
+                                title="سحب مبلغ">
+                            <i class="fas fa-hand-holding-usd"></i>
+                        </button>
                         <button class="btn-icon deposit"
                                 onclick="openDepositModal(<?php echo $account['id']; ?>, '<?php echo htmlspecialchars($account['bank_name'] . ' - ' . $account['account_name'], ENT_QUOTES); ?>')"
                                 title="إيداع مبلغ">
@@ -1199,6 +1239,39 @@ include '../../includes/header.php';
 <!-- =============================================
      MODAL: DELETE CONFIRM
      ============================================= -->
+<!-- MODAL: WITHDRAW -->
+<div class="modal-overlay" id="modal-withdraw">
+    <div class="modal-box">
+        <form method="POST" action="bank_accounts.php">
+            <input type="hidden" name="action" value="withdraw">
+            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+            <input type="hidden" name="account_id_withdraw" id="withdraw_account_id">
+            <div class="modal-header">
+                <h3><i class="fas fa-hand-holding-usd" style="color:#dc2626"></i> سحب من الحساب</h3>
+                <button type="button" class="modal-close" onclick="closeModal('modal-withdraw')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin:0 0 1rem;color:var(--gray-600);font-size:.9rem;">
+                    الحساب: <strong id="withdraw_account_name" style="color:var(--gray-800)"></strong><br>
+                    الرصيد الحالي: <strong id="withdraw_current_balance" dir="ltr" style="color:var(--green-ok)"></strong>
+                </p>
+                <div class="form-group">
+                    <label for="withdraw_amount"><span class="req">*</span> مبلغ السحب</label>
+                    <input type="number" step="0.001" min="0.001" class="form-control" name="withdraw_amount" id="withdraw_amount" required dir="ltr" placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label for="withdraw_description">ملاحظة (اختياري)</label>
+                    <textarea class="form-control" name="withdraw_description" id="withdraw_description" rows="2" placeholder="مثال: سحب لدفع مصروفات"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('modal-withdraw')"><i class="fas fa-times"></i> إلغاء</button>
+                <button type="submit" class="btn btn-primary" style="background:#dc2626;border-color:#dc2626"><i class="fas fa-check"></i> تأكيد السحب</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <div class="modal-overlay" id="modal-delete">
     <div class="modal-box" style="max-width:420px">
         <div class="modal-header">
@@ -1285,6 +1358,17 @@ function openDepositModal(accountId, accountName) {
     document.getElementById('deposit_description').value = '';
     openModal('modal-deposit');
     setTimeout(() => document.getElementById('deposit_amount').focus(), 200);
+}
+
+function openWithdrawModal(accountId, accountName, currentBalance) {
+    document.getElementById('withdraw_account_id').value = accountId;
+    document.getElementById('withdraw_account_name').textContent = accountName;
+    document.getElementById('withdraw_current_balance').textContent = Number(currentBalance).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    document.getElementById('withdraw_amount').value = '';
+    document.getElementById('withdraw_amount').max = currentBalance;
+    document.getElementById('withdraw_description').value = '';
+    openModal('modal-withdraw');
+    setTimeout(() => document.getElementById('withdraw_amount').focus(), 200);
 }
 
 function openDeleteModal(id, bankName, accountNum) {
