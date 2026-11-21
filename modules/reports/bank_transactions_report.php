@@ -1,7 +1,4 @@
 <?php
-// TEMPORARY DEBUG: show PHP errors on this page. Remove after fixing.
-ini_set('display_errors', '1');
-error_reporting(E_ALL);
 session_start();
 if (!isset($_SESSION['user_id'])) {
     header('Location: ../../login.php');
@@ -91,15 +88,15 @@ include '../../includes/header.php';
 
         <!-- Header -->
         <div class="bg-gradient-to-r from-blue-600 to-indigo-700 shadow-xl rounded-2xl mb-6 p-6 no-print">
-            <div class="flex justify-between items-center">
+            <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
                 <div>
-                    <h1 class="text-3xl font-bold text-white flex items-center">
+                    <h1 class="text-2xl md:text-3xl font-bold text-white flex items-center">
                         <i class="fas fa-exchange-alt ml-3"></i>
                         <?php echo htmlspecialchars($page_title); ?>
                     </h1>
-                    <p class="text-blue-100 mt-2">كل عملية إيداع أو سحب من الحسابات البنكية مع تفاصيلها ورصيد الحساب قبل وبعد العملية</p>
+                    <p class="text-blue-100 mt-2 text-sm md:text-base">كل عملية إيداع أو سحب من الحسابات البنكية مع تفاصيلها ورصيد الحساب قبل وبعد العملية</p>
                 </div>
-                <div class="flex gap-2">
+                <div class="flex flex-wrap gap-2">
                     <a href="index.php" class="px-5 py-3 bg-white/20 text-white rounded-xl hover:bg-white/30 font-semibold transition"><i class="fas fa-arrow-right ml-2"></i>التقارير</a>
                     <button onclick="window.print()" class="px-5 py-3 bg-white text-blue-600 rounded-xl hover:bg-blue-50 font-semibold transition"><i class="fas fa-print ml-2"></i>طباعة</button>
                 </div>
@@ -167,7 +164,7 @@ include '../../includes/header.php';
         <!-- Table -->
         <div class="bg-white shadow-lg rounded-2xl overflow-hidden">
             <div class="overflow-x-auto">
-                <table class="w-full br-table">
+                <table class="w-full br-table" style="min-width:900px;">
                     <thead>
                         <tr>
                             <th class="text-right">#</th>

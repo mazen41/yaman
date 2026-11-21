@@ -79,9 +79,9 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
   .btn-close { background: #6b7280; color: #fff; font-size: 14px !important; padding: 10px 20px !important; margin-right: 10px; }
   .toolbar .count { font-size: 14px; color: #374151; margin-right: 16px; }
 
-  /* ===== Label: 60 mm x 40 mm ===== */
+  /* ===== Label: 75 mm x 50 mm ===== */
   .label {
-    width: 60mm; height: 40mm; padding: 1.2mm;
+    width: 75mm; height: 50mm; padding: 1.2mm;
     margin: 0 auto 6mm; background: #fff; overflow: hidden;
     page-break-after: always; break-after: page;
   }
@@ -134,7 +134,7 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
   .chip small { font-size: 5.5pt; font-weight: 700; margin-right: 0.5mm; }
 
   /* ===== Print ===== */
-  @page { size: 60mm 40mm; margin: 0; }
+  @page { size: 75mm 50mm; margin: 0; }
   @media print {
     html, body { background: #fff !important; margin: 0; }
     .no-print { display: none !important; }
