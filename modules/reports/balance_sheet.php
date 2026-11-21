@@ -13,49 +13,53 @@ $page_title = 'التقرير المالي اليومي (الميزانية)';
 try {
     $today_date = date('Y-m-d');
 
-    // --- 1. CASH CALCULATION (Customers + Bank Transfers INTO cash) ---
-    
-    // A. Cash from Customer Payments today
-    $cust_cash_query = "SELECT COALESCE(SUM(amount), 0) FROM customer_payments WHERE payment_method = 'cash' AND DATE(payment_date) = CURDATE()";
-    $customer_cash = (float)$db->query($cust_cash_query)->fetchColumn();
+    // --- 1. إجمالي المدفوعات النقدية (كل الوقت) ---
+    // جميع المبالغ المستلمة نقداً من العملاء
+    $customer_cash = (float)$db->query(
+        "SELECT COALESCE(SUM(amount), 0) FROM customer_payments WHERE payment_method = 'cash'"
+    )->fetchColumn();
+    $transfers_in_to_cash = 0; // لا يوجد جدول cash_transactions مستقل
+    $daily_cash_balance = $customer_cash;
 
-    // B. Cash from Bank Transfers today (The new part from cash_transactions)
-    // This assumes 'cash_transactions' records transfers specifically affecting physical cash.
-    // If it's about transfers *into* bank accounts, it should not be added to daily_cash_balance.
-    // Based on your initial "محول من البنك" under "الرصيد النقدي (كاش اليوم + المحول)", 
-    // I'm assuming 'cash_transactions' with type 'in' represent cash received from a bank transfer into the physical cash box.
-    $trans_cash_query = "SELECT COALESCE(SUM(amount), 0) FROM cash_transactions WHERE type = 'in' AND DATE(created_at) = CURDATE()";
-    $transfers_in_to_cash = (float)$db->query($trans_cash_query)->fetchColumn();
+    // إجمالي المدفوعات بالتحويل البنكي (تُضاف للحسابات البنكية، ليس كاش)
+    $transfer_payments = (float)$db->query(
+        "SELECT COALESCE(SUM(amount), 0) FROM customer_payments WHERE payment_method = 'transfer'"
+    )->fetchColumn();
 
-    // TOTAL DAILY CASH from all sources that become physical cash
-    $daily_cash_balance = $customer_cash + $transfers_in_to_cash;
+    // طرق دفع أخرى (شيك، بطاقة ائتمان ...)
+    $daily_other_balance = (float)$db->query(
+        "SELECT COALESCE(SUM(amount), 0) FROM customer_payments WHERE payment_method NOT IN ('cash', 'transfer')"
+    )->fetchColumn();
 
-    // C. Other payment methods (Today) - Not cash, not bank transfer, not credit card, not check
-    $other_payment_query = "SELECT COALESCE(SUM(amount), 0) FROM customer_payments WHERE payment_method NOT IN ('cash', 'transfer', 'credit_card', 'check') AND DATE(payment_date) = CURDATE()";
-    $daily_other_balance = (float)$db->query($other_payment_query)->fetchColumn();
+    // --- 2. أرصدة الحسابات البنكية الحالية (YER) ---
+    $daily_bank_balance = (float)$db->query(
+        "SELECT COALESCE(SUM(current_balance), 0) FROM bank_accounts WHERE currency = 'YER'"
+    )->fetchColumn();
 
-    // --- 2. BANK ACCOUNTS (أرصدة الحسابات البنكية) ---
-    // This remains the total current balance across all bank accounts
-    $daily_bank_balance = (float) $db->query("SELECT COALESCE(SUM(current_balance), 0) FROM bank_accounts")->fetchColumn();
+    // أرصدة الحسابات البنكية بالريال السعودي (نعرضها منفصلة)
+    $bank_balance_sar = (float)$db->query(
+        "SELECT COALESCE(SUM(current_balance), 0) FROM bank_accounts WHERE currency = 'SAR'"
+    )->fetchColumn();
 
-    // --- 3. PREPAID CARDS (بطاقات الشراء) ---
-    $prepaid_cards_balance = (float) $db->query("SELECT COALESCE(SUM(balance), 0) FROM purchase_cards WHERE balance > 0")->fetchColumn();
+    // --- 3. بطاقات الشراء ---
+    $prepaid_cards_balance = (float)$db->query(
+        "SELECT COALESCE(SUM(balance), 0) FROM purchase_cards WHERE balance > 0"
+    )->fetchColumn();
 
-    // --- TOTAL ASSETS ---
-    $total_assets = $daily_cash_balance + $daily_bank_balance + $daily_other_balance + $prepaid_cards_balance;
+    // --- 4. ذمم العملاء (أصل — مبالغ ستدخل للشركة) ---
+    $customer_outstanding_balance = (float)$db->query(
+        "SELECT COALESCE(SUM(final_amount - paid_amount), 0) FROM customer_orders WHERE (final_amount - paid_amount) > 0.01"
+    )->fetchColumn();
 
-    // --- 4. RECEIVABLES (ذمم العملاء) — هذا أصل وليس التزاماً ---
-    // المبالغ المتبقية على العملاء هي أموال ستدخل للشركة = أصل
-    $customer_outstanding_balance = (float) $db->query("SELECT COALESCE(SUM(final_amount - paid_amount), 0) FROM customer_orders WHERE (final_amount - paid_amount) > 0.01")->fetchColumn();
+    // --- إجمالي الأصول ---
+    $total_assets = $daily_cash_balance + $daily_bank_balance + $daily_other_balance
+                  + $prepaid_cards_balance + $customer_outstanding_balance;
 
-    // أضف ذمم العملاء للأصول
-    $total_assets = $daily_cash_balance + $daily_bank_balance + $daily_other_balance + $prepaid_cards_balance + $customer_outstanding_balance;
-
-    // --- 5. LIABILITIES ---
+    // --- 5. الالتزامات ---
     $accounts_payable = 0.00;
     $total_liabilities = $accounts_payable;
 
-    // --- 6. EQUITY ---
+    // --- 6. حقوق الملكية ---
     $total_equity = $total_assets - $total_liabilities;
     $total_liabilities_and_equity = $total_liabilities + $total_equity;
 
@@ -219,33 +223,45 @@ include '../../includes/header.php';
                     <div class="bs-item">
                         <span class="bs-item-label">
                             <i class="fas fa-money-bill-wave text-green-500"></i>
-                            الرصيد النقدي (كاش اليوم)
+                            إجمالي المقبوضات النقدية
                         </span>
                         <span class="bs-item-value text-green-700">
                             <?php echo number_format($daily_cash_balance, 2); ?> ر.ي
                         </span>
                     </div>
-                    <div class="bs-item text-sm text-gray-500 pr-8">
-                        <span>- من مبيعات العملاء:</span>
-                        <span><?php echo number_format($customer_cash, 2); ?> ر.ي</span>
-                    </div>
-                    <div class="bs-item text-sm text-blue-500 pr-8">
-                        <span>- محول إلى الصندوق النقدي (كاش):</span>
-                        <span><?php echo number_format($transfers_in_to_cash, 2); ?> ر.ي</span>
+                    <div class="bs-item">
+                        <span class="bs-item-label">
+                            <i class="fas fa-exchange-alt text-teal-500"></i>
+                            مدفوعات بالتحويل البنكي
+                        </span>
+                        <span class="bs-item-value text-teal-700">
+                            <?php echo number_format($transfer_payments, 2); ?> ر.ي
+                        </span>
                     </div>
                     <div class="bs-item">
                         <span class="bs-item-label">
                             <i class="fas fa-university text-blue-500"></i>
-                            أرصدة الحسابات البنكية
+                            أرصدة الحسابات البنكية (ر.ي)
                         </span>
                         <span class="bs-item-value text-blue-700">
                             <?php echo number_format($daily_bank_balance, 2); ?> ر.ي
                         </span>
                     </div>
+                    <?php if ($bank_balance_sar > 0): ?>
+                    <div class="bs-item">
+                        <span class="bs-item-label">
+                            <i class="fas fa-university text-yellow-500"></i>
+                            أرصدة الحسابات البنكية (ر.س)
+                        </span>
+                        <span class="bs-item-value text-yellow-700">
+                            <?php echo number_format($bank_balance_sar, 2); ?> ر.س
+                        </span>
+                    </div>
+                    <?php endif; ?>
                     <div class="bs-item">
                         <span class="bs-item-label">
                             <i class="fas fa-wallet text-gray-500"></i>
-                            طرق دفع أخرى (اليوم)
+                            طرق دفع أخرى (شيك، بطاقة...)
                         </span>
                         <span class="bs-item-value text-gray-700">
                             <?php echo number_format($daily_other_balance, 2); ?> ر.ي
