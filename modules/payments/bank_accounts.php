@@ -1,9 +1,4 @@
 <?php
-// TEMPORARY DEBUG: show and log PHP errors on this page. Remove after fixing.
-ini_set('display_errors', '1');
-ini_set('log_errors', '1');
-ini_set('error_log', __DIR__ . '/bank_debug.log');
-error_reporting(E_ALL);
 session_start();
 
 // Authentication
@@ -1338,6 +1333,9 @@ function showToast(message, type = 'success') {
         setTimeout(() => toast.remove(), 250);
     }, 3500);
 }
+
+<?php if ($success_message): ?>showToast(<?php echo json_encode($success_message, JSON_UNESCAPED_UNICODE); ?>, 'success');<?php endif; ?>
+<?php if ($error_message): ?>showToast(<?php echo json_encode($error_message, JSON_UNESCAPED_UNICODE); ?>, 'error');<?php endif; ?>
 
 /* ===== MODALS ===== */
 function openModal(id) {
