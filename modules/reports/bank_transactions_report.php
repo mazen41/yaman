@@ -16,7 +16,8 @@ $is_date = fn($d) => is_string($d) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $d);
 $date_from  = $is_date($_GET['date_from'] ?? '') ? $_GET['date_from'] : '';
 $date_to    = $is_date($_GET['date_to'] ?? '')   ? $_GET['date_to']   : '';
 $account_id = isset($_GET['account_id']) && $_GET['account_id'] !== '' ? intval($_GET['account_id']) : 0;
-$type       = in_array($_GET['type'] ?? 'all', ['all', 'deposit', 'withdrawal'], true) ? $_GET['type'] : 'all';
+$type_raw   = $_GET['type'] ?? 'all';
+$type       = in_array($type_raw, ['all', 'deposit', 'withdrawal'], true) ? $type_raw : 'all';
 
 $where  = [];
 $params = [];
