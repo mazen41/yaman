@@ -296,85 +296,64 @@ include '../../includes/header.php';
                 </div>
             </div>
 
-            <!-- ====== RIGHT: LIABILITIES + EQUITY ====== -->
+            <!-- ====== RIGHT: SUMMARY ====== -->
             <div class="bs-section">
                 <div class="bs-header">
-                    <h2><i class="fas fa-minus-circle text-red-500 ml-2"></i>الالتزامات وحقوق الملكية</h2>
+                    <h2><i class="fas fa-chart-pie text-purple-500 ml-2"></i>ملخص الوضع المالي</h2>
                 </div>
                 <div class="bs-content">
 
-                    <h3 class="font-bold text-sm uppercase tracking-wide text-gray-400 mb-3">الالتزامات</h3>
-
                     <div class="bs-item">
-                        <span class="bs-item-label">
-                            <i class="fas fa-truck text-red-500"></i>
-                            الذمم الدائنة (الموردون)
-                        </span>
-                        <span class="bs-item-value text-red-700">
-                            <?php echo number_format($accounts_payable, 2); ?> ر.ي
-                        </span>
+                        <span class="bs-item-label"><i class="fas fa-money-bill-wave text-green-500"></i>إجمالي المقبوضات النقدية</span>
+                        <span class="bs-item-value text-green-700"><?php echo number_format($daily_cash_balance, 2); ?> ر.ي</span>
                     </div>
-
-                    <!-- Sub-total: Liabilities -->
-                    <div style="display:flex; justify-content:space-between; padding: 0.75rem 0; background:#fff1f2; border-radius:8px; padding: 0.75rem 1rem; margin: 0.5rem 0;">
-                        <span style="font-weight:700; color:#b91c1c;">إجمالي الالتزامات</span>
-                        <span style="font-weight:700; font-family:monospace; color:#b91c1c;">
-                            <?php echo number_format($total_liabilities, 2); ?> ر.ي
-                        </span>
-                    </div>
-
-                    <h3 class="font-bold text-sm uppercase tracking-wide text-gray-400 mt-5 mb-3">حقوق الملكية (Equity)</h3>
-
                     <div class="bs-item">
-                        <span class="bs-item-label">
-                            <i class="fas fa-balance-scale text-purple-500"></i>
-                            صافي حقوق الملكية
-                            <small class="text-gray-400 font-normal">(الأصول − الالتزامات)</small>
-                        </span>
-                        <span class="bs-item-value text-purple-700">
-                            <?php echo number_format($total_equity, 2); ?> ر.ي
-                        </span>
+                        <span class="bs-item-label"><i class="fas fa-exchange-alt text-teal-500"></i>مقبوضات التحويل البنكي</span>
+                        <span class="bs-item-value text-teal-700"><?php echo number_format($transfer_payments, 2); ?> ر.ي</span>
                     </div>
+                    <div class="bs-item">
+                        <span class="bs-item-label"><i class="fas fa-university text-blue-500"></i>أرصدة البنوك (ر.ي)</span>
+                        <span class="bs-item-value text-blue-700"><?php echo number_format($daily_bank_balance, 2); ?> ر.ي</span>
+                    </div>
+                    <?php if ($bank_balance_sar > 0): ?>
+                    <div class="bs-item">
+                        <span class="bs-item-label"><i class="fas fa-university text-yellow-500"></i>أرصدة البنوك (ر.س)</span>
+                        <span class="bs-item-value text-yellow-700"><?php echo number_format($bank_balance_sar, 2); ?> ر.س</span>
+                    </div>
+                    <?php endif; ?>
+                    <div class="bs-item">
+                        <span class="bs-item-label"><i class="fas fa-credit-card text-indigo-500"></i>بطاقات الشراء</span>
+                        <span class="bs-item-value text-indigo-700"><?php echo number_format($prepaid_cards_balance, 2); ?> ر.ي</span>
+                    </div>
+                    <div class="bs-item">
+                        <span class="bs-item-label"><i class="fas fa-user-clock text-orange-500"></i>ذمم العملاء (متبقي عليهم)</span>
+                        <span class="bs-item-value text-orange-700"><?php echo number_format($customer_outstanding_balance, 2); ?> ر.ي</span>
+                    </div>
+                    <?php if ($daily_other_balance > 0): ?>
+                    <div class="bs-item">
+                        <span class="bs-item-label"><i class="fas fa-wallet text-gray-500"></i>طرق دفع أخرى</span>
+                        <span class="bs-item-value text-gray-700"><?php echo number_format($daily_other_balance, 2); ?> ر.ي</span>
+                    </div>
+                    <?php endif; ?>
 
                 </div>
-
-                <!-- Grand total — MUST equal total_assets -->
-                <div class="bs-total equity-total">
-                    <span class="bs-total-label text-green-800">
-                        <i class="fas fa-equals ml-1"></i> الإجمالي (التزامات + حقوق ملكية)
-                    </span>
-                    <span class="bs-total-value text-green-800">
-                        <?php echo number_format($total_liabilities_and_equity, 2); ?> ر.ي
-                    </span>
+                <div class="bs-total assets-total">
+                    <span class="bs-total-label text-green-800"><i class="fas fa-equals ml-1"></i> الإجمالي الكلي</span>
+                    <span class="bs-total-value text-green-800"><?php echo number_format($total_assets, 2); ?> ر.ي</span>
                 </div>
             </div>
 
         </div>
 
-        <!-- Balance verification badge -->
-        <?php
-        $balanced = abs($total_assets - $total_liabilities_and_equity) < 0.01;
-        ?>
-        <div class="text-center mt-4">
-            <?php if ($balanced): ?>
-                <span class="balance-check-badge bg-green-100 text-green-800">
-                    <i class="fas fa-check-circle"></i> الميزانية متوازنة — الإجماليان متطابقان
-                </span>
-            <?php else: ?>
-                <span class="balance-check-badge bg-red-100 text-red-800">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    تحذير: فرق = <?php echo number_format(abs($total_assets - $total_liabilities_and_equity), 2); ?> ر.ي
-                </span>
-            <?php endif; ?>
-        </div>
+
 
         <div class="note-box mt-6">
-            <p><i class="fas fa-info-circle"></i> <strong>ملاحظات التقرير:</strong></p>
+            <p><i class="fas fa-info-circle"></i> <strong>ملاحظات:</strong></p>
             <ul class="list-disc pr-5 mt-2">
-                <li><strong>الرصيد النقدي (كاش اليوم):</strong> مجموع المبالغ المستلمة نقداً خلال اليوم الحالي، ويشمل مبيعات العملاء النقدية والمبالغ المحولة إلى الصندوق النقدي (الكاش).</li>
-                <li><strong>أرصدة الحسابات البنكية:</strong> إجمالي الأرصدة الحالية الفعلية في جميع الحسابات البنكية.</li>
-                <li><strong>أرصدة العملاء المتبقية:</strong> إجمالي المبالغ المتبقية على العملاء من جميع الطلبات غير المسددة بالكامل.</li>
-                <li><strong>حقوق الملكية:</strong> تُحسب تلقائياً = إجمالي الأصول − إجمالي الالتزامات، مما يضمن توازن الميزانية دائماً.</li>
+                <li><strong>المقبوضات النقدية:</strong> إجمالي كل المبالغ المستلمة نقداً من العملاء.</li>
+                <li><strong>مقبوضات التحويل:</strong> إجمالي كل المبالغ المستلمة عبر تحويل بنكي.</li>
+                <li><strong>أرصدة البنوك:</strong> الرصيد الحالي الفعلي في الحسابات البنكية.</li>
+                <li><strong>ذمم العملاء:</strong> مبالغ متبقية على العملاء لم تُسدَّد بعد — ستدخل للشركة لاحقاً.</li>
             </ul>
         </div>
 
