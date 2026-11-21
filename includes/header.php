@@ -670,15 +670,22 @@ $app_base   = ($__doc_root !== '' && $__app_dir !== '' && strncasecmp($__app_dir
                         class="hidden absolute -top-1 -left-1 min-w-[18px] h-4 px-1 bg-red-500 border-2 border-white rounded-full text-[10px] leading-3 flex items-center justify-center"></span>
                     <!-- Dropdown -->
                     <div id="notifDropdown"
-                        class="hidden absolute left-0 mt-2 w-80 bg-white rounded-md shadow-lg py-2 z-50 border border-gray-200">
-                        <div class="px-3 pb-2 border-b border-gray-100 flex items-center justify-between">
-                            <span class="text-sm font-semibold text-gray-700">الإشعارات</span>
-                            <span class="text-xs text-gray-400">عند تحديث الصفحة</span>
+                        class="hidden absolute left-0 mt-3 w-96 max-w-[92vw] bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50">
+                        <div class="px-4 py-3 flex items-center justify-between text-white"
+                            style="background: linear-gradient(135deg, #C7A46D 0%, #a8844f 100%);">
+                            <div class="flex items-center gap-2">
+                                <i class="fas fa-bell"></i>
+                                <span class="font-bold text-sm">الإشعارات</span>
+                            </div>
+                            <span class="text-[11px] bg-white/25 px-2.5 py-1 rounded-full">عند تحديث الصفحة</span>
                         </div>
-                        <div id="notifList" class="max-h-96 overflow-auto">
-                            <div class="px-4 py-3 text-sm text-gray-500">لا توجد إشعارات.</div>
+                        <div id="notifList" class="max-h-[26rem] overflow-y-auto divide-y divide-gray-100">
+                            <div class="px-4 py-10 text-center text-sm text-gray-500">
+                                <i class="fas fa-inbox text-3xl text-gray-300 mb-2 block"></i>
+                                لا توجد إشعارات.
+                            </div>
                         </div>
-                        <div class="px-3 pt-2 border-t border-gray-100 text-xs text-gray-500">تعرض إشعارات الفرز المحملة عند تحديث الصفحة فقط</div>
+                        <div class="px-4 py-2.5 bg-gray-50 border-t border-gray-100 text-[11px] text-gray-500 text-center">تعرض إشعارات الفرز المحملة عند تحديث الصفحة فقط</div>
                     </div>
                 </div>
 
@@ -820,30 +827,39 @@ $app_base   = ($__doc_root !== '' && $__app_dir !== '' && strncasecmp($__app_dir
 
             function renderNotifItems(items) {
                 if (!items || items.length === 0) {
-                    notifList.innerHTML = '<div class="px-4 py-3 text-sm text-gray-500">لا توجد إشعارات فرز.</div>';
+                    notifList.innerHTML = '<div class="px-4 py-10 text-center text-sm text-gray-500"><i class="fas fa-inbox text-3xl text-gray-300 mb-2 block"></i>لا توجد إشعارات فرز.</div>';
                     return;
                 }
                 const html = items.map(function (item) {
-                    const unreadClass = Number(item.is_read || 0) === 0 ? 'bg-red-50 border-red-100' : 'bg-white border-gray-50';
-                    const typeIcon = item.type === 'order_complete' ? 'fa-check-circle text-green-600' : 'fa-box-open text-blue-600';
+                    const isComplete = item.type === 'order_complete';
+                    const accent = isComplete ? '#16a34a' : '#2563eb';
+                    const softBg = isComplete ? '#f0fdf4' : '#eff6ff';
+                    const icon = isComplete ? 'fa-check-circle' : 'fa-box-open';
+                    const isUnread = Number(item.is_read || 0) === 0;
                     const orderNumber = item.order_number ? ('#' + escapeHtml(item.order_number)) : ('طلب #' + escapeHtml(item.order_id));
                     const sku = item.sku ? (' • SKU: ' + escapeHtml(item.sku)) : '';
                     const creator = item.created_by_name ? (' • ' + escapeHtml(item.created_by_name)) : '';
+                    const unreadBadge = isUnread
+                        ? '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500 text-white whitespace-nowrap">جديد</span>'
+                        : '';
                     return (
-                        '<div class="px-3 py-2 hover:bg-gray-50 border-b ' + unreadClass + '">' +
-                        '<div class="flex items-start justify-between gap-3">' +
-                        '<div class="flex items-start space-x-2 space-x-reverse min-w-0">' +
-                        '<i class="fas ' + typeIcon + ' mt-1 ml-2"></i>' +
-                        '<div class="min-w-0">' +
-                        '<div class="text-sm font-semibold text-gray-800">' + escapeHtml(item.title) + ' - ' + orderNumber + '</div>' +
-                        '<div class="text-xs text-gray-600 mt-1 break-words">' + escapeHtml(item.message) + '</div>' +
-                        '<div class="text-[11px] text-gray-400 mt-1">' + escapeHtml(item.created_at) + sku + creator + '</div>' +
+                        '<div class="px-4 py-3 hover:bg-gray-50 transition ' + (isUnread ? 'bg-amber-50/50' : '') + '" style="border-right:4px solid ' + (isUnread ? accent : 'transparent') + ';">' +
+                        '<div class="flex gap-3">' +
+                        '<div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style="background:' + softBg + ';color:' + accent + ';">' +
+                        '<i class="fas ' + icon + '"></i>' +
+                        '</div>' +
+                        '<div class="min-w-0 flex-1">' +
+                        '<div class="flex items-start justify-between gap-2">' +
+                        '<div class="text-sm font-bold text-gray-800 leading-snug">' + escapeHtml(item.title) + '</div>' +
+                        unreadBadge +
+                        '</div>' +
+                        '<div class="mt-1"><span class="inline-block text-[11px] font-semibold px-2 py-0.5 rounded-md bg-gray-100 text-gray-700">' + orderNumber + '</span></div>' +
+                        '<div class="text-xs text-gray-600 mt-1.5 leading-relaxed break-words">' + escapeHtml(item.message) + '</div>' +
+                        '<div class="flex items-center justify-between gap-2 flex-wrap mt-2 text-[11px] text-gray-400">' +
+                        '<span><i class="far fa-clock ml-1"></i>' + escapeHtml(item.created_at) + sku + creator + '</span>' +
+                        '<a href="' + escapeHtml(item.view_url) + '" class="font-semibold text-blue-600 hover:text-blue-800 whitespace-nowrap"><i class="fas fa-arrow-left ml-1"></i>عرض الطلب</a>' +
                         '</div>' +
                         '</div>' +
-                        (Number(item.is_read || 0) === 0 ? '<span class="text-[10px] px-2 py-0.5 rounded-full text-red-700 bg-red-100">جديد</span>' : '') +
-                        '</div>' +
-                        '<div class="mt-2 flex justify-end text-xs">' +
-                        '<a href="' + escapeHtml(item.view_url) + '" class="text-blue-600 hover:text-blue-800"><i class="fas fa-eye ml-1"></i>تفاصيل الطلب</a>' +
                         '</div>' +
                         '</div>'
                     );
