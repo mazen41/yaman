@@ -61,11 +61,13 @@ $size_key = (isset($_GET['size']) && isset($size_presets[$_GET['size']])) ? $_GE
 $base_query = 'ids=' . urlencode($raw_ids);
 
 // The label is designed at 75 x 50 mm and scaled to fit the chosen size (keeps the layout proportional).
-$fit_w = $label_w - 2.4; // 1.2 mm inset on each side
-$fit_h = $label_h - 2.4;
+// Safe area: thermal heads can't print to the very edge of the roll, so keep 3 mm on each side.
+$safe = 3;
+$fit_w = $label_w - 2 * $safe;
+$fit_h = $label_h - 2 * $safe;
 $card_scale = min($fit_w / 75, $fit_h / 50);
-$card_left  = 1.2 + ($fit_w - 75 * $card_scale) / 2;
-$card_top   = 1.2 + ($fit_h - 50 * $card_scale) / 2;
+$card_left  = $safe + ($fit_w - 75 * $card_scale) / 2;
+$card_top   = $safe + ($fit_h - 50 * $card_scale) / 2;
 $card_style = sprintf(
     'position:absolute;left:%.2fmm;top:%.2fmm;width:75mm;height:50mm;transform:scale(%.4f);transform-origin:0 0;',
     $card_left, $card_top, $card_scale
