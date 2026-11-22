@@ -94,6 +94,10 @@ try {
         $subtotal_amount += floatval($item['total'] ?? 0);
     }
 
+    // A valid coupon cancels the customer-type automatic discount (they do not stack).
+    if ($final_data['coupon_discount_amount'] > 0) {
+        $final_data['automatic_discount_percentage'] = 0;
+    }
     $final_data['automatic_discount_amount'] = round($subtotal_amount * ($final_data['automatic_discount_percentage'] / 100), 2);
     
     $total_discount_amount = $final_data['automatic_discount_amount'] + $final_data['coupon_discount_amount'];

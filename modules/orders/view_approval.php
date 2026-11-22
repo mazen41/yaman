@@ -560,9 +560,10 @@ include '../../includes/header.php';
         const couponDiscountAmt = parseFloat(document.getElementById('coupon_discount_amount').value) || 0;
 
         // Re-fetch automatic discount based on customer type + current subtotal (same logic as create_order.php)
+        // A valid coupon cancels the customer-type automatic discount (they do not stack).
         let autoDiscountPercent = 0;
         let autoDiscountAmt = 0;
-        if (customerTypeIdForDiscount && subtotal > 0) {
+        if (customerTypeIdForDiscount && subtotal > 0 && couponDiscountAmt <= 0) {
             try {
                 const response = await fetch(`get_customer_discount.php?customer_type_id=${customerTypeIdForDiscount}&amount=${subtotal}`);
                 const data = await response.json();
