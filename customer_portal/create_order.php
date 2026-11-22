@@ -765,6 +765,13 @@ $total_after_discounts = $subtotal_amount - $calculated_automatic_discount_amoun
             }
         }
 
+        // A valid coupon cancels the customer-type automatic discount (they do not stack).
+        if (currentCouponDiscountAmount > 0) {
+            automaticDiscountPercentage = 0;
+            automaticDiscountAmount = 0;
+            document.getElementById('automaticDiscountRow').classList.add('hidden');
+        }
+
         let totalAfterDiscounts = subtotal - automaticDiscountAmount - currentCouponDiscountAmount;
         if (totalAfterDiscounts < 0) totalAfterDiscounts = 0; 
         
