@@ -105,16 +105,16 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
   }
   .brand { display: flex; align-items: center; gap: 1mm; }
   .brand img { height: 5mm; width: auto; max-width: 6mm; object-fit: contain; filter: brightness(0); }
-  .brand-en { font-size: 6.5pt; font-weight: 900; color: var(--navy); direction: ltr; unicode-bidi: isolate; }
-  .phone-top { font-size: 6.5pt; font-weight: 900; color: var(--navy); direction: ltr; unicode-bidi: isolate; white-space: nowrap; }
+  .brand-en { font-size: 8.5pt; font-weight: 900; color: var(--navy); direction: ltr; unicode-bidi: isolate; }
+  .phone-top { font-size: 8.5pt; font-weight: 900; color: var(--navy); direction: ltr; unicode-bidi: isolate; white-space: nowrap; }
 
   /* Body: name then location then phones stacked */
-  .body-row { display: flex; flex-direction: column; gap: 0.5mm; margin-top: 0.8mm; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+  .body-row { display: flex; flex-direction: column; gap: 1.2mm; margin-top: 1.2mm; flex: 1 1 auto; min-height: 0; overflow: hidden; }
 
-  .name { font-size: 7pt; font-weight: 900; line-height: 1.2; overflow-wrap: anywhere; border: 0.3mm solid var(--navy); border-radius: 1mm; background: var(--navy); color: #fff; padding: 0.5mm 1.5mm; display: inline-block; max-width: 100%; }
+  .name { font-size: 10.5pt; font-weight: 900; line-height: 1.25; overflow-wrap: anywhere; border: 0.3mm solid var(--navy); border-radius: 1mm; background: var(--navy); color: #fff; padding: 0.8mm 2mm; display: inline-block; max-width: 100%; }
 
-  .location-line { font-size: 5.8pt; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .phones-line { font-size: 5.8pt; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .location-line { font-size: 8pt; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .phones-line { font-size: 8pt; line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .fk { font-weight: 900; color: var(--navy); white-space: nowrap; }
   .loc-val { font-weight: 700; overflow-wrap: anywhere; }
   .ltr-val { direction: ltr; unicode-bidi: isolate; font-weight: 700; }
@@ -124,14 +124,14 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
   .chip {
     border: 0.3mm solid var(--navy); border-radius: 1mm;
     background: #fff; color: var(--navy);
-    padding: 0.5mm 1.2mm; font-size: 6pt; font-weight: 900;
+    padding: 0.8mm 1.6mm; font-size: 8pt; font-weight: 900;
     display: flex; align-items: center; justify-content: center; text-align: center;
     line-height: 1.2;
   }
-  .chip.rem { flex: 1 1 auto; background: var(--navy); color: #fff; font-size: 6.5pt; }
-  .chip.ordchip { font-size: 5.5pt; }
-  .ord-stack { display: flex; flex-direction: column; gap: 0.5mm; }
-  .chip small { font-size: 5.5pt; font-weight: 700; margin-right: 0.5mm; }
+  .chip.rem { flex: 1 1 auto; background: var(--navy); color: #fff; font-size: 9pt; }
+  .chip.ordchip { font-size: 7.5pt; }
+  .ord-stack { display: flex; flex-direction: column; gap: 0.6mm; }
+  .chip small { font-size: 7pt; font-weight: 700; margin-right: 0.5mm; }
 
   /* ===== Print ===== */
   @page { size: 75mm 50mm; margin: 0; }
