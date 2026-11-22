@@ -534,6 +534,7 @@ $total_after_discounts = $subtotal_amount - $calculated_automatic_discount_amoun
                                 <div class="flex items-center space-x-2 rtl:space-x-reverse">
                                     <input type="text" id="coupon_code" name="coupon_code" class="flex-grow p-2 border border-gray-300 rounded-md uppercase" placeholder="أدخل الكود إن وجد">
                                     <button type="button" onclick="applyCoupon()" class="px-4 py-2 bg-indigo-500 text-white font-semibold rounded-md hover:bg-indigo-600 transition">تطبيق</button>
+                                    <button type="button" id="cancelCouponBtn" onclick="cancelCoupon()" class="hidden px-4 py-2 bg-red-500 text-white font-semibold rounded-md hover:bg-red-600 transition whitespace-nowrap"><i class="fas fa-times ml-1"></i>إلغاء الكوبون</button>
                                 </div>
                                 <p id="couponMessage" class="mt-1 text-sm text-gray-600"></p>
                             </div>
@@ -719,6 +720,20 @@ $total_after_discounts = $subtotal_amount - $calculated_automatic_discount_amoun
         updateTotals();
     }
 
+    // Cancel the applied coupon: clears the code and message, and brings back the customer-type automatic discount.
+    function cancelCoupon() {
+        const couponCodeInput = document.getElementById('coupon_code');
+        const couponMessageElement = document.getElementById('couponMessage');
+        couponCodeInput.value = '';
+        couponCodeInput.classList.remove('coupon-input-success', 'coupon-input-error');
+        couponMessageElement.textContent = 'تم إلغاء الكوبون.';
+        couponMessageElement.classList.remove('text-green-600', 'text-red-600');
+        couponMessageElement.classList.add('text-gray-600');
+        currentCouponDiscountAmount = 0;
+        currentCouponDisplayPercentage = '';
+        updateTotals();
+    }
+
     function fmt(value) {
         return Math.round(Number(value) || 0).toLocaleString('en-US');
     }
@@ -771,6 +786,8 @@ $total_after_discounts = $subtotal_amount - $calculated_automatic_discount_amoun
             automaticDiscountAmount = 0;
             document.getElementById('automaticDiscountRow').classList.add('hidden');
         }
+
+        document.getElementById('cancelCouponBtn').classList.toggle('hidden', !(currentCouponDiscountAmount > 0));
 
         let totalAfterDiscounts = subtotal - automaticDiscountAmount - currentCouponDiscountAmount;
         if (totalAfterDiscounts < 0) totalAfterDiscounts = 0; 
