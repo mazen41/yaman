@@ -222,7 +222,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $coupon_code = ''; 
     }
 
-    $total_after_discounts = $subtotal_amount - $calculated_automatic_discount_amount - $coupon_discount_amount;
+    // A valid coupon replaces the customer-type automatic discount (they do not stack).
+if ($coupon_discount_amount > 0) {
+    $calculated_automatic_discount_percentage = 0;
+    $calculated_automatic_discount_amount = 0;
+}
+$total_after_discounts = $subtotal_amount - $calculated_automatic_discount_amount - $coupon_discount_amount;
     if ($total_after_discounts < 0) $total_after_discounts = 0; 
 
     $final_amount = $total_after_discounts; 

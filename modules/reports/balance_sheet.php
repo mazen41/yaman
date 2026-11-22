@@ -190,6 +190,29 @@ include '../../includes/header.php';
         font-size: 0.9rem;
         margin-top: 1rem;
     }
+    /* ===== Phone layout ===== */
+    .bs-section, .bs-item-label, .bs-item-value { min-width: 0; }
+    .bs-item-value { direction: ltr; text-align: right; overflow-wrap: anywhere; }
+    @media (max-width: 640px) {
+        .bs-page-head { flex-direction: column; align-items: stretch !important; gap: 1rem; padding: 1.25rem !important; }
+        .bs-page-title { font-size: 1.35rem !important; line-height: 1.4; flex-wrap: wrap; }
+        .bs-page-back { width: 100%; justify-content: center; }
+        .balance-sheet-container { gap: 1.25rem; }
+        .bs-header { padding: 0.9rem 1rem; }
+        .bs-header h2 { font-size: 1.05rem; line-height: 1.4; }
+        .bs-content { padding: 0.75rem 1rem; }
+        .bs-item { flex-direction: column; align-items: flex-start; gap: 0.35rem; padding: 0.85rem 0; }
+        .bs-item-label { font-size: 0.95rem; line-height: 1.5; }
+        .bs-item-value { font-size: 1rem; align-self: flex-end; }
+        .bs-how { font-size: 0.75rem; }
+        .bs-total { flex-direction: column; align-items: flex-start; gap: 0.5rem; padding: 1rem; }
+        .bs-total-label { font-size: 1rem; }
+        .bs-total-value { font-size: 1.1rem; align-self: flex-end; direction: ltr; overflow-wrap: anywhere; }
+        .note-box { font-size: 0.85rem; padding: 0.85rem; }
+        .note-box ul { padding-right: 1rem; }
+        .balance-check-badge { font-size: 0.8rem; padding: 0.45rem 0.8rem; }
+        .date-badge { margin-right: 0; margin-top: 0.4rem; display: inline-block; }
+    }
 </style>
 
 <div class="min-h-screen bg-gray-50 py-6" dir="rtl">
@@ -197,16 +220,16 @@ include '../../includes/header.php';
         
         <!-- Header -->
         <div class="bg-gradient-to-r from-purple-600 to-indigo-700 shadow-xl rounded-2xl mb-8 p-6">
-            <div class="flex justify-between items-center">
+            <div class="bs-page-head flex justify-between items-center gap-4">
                 <div>
-                    <h1 class="text-3xl font-bold text-white flex items-center">
+                    <h1 class="bs-page-title text-3xl font-bold text-white flex items-center flex-wrap">
                         <i class="fas fa-chart-line ml-3"></i>
                         <?php echo $page_title; ?>
                         <span class="date-badge"><?php echo date('Y-m-d'); ?></span>
                     </h1>
                     <p class="text-purple-100 mt-2">عرض التدفقات النقدية والأصول والالتزامات</p>
                 </div>
-                <a href="index.php" class="px-6 py-3 bg-white text-purple-600 rounded-xl hover:bg-purple-50 font-semibold transition">
+                <a href="index.php" class="bs-page-back px-6 py-3 bg-white text-purple-600 rounded-xl hover:bg-purple-50 font-semibold transition text-center">
                     <i class="fas fa-arrow-right ml-2"></i>
                     العودة للرئيسية
                 </a>
