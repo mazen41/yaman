@@ -74,7 +74,7 @@ $card_style = sprintf(
 );
 
 // Compact layout for small labels: bigger text, fewer fields (font sizes are relative to the label height).
-$compact = in_array($size_key, ['60x40', '50x30', '40x25'], true);
+$compact = false; // every size uses the same full layout as 75x50 (scaled to fit the label)
 $iw = $label_w - 2 * $safe;
 $ih = $label_h - 2 * $safe;
 $np = round($ih * 0.14 * 2.835, 1); // customer name (pt)
