@@ -80,6 +80,7 @@ $ih = $label_h - 2 * $safe;
 $np = round($ih * 0.14 * 2.835, 1); // customer name (pt)
 $ap = round($ih * 0.17 * 2.835, 1); // remaining amount (pt)
 $sp = round($ih * 0.12 * 2.835, 1); // small text (pt)
+$lt = round($ih * 0.11 * 2.835, 1); // location and phone lines (pt)
 
 // Fixed city line shown on every label
 $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو القاهره';
@@ -204,17 +205,24 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
     $alt_mobile = trim((string)($o['alternative_number'] ?? ''));
     if ($compact) {
         $c_rem = $is_paid ? 'مدفوع' : number_format($remaining, 0);
+        $c_loc = trim(implode(' - ', array_filter([$city_name, $address])));
+        $c_phones = trim($mobile . ($alt_mobile !== '' ? ' / ' . $alt_mobile : ''));
         ?>
         <div class="label">
-          <div class="card" style="position:absolute;left:<?= $safe ?>mm;top:<?= $safe ?>mm;width:<?= $iw ?>mm;height:<?= $ih ?>mm;display:flex;flex-direction:column;justify-content:space-between;padding:0.8mm 1.2mm;">
-            <div class="head" style="padding-bottom:0.4mm;">
-              <span class="brand-en" style="font-size:<?= $sp ?>pt"><?= $company_phone !== '' ? 'YAMAN STORE' : 'YAMAN STORE' ?></span>
+          <div class="card" style="position:absolute;left:<?= $safe ?>mm;top:<?= $safe ?>mm;width:<?= $iw ?>mm;height:<?= $ih ?>mm;display:flex;flex-direction:column;justify-content:space-between;padding:0.5mm 1mm;">
+            <div class="head" style="padding-bottom:0.3mm;">
+              <span class="brand-en" style="font-size:<?= $sp ?>pt">YAMAN STORE</span>
               <span class="phone-top" style="font-size:<?= $sp ?>pt"><?= htmlspecialchars($company_phone) ?></span>
             </div>
-            <div class="name" style="font-size:<?= $np ?>pt;display:block;text-align:center;"><?= htmlspecialchars($o['name']) ?></div>
+            <div class="name" style="font-size:<?= $np ?>pt;display:block;text-align:center;line-height:1.15;"><?= htmlspecialchars($o['name']) ?></div>
+            <div style="font-size:<?= $lt ?>pt;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">الموقع: <?= htmlspecialchars($c_loc) ?></div>
+            <div style="font-size:<?= $lt ?>pt;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;direction:ltr;text-align:right;"><?= htmlspecialchars($c_phones) ?></div>
             <div style="display:flex;justify-content:space-between;align-items:stretch;gap:1mm;">
               <div class="chip rem" style="font-size:<?= $ap ?>pt;flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;"><?= htmlspecialchars($c_rem) ?></div>
-              <div class="chip ordchip" style="font-size:<?= $sp ?>pt;flex:0 0 auto;white-space:nowrap;"># <?= htmlspecialchars($o['order_number']) ?></div>
+              <div style="display:flex;flex-direction:column;gap:0.4mm;flex:0 0 auto;">
+                <div class="chip ordchip" style="font-size:<?= $sp ?>pt;white-space:nowrap;"># <?= htmlspecialchars($o['order_number']) ?></div>
+                <div class="chip ordchip" style="font-size:<?= $sp ?>pt;white-space:nowrap;">قطع: <?= (int)$o['piece_count'] ?></div>
+              </div>
             </div>
           </div>
         </div>
