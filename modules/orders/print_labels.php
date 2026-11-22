@@ -73,6 +73,14 @@ $card_style = sprintf(
     $card_left, $card_top, $card_scale
 );
 
+// Compact layout for small labels: bigger text, fewer fields (font sizes are relative to the label height).
+$compact = in_array($size_key, ['60x40', '50x30', '40x25'], true);
+$iw = $label_w - 2 * $safe;
+$ih = $label_h - 2 * $safe;
+$np = round($ih * 0.16 * 2.835, 1); // customer name (pt)
+$ap = round($ih * 0.19 * 2.835, 1); // remaining amount (pt)
+$sp = round($ih * 0.12 * 2.835, 1); // small text (pt)
+
 // Fixed city line shown on every label
 $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو القاهره';
 ?>
@@ -194,6 +202,25 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
     $city_name  = trim((string)($o['city_name'] ?? ''));
     $mobile     = trim((string)($o['mobile_number'] ?? ''));
     $alt_mobile = trim((string)($o['alternative_number'] ?? ''));
+    if ($compact) {
+        $c_rem = $is_paid ? 'مدفوع' : (number_format($remaining, 0) . ' ' . $currency_label);
+        ?>
+        <div class="label">
+          <div class="card" style="position:absolute;left:<?= $safe ?>mm;top:<?= $safe ?>mm;width:<?= $iw ?>mm;height:<?= $ih ?>mm;display:flex;flex-direction:column;justify-content:space-between;padding:0.8mm 1.2mm;">
+            <div class="head" style="padding-bottom:0.4mm;">
+              <span class="brand-en" style="font-size:<?= $sp ?>pt"><?= $company_phone !== '' ? 'YAMAN STORE' : 'YAMAN STORE' ?></span>
+              <span class="phone-top" style="font-size:<?= $sp ?>pt"><?= htmlspecialchars($company_phone) ?></span>
+            </div>
+            <div class="name" style="font-size:<?= $np ?>pt;display:block;text-align:center;"><?= htmlspecialchars($o['name']) ?></div>
+            <div style="display:flex;justify-content:space-between;align-items:stretch;gap:1mm;">
+              <div class="chip rem" style="font-size:<?= $ap ?>pt;"><?= htmlspecialchars($c_rem) ?></div>
+              <div class="chip ordchip" style="font-size:<?= $sp ?>pt;"># <?= htmlspecialchars($o['order_number']) ?></div>
+            </div>
+          </div>
+        </div>
+        <?php
+        continue;
+    }
 ?>
 <div class="label">
   <div class="card" style="<?= $card_style ?>">
