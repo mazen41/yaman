@@ -60,6 +60,17 @@ $size_key = (isset($_GET['size']) && isset($size_presets[$_GET['size']])) ? $_GE
 [$label_w, $label_h] = $size_presets[$size_key];
 $base_query = 'ids=' . urlencode($raw_ids);
 
+// The label is designed at 75 x 50 mm and scaled to fit the chosen size (keeps the layout proportional).
+$fit_w = $label_w - 2.4; // 1.2 mm inset on each side
+$fit_h = $label_h - 2.4;
+$card_scale = min($fit_w / 75, $fit_h / 50);
+$card_left  = 1.2 + ($fit_w - 75 * $card_scale) / 2;
+$card_top   = 1.2 + ($fit_h - 50 * $card_scale) / 2;
+$card_style = sprintf(
+    'position:absolute;left:%.2fmm;top:%.2fmm;width:75mm;height:50mm;transform:scale(%.4f);transform-origin:0 0;',
+    $card_left, $card_top, $card_scale
+);
+
 // Fixed city line shown on every label
 $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو القاهره';
 ?>
@@ -155,7 +166,7 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
 </style>
 <style>
   @page { size: <?= $label_w ?>mm <?= $label_h ?>mm; margin: 0; }
-  .label { width: <?= $label_w ?>mm; height: <?= $label_h ?>mm; }
+  .label { width: <?= $label_w ?>mm; height: <?= $label_h ?>mm; position: relative; }
   .size-picks { margin-top: 12px; }
   .size-btn { display: inline-block; margin: 0 4px 6px; padding: 8px 14px; border: 2px solid #27346b; border-radius: 6px; color: #27346b; text-decoration: none; font-weight: 700; font-size: 14px; background: #fff; }
   .size-btn.active { background: #27346b; color: #fff; }
@@ -183,7 +194,7 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
     $alt_mobile = trim((string)($o['alternative_number'] ?? ''));
 ?>
 <div class="label">
-  <div class="card">
+  <div class="card" style="<?= $card_style ?>">
 
     <div class="head">
         <div class="brand">
