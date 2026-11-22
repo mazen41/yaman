@@ -48,13 +48,21 @@ foreach (['yamman_logo.png', 'logo.png'] as $logo_file) {
     }
 }
 
-// Fixed sticker size: 75 x 50 mm.
-$label_w = 75;
-$label_h = 50;
+// Test label sizes (mm). Pick one with the buttons on the page to see which one prints correctly.
+$size_presets = [
+    '75x50' => [75, 50],
+    '60x40' => [60, 40],
+    '50x30' => [50, 30],
+    '80x50' => [80, 50],
+    '40x25' => [40, 25],
+];
+$size_key = (isset($_GET['size']) && isset($size_presets[$_GET['size']])) ? $_GET['size'] : '75x50';
+[$label_w, $label_h] = $size_presets[$size_key];
+$base_query = 'ids=' . urlencode($raw_ids);
 
 // The label is designed at 75 x 50 mm and scaled to fit the chosen size (keeps the layout proportional).
-// Safe area: leave 1.5 mm of blank space on each side for thermal printing.
-$safe = 1.5;
+// Safe area: thermal heads can't print to the very edge of the roll, so keep 3 mm on each side.
+$safe = 3;
 $fit_w = $label_w - 2 * $safe;
 $fit_h = $label_h - 2 * $safe;
 $card_scale = min($fit_w / 75, $fit_h / 50);
@@ -179,7 +187,14 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
 <div class="labels">
 
 <div class="toolbar no-print">
-    <button class="btn-print" onclick="window.print()">🖨 طباعة الملصق</button>
+    <button class="btn-print" onclick="window.print()">🖨 طباعة الآن</button>
+    <button class="btn-close" onclick="window.close()">إغلاق</button>
+    <div class="size-picks">
+        <?php foreach ($size_presets as $k => [$pw, $ph]): ?>
+            <a class="size-btn<?= $k === $size_key ? ' active' : '' ?>" href="?<?= htmlspecialchars($base_query) ?>&size=<?= $k ?>"><?= $pw ?> × <?= $ph ?> مم</a>
+        <?php endforeach; ?>
+    </div>
+    <span class="count"><?= count($orders) ?> ملصق</span>
 </div>
 <?php foreach ($orders as $o):
     $remaining = max(0, $o['final_amount'] - $o['paid_amount']);
