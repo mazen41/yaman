@@ -48,6 +48,18 @@ foreach (['yamman_logo.png', 'logo.png'] as $logo_file) {
     }
 }
 
+// Test label sizes (mm). Pick one with the buttons on the page to see which one prints correctly.
+$size_presets = [
+    '75x50' => [75, 50],
+    '60x40' => [60, 40],
+    '50x30' => [50, 30],
+    '80x50' => [80, 50],
+    '40x25' => [40, 25],
+];
+$size_key = (isset($_GET['size']) && isset($size_presets[$_GET['size']])) ? $_GET['size'] : '75x50';
+[$label_w, $label_h] = $size_presets[$size_key];
+$base_query = 'ids=' . urlencode($raw_ids);
+
 // Fixed city line shown on every label
 $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو القاهره';
 ?>
@@ -141,6 +153,13 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
     .label { margin: 0; }
   }
 </style>
+<style>
+  @page { size: <?= $label_w ?>mm <?= $label_h ?>mm; margin: 0; }
+  .label { width: <?= $label_w ?>mm; height: <?= $label_h ?>mm; }
+  .size-picks { margin-top: 12px; }
+  .size-btn { display: inline-block; margin: 0 4px 6px; padding: 8px 14px; border: 2px solid #27346b; border-radius: 6px; color: #27346b; text-decoration: none; font-weight: 700; font-size: 14px; background: #fff; }
+  .size-btn.active { background: #27346b; color: #fff; }
+</style>
 </head>
 <body>
 <div class="labels">
@@ -148,6 +167,11 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
 <div class="toolbar no-print">
     <button class="btn-print" onclick="window.print()">🖨 طباعة الآن</button>
     <button class="btn-close" onclick="window.close()">إغلاق</button>
+    <div class="size-picks">
+        <?php foreach ($size_presets as $k => [$pw, $ph]): ?>
+            <a class="size-btn<?= $k === $size_key ? ' active' : '' ?>" href="?<?= htmlspecialchars($base_query) ?>&size=<?= $k ?>"><?= $pw ?> × <?= $ph ?> مم</a>
+        <?php endforeach; ?>
+    </div>
     <span class="count"><?= count($orders) ?> ملصق</span>
 </div>
 <?php foreach ($orders as $o):
