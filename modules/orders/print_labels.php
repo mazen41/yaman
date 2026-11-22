@@ -139,6 +139,11 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
     html, body { background: #fff !important; margin: 0; }
     .no-print { display: none !important; }
     .label { margin: 0; }
+    /* Thermal printers (Xprinter XP-365B) print black only: use white paper and solid black borders */
+    .card { background: #fff !important; border-color: #000 !important; }
+    .name, .chip.rem { background: #000 !important; color: #fff !important; border-color: #000 !important; }
+    .chip, .head { border-color: #000 !important; }
+    .brand-en, .phone-top, .fk, .chip { color: #000 !important; }
   }
 </style>
 </head>
