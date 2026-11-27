@@ -48,39 +48,22 @@ foreach (['yamman_logo.png', 'logo.png'] as $logo_file) {
     }
 }
 
-// Test label sizes (mm). Pick one with the buttons on the page to see which one prints correctly.
+// Label sizes (mm). 50x70 is the default for Xprinter XP-365B.
 $size_presets = [
+    '50x70' => [50, 70],
     '75x50' => [75, 50],
     '60x40' => [60, 40],
     '50x30' => [50, 30],
     '80x50' => [80, 50],
     '40x25' => [40, 25],
 ];
-$size_key = (isset($_GET['size']) && isset($size_presets[$_GET['size']])) ? $_GET['size'] : '75x50';
+$size_key = (isset($_GET['size']) && isset($size_presets[$_GET['size']])) ? $_GET['size'] : '50x70';
 [$label_w, $label_h] = $size_presets[$size_key];
 $base_query = 'ids=' . urlencode($raw_ids);
 
-// The label is designed at 75 x 50 mm and scaled to fit the chosen size (keeps the layout proportional).
-// Safe area: thermal heads can't print to the very edge of the roll, so keep 3 mm on each side.
-$safe = 3;
-$fit_w = $label_w - 2 * $safe;
-$fit_h = $label_h - 2 * $safe;
-$card_scale = min($fit_w / 75, $fit_h / 50);
-$card_left  = $safe + ($fit_w - 75 * $card_scale) / 2;
-$card_top   = $safe + ($fit_h - 50 * $card_scale) / 2;
-$card_style = sprintf(
-    'position:absolute;left:%.2fmm;top:%.2fmm;width:75mm;height:50mm;transform:scale(%.4f);transform-origin:0 0;',
-    $card_left, $card_top, $card_scale
-);
-
-// Compact layout for small labels: bigger text, fewer fields (font sizes are relative to the label height).
-$compact = false; // every size uses the same full layout as 75x50 (scaled to fit the label)
-$iw = $label_w - 2 * $safe;
-$ih = $label_h - 2 * $safe;
-$np = round($ih * 0.14 * 2.835, 1); // customer name (pt)
-$ap = round($ih * 0.17 * 2.835, 1); // remaining amount (pt)
-$sp = round($ih * 0.12 * 2.835, 1); // small text (pt)
-$lt = round($ih * 0.11 * 2.835, 1); // location and phone lines (pt)
+// Safe margin on all sides (2.5 mm, within 2-3 mm thermal safe zone)
+$safe = 2.5;
+$compact = false;
 
 // Fixed city line shown on every label
 $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو القاهره';
@@ -107,9 +90,10 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
   .btn-close { background: #6b7280; color: #fff; font-size: 14px !important; padding: 10px 20px !important; margin-right: 10px; }
   .toolbar .count { font-size: 14px; color: #374151; margin-right: 16px; }
 
-  /* ===== Label: 75 mm x 50 mm ===== */
+  /* ===== Label ===== */
   .label {
-    width: 75mm; height: 50mm; padding: 1.2mm;
+    width: <?= $label_w ?>mm; height: <?= $label_h ?>mm;
+    padding: <?= $safe ?>mm;
     margin: 0 auto 6mm; background: #fff; overflow: hidden;
     page-break-after: always; break-after: page;
   }
@@ -119,17 +103,16 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
     width: 100%; height: 100%;
     display: flex; flex-direction: column;
     background: #fff;
-    border: 0.3mm solid #000;
-    border-radius: 2mm;
-    padding: 0.8mm 1.4mm;
-    overflow: hidden;
+    border: 0.5mm solid #000;
+    border-radius: 1.5mm;
+    padding: 1.4mm 1.8mm;
   }
 
   /* Header: logo + brand on the left, company phone on the right */
   .head {
     display: flex; justify-content: space-between; align-items: center; gap: 1mm;
-    border-bottom: 0.3mm dashed #000;
-    padding-bottom: 0.6mm;
+    border-bottom: 0.5mm solid #000;
+    padding-bottom: 1mm;
   }
   .brand { display: flex; align-items: center; gap: 1mm; }
   .brand img { height: 5mm; width: auto; max-width: 6mm; object-fit: contain; filter: brightness(0); }
@@ -137,44 +120,46 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
   .phone-top { font-size: 8.5pt; font-weight: 900; color: #000; direction: ltr; unicode-bidi: isolate; white-space: nowrap; }
 
   /* Body: name then location then phones stacked */
-  .body-row { display: flex; flex-direction: column; gap: 1.2mm; margin-top: 1.2mm; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+  .body-row { display: flex; flex-direction: column; gap: 1.4mm; margin-top: 1.4mm; flex: 1 1 auto; }
 
-  .name { font-size: 10.5pt; font-weight: 900; line-height: 1.25; overflow-wrap: anywhere; border: 0.7mm solid #000; border-radius: 1mm; background: #fff; color: #000; padding: 0.8mm 2mm; display: inline-block; max-width: 100%; }
+  .name {
+    font-size: 12pt; font-weight: 900; line-height: 1.25;
+    overflow-wrap: anywhere; text-align: center;
+    border: 0.7mm solid #000; border-radius: 1mm;
+    background: #fff; color: #000;
+    padding: 1mm 1.6mm; display: block; width: 100%;
+  }
 
-  .location-line { font-size: 8pt; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .phones-line { font-size: 8pt; line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .location-line { font-size: 8.5pt; line-height: 1.35; overflow-wrap: anywhere; }
+  .phones-line { font-size: 8.5pt; line-height: 1.35; overflow-wrap: anywhere; }
   .fk { font-weight: 900; color: #000; white-space: nowrap; }
   .loc-val { font-weight: 700; overflow-wrap: anywhere; }
   .ltr-val { direction: ltr; unicode-bidi: isolate; font-weight: 700; }
 
   /* Bottom bar */
-  .bottom { margin-top: auto; display: flex; gap: 1mm; align-items: stretch; }
+  .bottom { margin-top: auto; display: flex; flex-direction: column; gap: 1.2mm; }
   .chip {
-    border: 0.3mm solid #000; border-radius: 1mm;
+    border: 0.5mm solid #000; border-radius: 1mm;
     background: #fff; color: #000;
-    padding: 0.8mm 1.6mm; font-size: 8pt; font-weight: 900;
+    padding: 0.8mm 1.2mm; font-size: 8pt; font-weight: 900;
     display: flex; align-items: center; justify-content: center; text-align: center;
     line-height: 1.2;
   }
-  .chip.rem { flex: 1 1 auto; background: #fff; color: #000; border: 0.7mm solid #000; font-size: 9pt; }
-  .chip.ordchip { font-size: 7.5pt; }
-  .ord-stack { display: flex; flex-direction: column; gap: 0.6mm; }
-  .chip small { font-size: 7pt; font-weight: 700; margin-right: 0.5mm; }
+  .chip.rem { width: 100%; background: #fff; color: #000; border: 0.7mm solid #000; font-size: 12pt; font-weight: 900; padding: 1mm 1.4mm; }
+  .chip.ordchip { flex: 1 1 0; font-size: 8pt; }
+  .ord-stack { display: flex; flex-direction: row; gap: 1mm; }
+  .chip small { font-size: 8pt; font-weight: 800; margin-right: 0.6mm; }
 
   /* ===== Print ===== */
-  @page { size: 75mm 50mm; margin: 0; }
+  @page { size: <?= $label_w ?>mm <?= $label_h ?>mm; margin: 0; }
   @media print {
-    html, body { background: #fff !important; margin: 0; }
+    html, body { width: <?= $label_w ?>mm; background: #fff !important; margin: 0; padding: 0; }
     .no-print { display: none !important; }
     .label { margin: 0; }
   }
-</style>
-<style>
-  @page { size: <?= $label_w ?>mm <?= $label_h ?>mm; margin: 0; }
-  .label { width: <?= $label_w ?>mm; height: <?= $label_h ?>mm; position: relative; }
   .size-picks { margin-top: 12px; }
-  .size-btn { display: inline-block; margin: 0 4px 6px; padding: 8px 14px; border: 2px solid #27346b; border-radius: 6px; color: #27346b; text-decoration: none; font-weight: 700; font-size: 14px; background: #fff; }
-  .size-btn.active { background: #27346b; color: #fff; }
+  .size-btn { display: inline-block; margin: 0 4px 6px; padding: 8px 14px; border: 2px solid #000; border-radius: 6px; color: #000; text-decoration: none; font-weight: 700; font-size: 14px; background: #fff; }
+  .size-btn.active { background: #000; color: #fff; }
 </style>
 </head>
 <body>
@@ -225,7 +210,7 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
     }
 ?>
 <div class="label">
-  <div class="card" style="<?= $card_style ?>">
+  <div class="card">
 
     <div class="head">
         <div class="brand">
