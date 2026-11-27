@@ -93,17 +93,11 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
 <title>طباعة ملصقات</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <style>
-  /* Label size: 60 mm wide x 40 mm high */
-  :root {
-    --paper: #ecd9a0;
-    --navy: #27346b;
-    --navy-deep: #1b2347;
-  }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { background: #f3f4f6; }
   body {
     font-family: 'Cairo', 'Segoe UI', Tahoma, Arial, sans-serif;
-    color: var(--navy-deep);
+    color: #000;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -124,8 +118,8 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
   .card {
     width: 100%; height: 100%;
     display: flex; flex-direction: column;
-    background: var(--paper);
-    border: 0.3mm solid var(--navy);
+    background: #fff;
+    border: 0.3mm solid #000;
     border-radius: 2mm;
     padding: 0.8mm 1.4mm;
     overflow: hidden;
@@ -134,35 +128,35 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
   /* Header: logo + brand on the left, company phone on the right */
   .head {
     display: flex; justify-content: space-between; align-items: center; gap: 1mm;
-    border-bottom: 0.3mm dashed var(--navy);
+    border-bottom: 0.3mm dashed #000;
     padding-bottom: 0.6mm;
   }
   .brand { display: flex; align-items: center; gap: 1mm; }
   .brand img { height: 5mm; width: auto; max-width: 6mm; object-fit: contain; filter: brightness(0); }
-  .brand-en { font-size: 8.5pt; font-weight: 900; color: var(--navy); direction: ltr; unicode-bidi: isolate; }
-  .phone-top { font-size: 8.5pt; font-weight: 900; color: var(--navy); direction: ltr; unicode-bidi: isolate; white-space: nowrap; }
+  .brand-en { font-size: 8.5pt; font-weight: 900; color: #000; direction: ltr; unicode-bidi: isolate; }
+  .phone-top { font-size: 8.5pt; font-weight: 900; color: #000; direction: ltr; unicode-bidi: isolate; white-space: nowrap; }
 
   /* Body: name then location then phones stacked */
   .body-row { display: flex; flex-direction: column; gap: 1.2mm; margin-top: 1.2mm; flex: 1 1 auto; min-height: 0; overflow: hidden; }
 
-  .name { font-size: 10.5pt; font-weight: 900; line-height: 1.25; overflow-wrap: anywhere; border: 0.3mm solid var(--navy); border-radius: 1mm; background: var(--navy); color: #fff; padding: 0.8mm 2mm; display: inline-block; max-width: 100%; }
+  .name { font-size: 10.5pt; font-weight: 900; line-height: 1.25; overflow-wrap: anywhere; border: 0.7mm solid #000; border-radius: 1mm; background: #fff; color: #000; padding: 0.8mm 2mm; display: inline-block; max-width: 100%; }
 
   .location-line { font-size: 8pt; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .phones-line { font-size: 8pt; line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .fk { font-weight: 900; color: var(--navy); white-space: nowrap; }
+  .fk { font-weight: 900; color: #000; white-space: nowrap; }
   .loc-val { font-weight: 700; overflow-wrap: anywhere; }
   .ltr-val { direction: ltr; unicode-bidi: isolate; font-weight: 700; }
 
   /* Bottom bar */
   .bottom { margin-top: auto; display: flex; gap: 1mm; align-items: stretch; }
   .chip {
-    border: 0.3mm solid var(--navy); border-radius: 1mm;
-    background: #fff; color: var(--navy);
+    border: 0.3mm solid #000; border-radius: 1mm;
+    background: #fff; color: #000;
     padding: 0.8mm 1.6mm; font-size: 8pt; font-weight: 900;
     display: flex; align-items: center; justify-content: center; text-align: center;
     line-height: 1.2;
   }
-  .chip.rem { flex: 1 1 auto; background: var(--navy); color: #fff; font-size: 9pt; }
+  .chip.rem { flex: 1 1 auto; background: #fff; color: #000; border: 0.7mm solid #000; font-size: 9pt; }
   .chip.ordchip { font-size: 7.5pt; }
   .ord-stack { display: flex; flex-direction: column; gap: 0.6mm; }
   .chip small { font-size: 7pt; font-weight: 700; margin-right: 0.5mm; }
