@@ -80,7 +80,8 @@ $entries = $db->query("
 ")->fetchAll(PDO::FETCH_ASSOC);
 
 // Fetch accounts for the form dropdown
-$accounts_list = $db->query("SELECT id, code, name FROM accounts WHERE is_active = 1 ORDER BY code ASC")->fetchAll(PDO::FETCH_ASSOC);
+require_once '../../includes/account_helpers.php';
+$accounts_list = getAccountsForSelect($db); // every active account, all types (P2)
 
 include '../../includes/header.php';
 ?>
