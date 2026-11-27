@@ -6,6 +6,7 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 require_once '../../config/database.php';
+require_once '../../includes/financial_calc.php';
 $page_title = 'التقارير والطباعة';
 
 // --- CORRECTED & EXPANDED STATISTICS ---
@@ -48,6 +49,9 @@ try {
     $purchases_month = ['count' => 0, 'total' => 0];
     $expenses_month = ['total' => 0];
 }
+
+// P4: expenses card uses the shared function (approved only, by expense_date), same as P&L and expenses page
+$expenses_month = ['total' => calcApprovedExpenses($db, date('Y-m-01'), date('Y-m-t'))];
 
 include '../../includes/header.php';
 ?>
@@ -290,6 +294,15 @@ include '../../includes/header.php';
             </h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
 
+                <!-- Universal Transfers Report (P6) -->
+                <div class="report-card" onclick="window.location.href='universal_transfers_report.php'">
+                    <div class="report-icon" style="background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); color: white;">
+                        <i class="fas fa-random"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-900 mb-2">تقرير التحويل المباشر بين الحسابات</h3>
+                    <p class="text-gray-600 text-sm mb-4">كل العمليات المسجلة من صفحة التحويل المباشر، مع الحساب المصدر والهدف والمبلغ والمنفذ</p>
+                </div>
+
                 <!-- Bank Deposits & Withdrawals Report -->
                 <div class="report-card" onclick="window.location.href='bank_transactions_report.php'">
                     <div class="report-icon" style="background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%); color: white;">
@@ -335,6 +348,24 @@ include '../../includes/header.php';
                             Excel
                         </button>
                     </div>
+                </div>
+
+                <!-- Accounts Report (P5) -->
+                <div class="report-card" onclick="window.location.href='accounts_report.php'">
+                    <div class="report-icon" style="background: linear-gradient(135deg, #434343 0%, #000000 100%); color: white;">
+                        <i class="fas fa-book"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-900 mb-2">تقرير الحسابات</h3>
+                    <p class="text-gray-600 text-sm mb-4">كشف حساب وميزان مراجعة لكل حسابات دليل الحسابات</p>
+                </div>
+
+                <!-- Universal Transfers Report (P6) -->
+                <div class="report-card" onclick="window.location.href='universal_transfer_report.php'">
+                    <div class="report-icon" style="background: linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%); color: white;">
+                        <i class="fas fa-exchange-alt"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-900 mb-2">تقرير التحويلات بين الحسابات</h3>
+                    <p class="text-gray-600 text-sm mb-4">كل عمليات التحويل المباشر بين الحسابات البنكية والمالية مع ملخص لكل حساب</p>
                 </div>
 
                 <!-- Expenses Report -->
