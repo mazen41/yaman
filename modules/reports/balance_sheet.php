@@ -6,69 +6,131 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 require_once '../../config/database.php';
-$page_title = 'التقرير المالي اليومي (الميزانية)';
+require_once '../../includes/account_helpers.php';
+require_once '../../includes/financial_calc.php';
 
-// --- DATA FETCHING AND CALCULATION ---
+$page_title = 'التقرير المالي (الميزانية)';
+$today_date = date('Y-m-d');
+$error_message = '';
+
+// Owner rule: cancelled orders are never "due to customers" (they only count as revenue).
+// Note: the database currently has no cancelled status, so this rule currently excludes nothing.
+$excluded_due_statuses = ['cancelled', 'canceled'];
+
+$daily_cash_balance = 0.0;
+$transfer_payments = 0.0;
+$daily_bank_balance = 0.0;
+$prepaid_cards_balance = 0.0;
+$customer_outstanding_balance = 0.0;
+$total_assets = 0.0;
+
+$liab_rows = [];
+$journal_liabilities = 0.0;
+$due_rows = [];
+$due_to_customers = 0.0;
+$total_liabilities = 0.0;
+
+$eq_rows = [];
+$capital = 0.0;
+$retained_earnings = 0.0;
+$total_equity = 0.0;
+
+$difference = 0.0;
+$balanced = true;
 
 try {
-    $today_date = date('Y-m-d');
-
-    // --- 1. إجمالي المدفوعات النقدية (كل الوقت) ---
-    // جميع المبالغ المستلمة نقداً من العملاء
-    $customer_cash = (float)$db->query(
+    // ---- ASSETS ----
+    // Cash receipts, all time (customer payments by method)
+    $daily_cash_balance = (float)$db->query(
         "SELECT COALESCE(SUM(amount), 0) FROM customer_payments WHERE payment_method = 'cash'"
     )->fetchColumn();
-    $transfers_in_to_cash = 0; // لا يوجد جدول cash_transactions مستقل
-    $daily_cash_balance = $customer_cash;
 
-    // إجمالي المدفوعات بالتحويل البنكي (تُضاف للحسابات البنكية، ليس كاش)
+    // Bank transfers: information only (already inside the bank balances)
     $transfer_payments = (float)$db->query(
         "SELECT COALESCE(SUM(amount), 0) FROM customer_payments WHERE payment_method = 'transfer'"
     )->fetchColumn();
 
-    // طرق دفع أخرى (شيك، بطاقة ائتمان ...)
-    $daily_other_balance = (float)$db->query(
-        "SELECT COALESCE(SUM(amount), 0) FROM customer_payments WHERE payment_method NOT IN ('cash', 'transfer')"
-    )->fetchColumn();
-
-    // --- 2. أرصدة الحسابات البنكية الحالية (YER) ---
+    // Bank balances: ONE line for all bank accounts (P1: all treated as YER)
     $daily_bank_balance = (float)$db->query(
-        "SELECT COALESCE(SUM(current_balance), 0) FROM bank_accounts WHERE currency = 'YER'"
+        "SELECT COALESCE(SUM(current_balance), 0) FROM bank_accounts"
     )->fetchColumn();
 
-    // أرصدة الحسابات البنكية بالريال السعودي (نعرضها منفصلة)
-    $bank_balance_sar = (float)$db->query(
-        "SELECT COALESCE(SUM(current_balance), 0) FROM bank_accounts WHERE currency = 'SAR'"
-    )->fetchColumn();
-
-    // --- 3. بطاقات الشراء ---
+    // Purchase cards with a positive balance
     $prepaid_cards_balance = (float)$db->query(
         "SELECT COALESCE(SUM(balance), 0) FROM purchase_cards WHERE balance > 0"
     )->fetchColumn();
 
-    // --- 4. ذمم العملاء (أصل — مبالغ ستدخل للشركة) ---
+    // Customer receivables: positive remaining amounts (unchanged rule)
     $customer_outstanding_balance = (float)$db->query(
         "SELECT COALESCE(SUM(final_amount - paid_amount), 0) FROM customer_orders WHERE (final_amount - paid_amount) > 0.01"
     )->fetchColumn();
 
-    // --- إجمالي الأصول ---
-    $total_assets = $daily_cash_balance + $daily_bank_balance + $daily_other_balance
-                  + $prepaid_cards_balance + $customer_outstanding_balance + $bank_balance_sar;
+    $total_assets = $daily_cash_balance + $daily_bank_balance + $prepaid_cards_balance + $customer_outstanding_balance;
 
-    // --- 5. الالتزامات ---
-    $accounts_payable = 0.00;
-    $total_liabilities = $accounts_payable;
+    // ---- LIABILITIES ----
+    // Every active liability account of the chart: credit - debit from journal lines
+    $liab_rows = $db->query("
+        SELECT a.id, a.code, a.name,
+               COALESCE(SUM(CASE WHEN jei.type = 'credit' THEN jei.amount ELSE -jei.amount END), 0) AS balance
+        FROM accounts a
+        LEFT JOIN journal_entry_items jei ON jei.account_id = a.id
+        WHERE a.type = 'liability' AND a.is_active = 1
+        GROUP BY a.id, a.code, a.name
+        ORDER BY a.code")->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($liab_rows as &$lr) {
+        $lr['code'] = normalizeArabicDigits($lr['code']);
+        $journal_liabilities += (float)$lr['balance'];
+    }
+    unset($lr);
 
-    // --- 6. حقوق الملكية ---
-    $total_equity = $total_assets - $total_liabilities;
-    $total_liabilities_and_equity = $total_liabilities + $total_equity;
+    // Due to customers: negative remaining on non-cancelled orders (shown as a positive amount)
+    $placeholders = implode(',', array_fill(0, count($excluded_due_statuses), '?'));
+    $due_stmt = $db->prepare("
+        SELECT o.id, o.order_number, o.invoice_number, o.status, o.order_date,
+               o.final_amount, o.paid_amount,
+               (o.paid_amount - o.final_amount) AS due_to_customer,
+               c.name AS customer_name
+        FROM customer_orders o
+        LEFT JOIN customers c ON c.id = o.customer_id
+        WHERE (o.final_amount - o.paid_amount) < -0.01
+          AND o.status NOT IN ($placeholders)
+        ORDER BY due_to_customer DESC");
+    $due_stmt->execute($excluded_due_statuses);
+    $due_rows = $due_stmt->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($due_rows as $d) {
+        $due_to_customers += (float)$d['due_to_customer'];
+    }
+
+    $total_liabilities = $journal_liabilities + $due_to_customers;
+
+    // ---- EQUITY ----
+    // Every active equity account of the chart: credit - debit from journal lines
+    $eq_rows = $db->query("
+        SELECT a.id, a.code, a.name,
+               COALESCE(SUM(CASE WHEN jei.type = 'credit' THEN jei.amount ELSE -jei.amount END), 0) AS balance
+        FROM accounts a
+        LEFT JOIN journal_entry_items jei ON jei.account_id = a.id
+        WHERE a.type = 'equity' AND a.is_active = 1
+        GROUP BY a.id, a.code, a.name
+        ORDER BY a.code")->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($eq_rows as &$er) {
+        $er['code'] = normalizeArabicDigits($er['code']);
+        $capital += (float)$er['balance'];
+    }
+    unset($er);
+
+    // Retained earnings = net profit from the start of the system to today (P4 definition, after basket cost)
+    $pl = getProfitReport($db, '2000-01-01', $today_date);
+    $retained_earnings = (float)$pl['net_after_basket_cost'];
+
+    $total_equity = $capital + $retained_earnings;
+
+    // ---- CHECK: assets must equal liabilities + equity. Never forced: the difference is shown.
+    $difference = $total_assets - ($total_liabilities + $total_equity);
+    $balanced = abs($difference) < 0.01;
 
 } catch (PDOException $e) {
     $error_message = "حدث خطأ في استعلام قاعدة البيانات: " . $e->getMessage();
-    // Set all financial figures to 0 in case of an error to prevent displaying partial/incorrect data
-    $daily_cash_balance = $customer_cash = $transfers_in_to_cash = $daily_bank_balance = $daily_other_balance = $prepaid_cards_balance = 0;
-    $total_assets = $accounts_payable = $customer_outstanding_balance = $total_liabilities = 0;
-    $total_equity = $total_liabilities_and_equity = 0;
 }
 
 include '../../includes/header.php';
@@ -245,158 +307,162 @@ include '../../includes/header.php';
 
         <div class="balance-sheet-container">
 
-            <!-- ====== LEFT: ASSETS (المقبوضات والأصول) ====== -->
+            <!-- ====== LEFT: ASSETS ====== -->
             <div class="bs-section">
                 <div class="bs-header">
-                    <h2><i class="fas fa-plus-circle text-green-500 ml-2"></i>المقبوضات والأصول</h2>
+                    <h2><i class="fas fa-plus-circle text-green-500 ml-2"></i>الأصول</h2>
                 </div>
                 <div class="bs-content">
                     <div class="bs-item">
                         <span class="bs-item-label">
                             <i class="fas fa-money-bill-wave text-green-500"></i>
                             إجمالي المقبوضات النقدية
-                            <small class="bs-how">مجموع كل الدفعات النقدية من جدول دفعات العملاء (طريقة الدفع = نقد) منذ بداية النظام.</small>
+                            <small class="bs-how">مجموع الدفعات النقدية من جدول دفعات العملاء منذ بداية النظام.</small>
                         </span>
-                        <span class="bs-item-value text-green-700">
-                            <?php echo number_format($daily_cash_balance, 2); ?> ر.ي
-                        </span>
-                    </div>
-                    <div class="bs-item">
-                        <span class="bs-item-label">
-                            <i class="fas fa-exchange-alt text-teal-500"></i>
-                            مدفوعات بالتحويل البنكي
-                            <small class="bs-how">مجموع الدفعات بطريقة تحويل من جدول دفعات العملاء. معروض للمعلومية فقط، لأنه داخل أرصدة البنوك أصلاً ولا يُضاف مرة ثانية.</small>
-                        </span>
-                        <span class="bs-item-value text-teal-700">
-                            <?php echo number_format($transfer_payments, 2); ?> ر.ي
-                        </span>
+                        <span class="bs-item-value text-green-700"><?php echo number_format($daily_cash_balance, 2); ?> ي.ر</span>
                     </div>
                     <div class="bs-item">
                         <span class="bs-item-label">
                             <i class="fas fa-university text-blue-500"></i>
-                            أرصدة الحسابات البنكية (ر.ي)
-                            <small class="bs-how">الرصيد الحالي للحسابات المسجلة بالريال اليمني (عمود الرصيد الحالي في جدول الحسابات البنكية). حالياً لا يوجد حساب بالريال اليمني، لذلك يظهر صفراً.</small>
+                            أرصدة الحسابات البنكية
+                            <small class="bs-how">مجموع الرصيد الحالي لكل الحسابات البنكية. كلها تُعامل كريال يمني.</small>
                         </span>
-                        <span class="bs-item-value text-blue-700">
-                            <?php echo number_format($daily_bank_balance, 2); ?> ر.ي
-                        </span>
-                    </div>
-                    <?php if ($bank_balance_sar > 0): ?>
-                    <div class="bs-item">
-                        <span class="bs-item-label">
-                            <i class="fas fa-university text-yellow-500"></i>
-                            أرصدة الحسابات البنكية (ر.ي)
-                            <small class="bs-how">مجموع الرصيد الحالي لكل الحسابات المسجلة بعملة ر.س في النظام. تُعامل كريال يمني دون تحويل، وتُضاف إلى إجمالي الأصول.</small>
-                        </span>
-                        <span class="bs-item-value text-yellow-700">
-                            <?php echo number_format($bank_balance_sar, 2); ?> ر.ي
-                        </span>
-                    </div>
-                    <?php endif; ?>
-                    <div class="bs-item">
-                        <span class="bs-item-label">
-                            <i class="fas fa-wallet text-gray-500"></i>
-                            طرق دفع أخرى (شيك، بطاقة...)
-                            <small class="bs-how">الدفعات من العملاء بطرق غير النقد والتحويل (شيك، بطاقة، وغيرها)، وأي دفعة لم تُحدَّد لها طريقة دفع.</small>
-                        </span>
-                        <span class="bs-item-value text-gray-700">
-                            <?php echo number_format($daily_other_balance, 2); ?> ر.ي
-                        </span>
+                        <span class="bs-item-value text-blue-700"><?php echo number_format($daily_bank_balance, 2); ?> ي.ر</span>
                     </div>
                     <div class="bs-item">
                         <span class="bs-item-label">
                             <i class="fas fa-credit-card text-indigo-500"></i>
                             أرصدة بطاقات الشراء
-                            <small class="bs-how">مجموع الأرصدة المتبقية في بطاقات الشراء المدفوعة مسبقاً، للبطاقات التي رصيدها أكبر من صفر (جدول بطاقات الشراء، عمود الرصيد).</small>
+                            <small class="bs-how">مجموع الأرصدة المتبقية في بطاقات الشراء المدفوعة مسبقاً (رصيدها أكبر من صفر).</small>
                         </span>
-                        <span class="bs-item-value text-indigo-700">
-                            <?php echo number_format($prepaid_cards_balance, 2); ?> ر.ي
-                        </span>
+                        <span class="bs-item-value text-indigo-700"><?php echo number_format($prepaid_cards_balance, 2); ?> ي.ر</span>
                     </div>
                     <div class="bs-item">
                         <span class="bs-item-label">
                             <i class="fas fa-user-clock text-orange-500"></i>
-                            ذمم العملاء (مبالغ متبقية)
-                            <small class="bs-how">الفرق بين المبلغ النهائي لكل طلب وما دفعه العميل عليه (جدول الطلبات)، للطلبات التي بقي عليها أكثر من 0.01. مستحقة للشركة وستدخل عند تحصيلها.</small>
+                            ذمم العملاء (مبالغ مستحقة لنا)
+                            <small class="bs-how">الفرق بين المبلغ النهائي لكل طلب وما دفعه العميل، للطلبات التي بقي عليها أكثر من 0.01.</small>
                         </span>
-                        <span class="bs-item-value text-orange-700">
-                            <?php echo number_format($customer_outstanding_balance, 2); ?> ر.ي
+                        <span class="bs-item-value text-orange-700"><?php echo number_format($customer_outstanding_balance, 2); ?> ي.ر</span>
+                    </div>
+                    <div class="bs-item">
+                        <span class="bs-item-label">
+                            <i class="fas fa-exchange-alt text-gray-400"></i>
+                            مدفوعات بالتحويل (للمعلومية فقط)
+                            <small class="bs-how">مجموع الدفعات بالتحويل. داخلة أصلاً في أرصدة البنوك، ولا تُضاف مرة ثانية.</small>
                         </span>
+                        <span class="bs-item-value text-gray-500"><?php echo number_format($transfer_payments, 2); ?> ي.ر</span>
                     </div>
                 </div>
                 <div class="bs-total assets-total">
-                    <span class="bs-total-label text-green-800">
-                        <i class="fas fa-equals ml-1"></i> إجمالي الأصول
-                    </span>
-                    <span class="bs-total-value text-green-800">
-                        <?php echo number_format($total_assets, 2); ?> ر.ي
-                    </span>
+                    <span class="bs-total-label text-green-800"><i class="fas fa-equals ml-1"></i> إجمالي الأصول</span>
+                    <span class="bs-total-value text-green-800"><?php echo number_format($total_assets, 2); ?> ي.ر</span>
                 </div>
             </div>
 
-            <!-- ====== RIGHT: SUMMARY ====== -->
+            <!-- ====== RIGHT: LIABILITIES AND EQUITY ====== -->
             <div class="bs-section">
                 <div class="bs-header">
-                    <h2><i class="fas fa-chart-pie text-purple-500 ml-2"></i>ملخص الوضع المالي</h2>
+                    <h2><i class="fas fa-balance-scale text-purple-500 ml-2"></i>الالتزامات وحقوق الملكية</h2>
                 </div>
                 <div class="bs-content">
 
+                    <p class="font-bold text-red-700 mb-2">الالتزامات</p>
+                    <?php foreach ($liab_rows as $lr): ?>
                     <div class="bs-item">
-                        <span class="bs-item-label"><i class="fas fa-money-bill-wave text-green-500"></i>إجمالي المقبوضات النقدية<small class="bs-how">من جدول دفعات العملاء، طريقة الدفع = نقد، منذ بداية النظام.</small></span>
-                        <span class="bs-item-value text-green-700"><?php echo number_format($daily_cash_balance, 2); ?> ر.ي</span>
+                        <span class="bs-item-label"><?php echo htmlspecialchars($lr['name']); ?> <small class="text-gray-400">(<?php echo htmlspecialchars($lr['code']); ?>)</small></span>
+                        <span class="bs-item-value text-red-700"><?php echo number_format((float)$lr['balance'], 2); ?> ي.ر</span>
                     </div>
-                    <div class="bs-item">
-                        <span class="bs-item-label"><i class="fas fa-exchange-alt text-teal-500"></i>مقبوضات التحويل البنكي<small class="bs-how">مجموع الدفعات بطريقة تحويل من جدول دفعات العملاء. داخلة أصلاً في أرصدة البنوك، لذلك لا تُضاف مرة ثانية.</small></span>
-                        <span class="bs-item-value text-teal-700"><?php echo number_format($transfer_payments, 2); ?> ر.ي</span>
-                    </div>
-                    <div class="bs-item">
-                        <span class="bs-item-label"><i class="fas fa-university text-blue-500"></i>أرصدة البنوك (ر.ي)</span>
-                        <span class="bs-item-value text-blue-700"><?php echo number_format($daily_bank_balance, 2); ?> ر.ي</span>
-                    </div>
-                    <?php if ($bank_balance_sar > 0): ?>
-                    <div class="bs-item">
-                        <span class="bs-item-label"><i class="fas fa-university text-yellow-500"></i>أرصدة البنوك (ر.ي)<small class="bs-how">مجموع أرصدة الحسابات المسجلة بعملة ر.س، تُعامل كريال يمني وتُضاف إلى إجمالي الأصول.</small></span>
-                        <span class="bs-item-value text-yellow-700"><?php echo number_format($bank_balance_sar, 2); ?> ر.ي</span>
-                    </div>
+                    <?php endforeach; ?>
+                    <?php if (empty($liab_rows)): ?>
+                    <div class="bs-item"><span class="bs-item-label text-gray-500">لا توجد حسابات التزامات في الدليل.</span></div>
                     <?php endif; ?>
                     <div class="bs-item">
-                        <span class="bs-item-label"><i class="fas fa-credit-card text-indigo-500"></i>بطاقات الشراء<small class="bs-how">مجموع الأرصدة المتبقية في بطاقات الشراء المدفوعة مسبقاً (رصيدها أكبر من صفر).</small></span>
-                        <span class="bs-item-value text-indigo-700"><?php echo number_format($prepaid_cards_balance, 2); ?> ر.ي</span>
+                        <span class="bs-item-label">
+                            <i class="fas fa-user-tag text-red-500"></i>
+                            مبالغ مستحقة للعملاء
+                            <small class="bs-how">مجموع المبالغ المتبقية السالبة على الطلبات غير الملغاة (الشركة مدينة للعميل بها). اضغط على التفاصيل.</small>
+                        </span>
+                        <span class="bs-item-value text-red-700"><?php echo number_format($due_to_customers, 2); ?> ي.ر</span>
                     </div>
-                    <div class="bs-item">
-                        <span class="bs-item-label"><i class="fas fa-user-clock text-orange-500"></i>ذمم العملاء (متبقي عليهم)<small class="bs-how">الفرق بين المبلغ النهائي لكل طلب وما دفعه العميل، للطلبات التي بقي عليها مبلغ. مستحقة للشركة.</small></span>
-                        <span class="bs-item-value text-orange-700"><?php echo number_format($customer_outstanding_balance, 2); ?> ر.ي</span>
-                    </div>
-                    <?php if ($daily_other_balance > 0): ?>
-                    <div class="bs-item">
-                        <span class="bs-item-label"><i class="fas fa-wallet text-gray-500"></i>طرق دفع أخرى<small class="bs-how">الدفعات من العملاء بطرق غير النقد والتحويل (شيك، بطاقة، وغيرها).</small></span>
-                        <span class="bs-item-value text-gray-700"><?php echo number_format($daily_other_balance, 2); ?> ر.ي</span>
-                    </div>
+                    <?php if (!empty($due_rows)): ?>
+                    <details class="mb-3 text-sm">
+                        <summary class="cursor-pointer text-blue-700 font-semibold">تفاصيل المبالغ المستحقة للعملاء (<?php echo count($due_rows); ?> طلب)</summary>
+                        <div class="overflow-x-auto mt-2">
+                            <table class="w-full text-xs">
+                                <thead><tr class="bg-gray-50"><th class="text-right p-1">الطلب</th><th class="text-right p-1">الفاتورة</th><th class="text-right p-1">العميل</th><th class="text-right p-1">الحالة</th><th class="text-right p-1">النهائي</th><th class="text-right p-1">المدفوع</th><th class="text-right p-1">المستحق للعميل</th></tr></thead>
+                                <tbody>
+                                <?php foreach ($due_rows as $d): ?>
+                                    <tr class="border-b">
+                                        <td class="p-1"><?php echo htmlspecialchars($d['order_number']); ?></td>
+                                        <td class="p-1"><?php echo htmlspecialchars((string)$d['invoice_number']); ?></td>
+                                        <td class="p-1"><?php echo htmlspecialchars((string)$d['customer_name']); ?></td>
+                                        <td class="p-1"><?php echo htmlspecialchars((string)$d['status']); ?></td>
+                                        <td class="p-1" dir="ltr"><?php echo number_format((float)$d['final_amount'], 2); ?></td>
+                                        <td class="p-1" dir="ltr"><?php echo number_format((float)$d['paid_amount'], 2); ?></td>
+                                        <td class="p-1 font-bold text-red-700" dir="ltr"><?php echo number_format((float)$d['due_to_customer'], 2); ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </details>
                     <?php endif; ?>
 
+                    <div class="bs-total mb-4">
+                        <span class="bs-total-label text-red-800">إجمالي الالتزامات</span>
+                        <span class="bs-total-value text-red-800"><?php echo number_format($total_liabilities, 2); ?> ي.ر</span>
+                    </div>
+
+                    <p class="font-bold text-purple-700 mb-2">حقوق الملكية</p>
+                    <?php foreach ($eq_rows as $er): ?>
+                    <div class="bs-item">
+                        <span class="bs-item-label"><?php echo htmlspecialchars($er['name']); ?> <small class="text-gray-400">(<?php echo htmlspecialchars($er['code']); ?>)</small></span>
+                        <span class="bs-item-value text-purple-700"><?php echo number_format((float)$er['balance'], 2); ?> ي.ر</span>
+                    </div>
+                    <?php endforeach; ?>
+                    <?php if (empty($eq_rows)): ?>
+                    <div class="bs-item"><span class="bs-item-label text-gray-500">لا يوجد حساب رأس مال في الدليل بعد.</span></div>
+                    <?php endif; ?>
+                    <div class="bs-item">
+                        <span class="bs-item-label">
+                            <i class="fas fa-chart-line text-green-500"></i>
+                            الأرباح المحتجزة (صافي الربح منذ بداية النظام)
+                            <small class="bs-how">الإيرادات المدفوعة − المصروفات المعتمدة − تكلفة السلال، من بداية النظام حتى اليوم.</small>
+                        </span>
+                        <span class="bs-item-value text-green-700"><?php echo number_format($retained_earnings, 2); ?> ي.ر</span>
+                    </div>
+                    <div class="bs-total">
+                        <span class="bs-total-label text-purple-800">إجمالي حقوق الملكية</span>
+                        <span class="bs-total-value text-purple-800"><?php echo number_format($total_equity, 2); ?> ي.ر</span>
+                    </div>
                 </div>
                 <div class="bs-total assets-total">
-                    <span class="bs-total-label text-green-800"><i class="fas fa-equals ml-1"></i> الإجمالي الكلي</span>
-                    <span class="bs-total-value text-green-800"><?php echo number_format($total_assets, 2); ?> ر.ي</span>
+                    <span class="bs-total-label text-green-800">الالتزامات + حقوق الملكية</span>
+                    <span class="bs-total-value text-green-800"><?php echo number_format($total_liabilities + $total_equity, 2); ?> ي.ر</span>
                 </div>
             </div>
 
         </div>
 
-
+        <!-- ====== CHECK ====== -->
+        <div class="mt-6 p-4 rounded-xl border-2 <?php echo $balanced ? 'border-green-400 bg-green-50' : 'border-red-400 bg-red-50'; ?>">
+            <?php if ($balanced): ?>
+                <p class="font-bold text-green-800"><i class="fas fa-check-circle"></i> الأصول = الالتزامات + حقوق الملكية (متوازن)</p>
+            <?php else: ?>
+                <p class="font-bold text-red-800"><i class="fas fa-exclamation-triangle"></i> فرق غير مفسّر: <span dir="ltr"><?php echo number_format($difference, 2); ?></span> ي.ر</p>
+                <p class="text-sm text-red-700 mt-1">الأصول <span dir="ltr"><?php echo number_format($total_assets, 2); ?></span> لا تساوي الالتزامات + حقوق الملكية. لم يتم تعديل الأرقام لإخفاء الفرق.</p>
+            <?php endif; ?>
+        </div>
 
         <div class="note-box mt-6">
             <p><i class="fas fa-info-circle"></i> <strong>ملاحظات:</strong></p>
             <ul class="list-disc pr-5 mt-2 space-y-3">
-                <li><strong>إجمالي المقبوضات النقدية:</strong> مجموع كل الدفعات النقدية التي استلمناها من العملاء منذ بداية النظام. المصدر: جدول دفعات العملاء (customer_payments) والدفعات التي طريقة دفعها "نقد"، ويشمل الدفعات التي ما زالت بانتظار المراجعة. هذا إجمالي ما دخل نقداً، وليس رصيد الصندوق الحالي، لأنه لا يُخصم منه المصروفات.</li>
-                <li><strong>مقبوضات التحويل البنكي:</strong> مجموع الدفعات التي طريقة دفعها "تحويل" من جدول دفعات العملاء. هذه المبالغ دخلت إلى الحسابات البنكية، لذلك هي موجودة أصلاً ضمن أرصدة البنوك، ولا تُضاف مرة ثانية إلى الأصول. يُعرض هذا الرقم للمعلومية فقط.</li>
-                <li><strong>أرصدة البنوك (ر.ي):</strong> الرصيد الحالي لكل حساب بنكي كما هو مسجل في جدول الحسابات البنكية (عمود الرصيد الحالي). تُعامل جميع الأرصدة كريال يمني، ويُضاف مجموعها إلى إجمالي الأصول.</li>
-                <li><strong>طرق دفع أخرى (شيك، بطاقة...):</strong> مجموع الدفعات من العملاء بأي طريقة غير النقد والتحويل، بالإضافة إلى أي دفعة لم يُحدَّد لها طريقة دفع.</li>
-                <li><strong>أرصدة بطاقات الشراء:</strong> مجموع الأرصدة المتبقية في بطاقات الشراء المدفوعة مسبقاً، للبطاقات التي رصيدها أكبر من صفر (جدول بطاقات الشراء، عمود الرصيد). تُعتبر أصلاً لأنها مال دُفع ولم يُستخدم بعد.</li>
-                <li><strong>ذمم العملاء:</strong> مجموع المبالغ المتبقية على العملاء من الطلبات، أي الفرق بين المبلغ النهائي لكل طلب وما دفعه العميل عليه (جدول الطلبات: المبلغ النهائي ناقص المبلغ المدفوع)، للطلبات التي بقي عليها أكثر من 0.01. هذه مبالغ مستحقة لنا، وستدخل للشركة عند تحصيلها.</li>
-                <li><strong>إجمالي الأصول:</strong> مجموع: النقد + طرق الدفع الأخرى + أرصدة بطاقات الشراء + ذمم العملاء + أرصدة البنوك (تُعامل كريال يمني دون تحويل).</li>
-                <li><strong>الالتزامات وحقوق الملكية:</strong> الالتزامات صفر حالياً، لأن النظام لا يسجل ديوناً على الشركة. لذلك تساوي حقوق الملكية إجمالي الأصول.</li>
-                <li><strong>كيف تتحقق من الأرقام:</strong> افتح صفحة دفعات العملاء وفلتر حسب طريقة الدفع (نقد) واجمع المبالغ، وصفحة الحسابات البنكية لمجموع الأرصدة، وصفحة بطاقات الشراء لمجموع الأرصدة الموجبة، وصفحة الطلبات لمجموع المبالغ المتبقية. الأرقام تُحسب لحظة فتح هذه الصفحة.</li>
+                <li><strong>الأصول:</strong> النقد من المدفوعات النقدية، وكل أرصدة الحسابات البنكية (سطر واحد، بالريال اليمني)، وبطاقات الشراء، وذمم العملاء المستحقة لنا.</li>
+                <li><strong>الالتزامات:</strong> أرصدة حسابات الالتزامات من الدليل (من القيود المحاسبية)، مضافاً إليها المبالغ المستحقة للعملاء: مجموع المتبقي السالب على الطلبات غير الملغاة، وتُعرض كمبلغ موجب.</li>
+                <li><strong>حقوق الملكية:</strong> رأس المال من حسابات حقوق الملكية في الدليل، والأرباح المحتجزة = صافي الربح منذ بداية النظام.</li>
+                <li><strong>التحقق:</strong> إذا لم تتساوَ الأصول مع الالتزامات + حقوق الملكية يظهر الفرق بوضوح ولا يُخفى.</li>
+                <li><strong>كيف تتحقق من الأرقام:</strong> الأرقام تُحسب لحظة فتح الصفحة من جداول المدفوعات والحسابات البنكية وبطاقات الشراء والطلبات والقيود المحاسبية.</li>
             </ul>
         </div>
 
