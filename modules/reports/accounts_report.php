@@ -421,8 +421,8 @@ include '../../includes/header.php';
                         <?php endif; ?>
                         <?php foreach ($rows as $r): ?>
                         <tr>
-                            <td><?php echo htmlspecialchars($r['entry_date']); ?></td>
-                            <td class="ar-num"><?php echo htmlspecialchars($r['transaction_number']); ?></td>
+                            <td><?php echo htmlspecialchars((string)$r['entry_date']); ?></td>
+                            <td class="ar-num"><?php echo htmlspecialchars((string)$r['transaction_number']); ?></td>
                             <td><?php echo htmlspecialchars($r['description'] ?? ''); ?></td>
                             <td><?php echo htmlspecialchars($r['code'] . ' - ' . $r['account_name']); ?></td>
                             <td class="ar-num"><?php echo $r['dr'] ? ar_nf($r['dr']) : ''; ?></td>
