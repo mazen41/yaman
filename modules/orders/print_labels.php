@@ -93,7 +93,7 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
   .label {
     width: <?= $label_w ?>mm; height: <?= $label_h ?>mm;
     padding: <?= $safe ?>mm;
-    margin: 0 auto 6mm; background: #fff; overflow: hidden;
+    margin: 0 auto 6mm; background: #fff;
     page-break-after: always; break-after: page;
   }
   .label:last-child { page-break-after: auto; break-after: auto; }
@@ -104,50 +104,55 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
     background: #fff;
     border: 0.5mm solid #000;
     border-radius: 1.5mm;
-    padding: <?= $label_h <= 45 ? '0.9mm 1.4mm' : '1.2mm 1.6mm' ?>;
+    padding: <?= $is_landscape ? '0.7mm 1.2mm' : '1.2mm 1.6mm' ?>;
   }
 
   /* Header: logo + brand on the left, company phone on the right */
   .head {
     display: flex; justify-content: space-between; align-items: center; gap: 1mm;
     border-bottom: 0.5mm solid #000;
-    padding-bottom: <?= $label_h <= 45 ? '0.6mm' : '0.9mm' ?>;
+    padding-bottom: <?= $is_landscape ? '0.5mm' : '0.9mm' ?>;
+    white-space: nowrap; flex-shrink: 0;
   }
   .brand { display: flex; align-items: center; gap: 1mm; }
-  .brand img { height: <?= $label_h <= 45 ? '4mm' : '5mm' ?>; width: auto; max-width: 6mm; object-fit: contain; filter: brightness(0); }
-  .brand-en { font-size: 8.5pt; font-weight: 900; color: #000; direction: ltr; unicode-bidi: isolate; }
-  .phone-top { font-size: 8.5pt; font-weight: 900; color: #000; direction: ltr; unicode-bidi: isolate; white-space: nowrap; }
+  .brand img { height: <?= $is_landscape ? '3.8mm' : '5mm' ?>; width: auto; max-width: 6mm; object-fit: contain; filter: brightness(0); }
+  .brand-en { font-size: <?= $is_landscape ? '8pt' : '8.5pt' ?>; font-weight: 900; color: #000; direction: ltr; unicode-bidi: isolate; }
+  .phone-top { font-size: <?= $is_landscape ? '8pt' : '8.5pt' ?>; font-weight: 900; color: #000; direction: ltr; unicode-bidi: isolate; white-space: nowrap; }
 
   /* Body: name then location then phones stacked */
-  .body-row { display: flex; flex-direction: column; gap: <?= $label_h <= 45 ? '0.8mm' : '1.2mm' ?>; margin-top: <?= $label_h <= 45 ? '0.8mm' : '1.2mm' ?>; flex: 1 1 auto; }
+  .body-row { display: flex; flex-direction: column; gap: <?= $is_landscape ? '0.7mm' : '1.2mm' ?>; margin-top: <?= $is_landscape ? '0.7mm' : '1.2mm' ?>; flex: 1 1 auto; min-height: 0; }
 
   .name {
-    font-size: <?= $label_h <= 45 ? '11pt' : '12pt' ?>; font-weight: 900; line-height: 1.2;
+    font-size: <?= $is_landscape ? '10pt' : '12pt' ?>; font-weight: 900; line-height: <?= $is_landscape ? '1.15' : '1.25' ?>;
     overflow-wrap: anywhere; text-align: center;
     border: 0.7mm solid #000; border-radius: 1mm;
     background: #fff; color: #000;
-    padding: <?= $label_h <= 45 ? '0.6mm 1.2mm' : '0.9mm 1.6mm' ?>; display: block; width: 100%;
+    padding: <?= $is_landscape ? '0.5mm 1mm' : '0.9mm 1.6mm' ?>; display: block; width: 100%;
+    <?php if ($is_landscape): ?>
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    <?php endif; ?>
   }
 
-  .location-line { font-size: <?= $label_h <= 45 ? '7.5pt' : '8.5pt' ?>; line-height: 1.3; overflow-wrap: anywhere; }
-  .phones-line { font-size: <?= $label_h <= 45 ? '7.5pt' : '8.5pt' ?>; line-height: 1.3; overflow-wrap: anywhere; }
+  .location-line { font-size: <?= $is_landscape ? '7.5pt' : '8.5pt' ?>; line-height: <?= $is_landscape ? '1.15' : '1.35' ?>; overflow-wrap: anywhere; }
+  .location-line.clamped { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .phones-line { font-size: <?= $is_landscape ? '7.5pt' : '8.5pt' ?>; line-height: <?= $is_landscape ? '1.15' : '1.35' ?>; overflow-wrap: anywhere; }
   .fk { font-weight: 900; color: #000; white-space: nowrap; }
   .loc-val { font-weight: 700; overflow-wrap: anywhere; }
   .ltr-val { direction: ltr; unicode-bidi: isolate; font-weight: 700; }
 
   /* Bottom bar */
-  .bottom { margin-top: auto; display: flex; flex-direction: column; gap: <?= $label_h <= 45 ? '0.8mm' : '1.1mm' ?>; }
+  .bottom { margin-top: auto; flex-shrink: 0; display: flex; flex-direction: <?= ($label_h <= 45) ? 'row' : 'column' ?>; gap: <?= $is_landscape ? '0.7mm' : '1.1mm' ?>; align-items: stretch; }
   .chip {
     border: 0.5mm solid #000; border-radius: 1mm;
     background: #fff; color: #000;
-    padding: <?= $label_h <= 45 ? '0.5mm 1mm' : '0.7mm 1.2mm' ?>; font-size: <?= $label_h <= 45 ? '7.5pt' : '8pt' ?>; font-weight: 900;
+    padding: <?= $is_landscape ? '0.4mm 0.9mm' : '0.7mm 1.2mm' ?>; font-size: <?= $is_landscape ? '7.5pt' : '8pt' ?>; font-weight: 900;
     display: flex; align-items: center; justify-content: center; text-align: center;
-    line-height: 1.2;
+    line-height: 1.15; white-space: nowrap;
   }
-  .chip.rem { width: 100%; background: #fff; color: #000; border: 0.7mm solid #000; font-size: <?= $label_h <= 45 ? '11pt' : '12pt' ?>; font-weight: 900; padding: <?= $label_h <= 45 ? '0.6mm 1.2mm' : '0.9mm 1.4mm' ?>; }
-  .chip.ordchip { flex: 1 1 0; font-size: <?= $label_h <= 45 ? '7.5pt' : '8pt' ?>; }
-  .ord-stack { display: flex; flex-direction: row; gap: 1mm; }
-  .chip small { font-size: 8pt; font-weight: 800; margin-right: 0.6mm; }
+  .chip.rem { <?= ($label_h <= 45) ? 'flex: 1 1 auto;' : 'width: 100%;' ?> background: #fff; color: #000; border: 0.7mm solid #000; font-size: <?= $is_landscape ? '11pt' : '12pt' ?>; font-weight: 900; padding: <?= $is_landscape ? '0.5mm 1mm' : '0.9mm 1.4mm' ?>; }
+  .chip.ordchip { flex: 1 1 0; font-size: <?= $is_landscape ? '7.5pt' : '8pt' ?>; }
+  .ord-stack { display: flex; flex-direction: <?= ($label_h <= 45) ? 'column' : 'row' ?>; gap: <?= $is_landscape ? '0.6mm' : '1mm' ?>; }
+  .chip small { font-size: 7.5pt; font-weight: 800; margin-right: 0.5mm; }
 
   /* ===== Print ===== */
   @page { size: <?= $label_w ?>mm <?= $label_h ?>mm; margin: 0; }
@@ -247,5 +252,28 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
 </div>
 <?php endforeach; ?>
 </div>
+<script>
+(function () {
+  function fitCards() {
+    document.querySelectorAll('.card').forEach(function (card) {
+      var loc = card.querySelector('.location-line');
+      if (!loc) return;
+      var sizePt = parseFloat(getComputedStyle(loc).fontSize) * 0.75;
+      var minPt = 6.5;
+      while (card.scrollHeight > card.clientHeight + 0.5 && sizePt > minPt) {
+        sizePt = Math.max(minPt, +(sizePt - 0.5).toFixed(1));
+        loc.style.fontSize = sizePt + 'pt';
+      }
+      if (card.scrollHeight > card.clientHeight + 0.5) {
+        loc.classList.add('clamped');
+      }
+    });
+  }
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(fitCards);
+  }
+  window.addEventListener('load', fitCards);
+})();
+</script>
 </body>
 </html>
