@@ -12,6 +12,7 @@ if (!isset($_SESSION['user_id'])) {
 
 require_once '../../config/database.php';
 require_once '../../includes/account_helpers.php';
+require_once '../../includes/transfer_names.php';
 
 $page_title = 'تقرير التحويل المباشر بين الحسابات';
 $currency = 'ي.ر';
@@ -90,6 +91,13 @@ try {
         ORDER BY mt.transfer_date DESC, mt.id DESC");
     $stmt->execute($params);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Show names once even when they were saved twice (display only, stored data unchanged)
+    foreach ($rows as &$rr) {
+        $rr['from_name_snapshot'] = dedupeDisplayName((string)$rr['from_name_snapshot']);
+        $rr['to_name_snapshot'] = dedupeDisplayName((string)$rr['to_name_snapshot']);
+    }
+    unset($rr);
 
     // Per-account summary: total moved out (as source), in (as target), and net. Follows the same filters.
     foreach ($rows as $r) {
