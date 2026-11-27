@@ -1038,6 +1038,12 @@ include '../../includes/header.php';
 
                     <!-- Action buttons -->
                     <div class="ac-actions">
+                        <a class="btn-icon" href="customer_refund.php?bank_id=<?php echo (int)$account['id']; ?>"
+                           style="background:#fdf4ff;color:#86198f;border:1px solid #f5d0fe;text-decoration:none;"
+                           title="دفع مستحقات عميل">
+                            <i class="fas fa-money-check-alt"></i>
+                            <span>دفع مستحقات عميل</span>
+                        </a>
                         <button class="btn-icon withdraw"
                                 onclick="openWithdrawModal(<?php echo $account['id']; ?>, '<?php echo htmlspecialchars($account['bank_name'] . ' - ' . $account['account_name'], ENT_QUOTES); ?>', <?php echo (float)$account['current_balance']; ?>)"
                                 title="سحب مبلغ">

@@ -8,6 +8,7 @@ if (!isset($_SESSION['user_id'])) {
 require_once '../../config/database.php';
 require_once '../../includes/account_helpers.php';
 require_once '../../includes/financial_calc.php';
+require_once '../../includes/customer_refund_helpers.php';
 
 $page_title = 'التقرير المالي (الميزانية)';
 $today_date = date('Y-m-d');
@@ -77,26 +78,29 @@ try {
         WHERE a.type = 'liability' AND a.is_active = 1
         GROUP BY a.id, a.code, a.name
         ORDER BY a.code")->fetchAll(PDO::FETCH_ASSOC);
+    // Account 2200 (مبالغ مستحقة للعملاء) is NOT added: the owed amount above already
+    // reflects payouts. It is kept as a memo value only, to avoid counting it twice.
+    $memo_2200 = 0.0;
     foreach ($liab_rows as &$lr) {
         $lr['code'] = normalizeArabicDigits($lr['code']);
+        if ($lr['code'] === '2200') {
+            $memo_2200 = (float)$lr['balance'];
+            $lr['memo'] = true;
+            continue;
+        }
         $journal_liabilities += (float)$lr['balance'];
     }
     unset($lr);
 
-    // Due to customers: negative remaining on non-cancelled orders (shown as a positive amount)
-    $placeholders = implode(',', array_fill(0, count($excluded_due_statuses), '?'));
-    $due_stmt = $db->prepare("
-        SELECT o.id, o.order_number, o.invoice_number, o.status, o.order_date,
-               o.final_amount, o.paid_amount,
-               (o.paid_amount - o.final_amount) AS due_to_customer,
-               c.name AS customer_name
-        FROM customer_orders o
-        LEFT JOIN customers c ON c.id = o.customer_id
-        WHERE (o.final_amount - o.paid_amount) < -0.01
-          AND o.status NOT IN ($placeholders)
-        ORDER BY due_to_customer DESC");
-    $due_stmt->execute($excluded_due_statuses);
-    $due_rows = $due_stmt->fetchAll(PDO::FETCH_ASSOC);
+    // Due to customers: the shared owed rule (P8). Subtracts payouts already made.
+    $due_rows = [];
+    $cust_names = $db->query("SELECT id, name FROM customers")->fetchAll(PDO::FETCH_KEY_PAIR);
+    foreach (crOwedOrders($db) as $o) {
+        $o['due_to_customer'] = (float)$o['owed'];
+        $o['customer_name'] = $cust_names[$o['customer_id']] ?? '';
+        $due_rows[] = $o;
+    }
+    usort($due_rows, fn($a, $b) => $b['due_to_customer'] <=> $a['due_to_customer']);
     foreach ($due_rows as $d) {
         $due_to_customers += (float)$d['due_to_customer'];
     }
@@ -298,7 +302,7 @@ include '../../includes/header.php';
             </div>
         </div>
 
-        <?php if (isset($error_message)): ?>
+        <?php if (!empty($error_message)): ?>
             <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6" role="alert">
                 <p class="font-bold">خطأ!</p>
                 <p><?php echo htmlspecialchars($error_message); ?></p>
@@ -369,6 +373,7 @@ include '../../includes/header.php';
 
                     <p class="font-bold text-red-700 mb-2">الالتزامات</p>
                     <?php foreach ($liab_rows as $lr): ?>
+                    <?php if (!empty($lr['memo'])) continue; // 2200 is shown as a memo line below ?>
                     <div class="bs-item">
                         <span class="bs-item-label"><?php echo htmlspecialchars($lr['name']); ?> <small class="text-gray-400">(<?php echo htmlspecialchars($lr['code']); ?>)</small></span>
                         <span class="bs-item-value text-red-700"><?php echo number_format((float)$lr['balance'], 2); ?> ي.ر</span>
@@ -395,7 +400,7 @@ include '../../includes/header.php';
                                 <?php foreach ($due_rows as $d): ?>
                                     <tr class="border-b">
                                         <td class="p-1"><?php echo htmlspecialchars($d['order_number']); ?></td>
-                                        <td class="p-1"><?php echo htmlspecialchars((string)$d['invoice_number']); ?></td>
+                                        <td class="p-1"><?php echo htmlspecialchars((string)($d['invoice_number'] ?? '')); ?></td>
                                         <td class="p-1"><?php echo htmlspecialchars((string)$d['customer_name']); ?></td>
                                         <td class="p-1"><?php echo htmlspecialchars((string)$d['status']); ?></td>
                                         <td class="p-1" dir="ltr"><?php echo number_format((float)$d['final_amount'], 2); ?></td>
@@ -412,6 +417,14 @@ include '../../includes/header.php';
                     <div class="bs-total mb-4">
                         <span class="bs-total-label text-red-800">إجمالي الالتزامات</span>
                         <span class="bs-total-value text-red-800"><?php echo number_format($total_liabilities, 2); ?> ي.ر</span>
+                    </div>
+                    <div class="bs-item mb-4" style="background:#f9fafb;border-radius:8px;padding:.75rem;">
+                        <span class="bs-item-label">
+                            <i class="fas fa-info-circle text-gray-400"></i>
+                            مبالغ مستحقة للعملاء (2200) <small class="text-gray-400">للمعلومية - غير مجموعة</small>
+                            <small class="bs-how">هذا الحساب يسجّل المدفوعات للعملاء، ويُظهر الرصيد بعد ما دُفع. لا يُضاف للإجمالي لأن المبلغ المستحق محسوب أعلاه من الطلبات، لتجنّب الحساب مرتين.</small>
+                        </span>
+                        <span class="bs-item-value text-gray-500"><?php echo number_format($memo_2200, 2); ?> ي.ر</span>
                     </div>
 
                     <p class="font-bold text-purple-700 mb-2">حقوق الملكية</p>
