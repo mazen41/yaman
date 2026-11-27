@@ -50,15 +50,14 @@ foreach (['yamman_logo.png', 'logo.png'] as $logo_file) {
 
 // Label sizes (mm). 50x70 is the default for Xprinter XP-365B.
 $size_presets = [
-    '50x70' => [50, 70],
+    '70x50' => [70, 50],
     '75x50' => [75, 50],
+    '50x70' => [50, 70],
     '60x40' => [60, 40],
-    '50x30' => [50, 30],
-    '80x50' => [80, 50],
-    '40x25' => [40, 25],
 ];
 $size_key = (isset($_GET['size']) && isset($size_presets[$_GET['size']])) ? $_GET['size'] : '50x70';
 [$label_w, $label_h] = $size_presets[$size_key];
+$is_landscape = $label_w > $label_h;
 $base_query = 'ids=' . urlencode($raw_ids);
 
 // Safe margin on all sides (2.5 mm, within 2-3 mm thermal safe zone)
@@ -105,48 +104,48 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
     background: #fff;
     border: 0.5mm solid #000;
     border-radius: 1.5mm;
-    padding: 1.4mm 1.8mm;
+    padding: <?= $label_h <= 45 ? '0.9mm 1.4mm' : '1.2mm 1.6mm' ?>;
   }
 
   /* Header: logo + brand on the left, company phone on the right */
   .head {
     display: flex; justify-content: space-between; align-items: center; gap: 1mm;
     border-bottom: 0.5mm solid #000;
-    padding-bottom: 1mm;
+    padding-bottom: <?= $label_h <= 45 ? '0.6mm' : '0.9mm' ?>;
   }
   .brand { display: flex; align-items: center; gap: 1mm; }
-  .brand img { height: 5mm; width: auto; max-width: 6mm; object-fit: contain; filter: brightness(0); }
+  .brand img { height: <?= $label_h <= 45 ? '4mm' : '5mm' ?>; width: auto; max-width: 6mm; object-fit: contain; filter: brightness(0); }
   .brand-en { font-size: 8.5pt; font-weight: 900; color: #000; direction: ltr; unicode-bidi: isolate; }
   .phone-top { font-size: 8.5pt; font-weight: 900; color: #000; direction: ltr; unicode-bidi: isolate; white-space: nowrap; }
 
   /* Body: name then location then phones stacked */
-  .body-row { display: flex; flex-direction: column; gap: 1.4mm; margin-top: 1.4mm; flex: 1 1 auto; }
+  .body-row { display: flex; flex-direction: column; gap: <?= $label_h <= 45 ? '0.8mm' : '1.2mm' ?>; margin-top: <?= $label_h <= 45 ? '0.8mm' : '1.2mm' ?>; flex: 1 1 auto; }
 
   .name {
-    font-size: 12pt; font-weight: 900; line-height: 1.25;
+    font-size: <?= $label_h <= 45 ? '11pt' : '12pt' ?>; font-weight: 900; line-height: 1.2;
     overflow-wrap: anywhere; text-align: center;
     border: 0.7mm solid #000; border-radius: 1mm;
     background: #fff; color: #000;
-    padding: 1mm 1.6mm; display: block; width: 100%;
+    padding: <?= $label_h <= 45 ? '0.6mm 1.2mm' : '0.9mm 1.6mm' ?>; display: block; width: 100%;
   }
 
-  .location-line { font-size: 8.5pt; line-height: 1.35; overflow-wrap: anywhere; }
-  .phones-line { font-size: 8.5pt; line-height: 1.35; overflow-wrap: anywhere; }
+  .location-line { font-size: <?= $label_h <= 45 ? '7.5pt' : '8.5pt' ?>; line-height: 1.3; overflow-wrap: anywhere; }
+  .phones-line { font-size: <?= $label_h <= 45 ? '7.5pt' : '8.5pt' ?>; line-height: 1.3; overflow-wrap: anywhere; }
   .fk { font-weight: 900; color: #000; white-space: nowrap; }
   .loc-val { font-weight: 700; overflow-wrap: anywhere; }
   .ltr-val { direction: ltr; unicode-bidi: isolate; font-weight: 700; }
 
   /* Bottom bar */
-  .bottom { margin-top: auto; display: flex; flex-direction: column; gap: 1.2mm; }
+  .bottom { margin-top: auto; display: flex; flex-direction: column; gap: <?= $label_h <= 45 ? '0.8mm' : '1.1mm' ?>; }
   .chip {
     border: 0.5mm solid #000; border-radius: 1mm;
     background: #fff; color: #000;
-    padding: 0.8mm 1.2mm; font-size: 8pt; font-weight: 900;
+    padding: <?= $label_h <= 45 ? '0.5mm 1mm' : '0.7mm 1.2mm' ?>; font-size: <?= $label_h <= 45 ? '7.5pt' : '8pt' ?>; font-weight: 900;
     display: flex; align-items: center; justify-content: center; text-align: center;
     line-height: 1.2;
   }
-  .chip.rem { width: 100%; background: #fff; color: #000; border: 0.7mm solid #000; font-size: 12pt; font-weight: 900; padding: 1mm 1.4mm; }
-  .chip.ordchip { flex: 1 1 0; font-size: 8pt; }
+  .chip.rem { width: 100%; background: #fff; color: #000; border: 0.7mm solid #000; font-size: <?= $label_h <= 45 ? '11pt' : '12pt' ?>; font-weight: 900; padding: <?= $label_h <= 45 ? '0.6mm 1.2mm' : '0.9mm 1.4mm' ?>; }
+  .chip.ordchip { flex: 1 1 0; font-size: <?= $label_h <= 45 ? '7.5pt' : '8pt' ?>; }
   .ord-stack { display: flex; flex-direction: row; gap: 1mm; }
   .chip small { font-size: 8pt; font-weight: 800; margin-right: 0.6mm; }
 
@@ -154,9 +153,10 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
   @page { size: <?= $label_w ?>mm <?= $label_h ?>mm; margin: 0; }
   @media print {
     html, body { width: <?= $label_w ?>mm; background: #fff !important; margin: 0; padding: 0; }
-    .no-print { display: none !important; }
+    .no-print, .size-indicator { display: none !important; }
     .label { margin: 0; }
   }
+  .size-indicator { font-size: 12px; color: #4b5563; margin-bottom: 8px; font-weight: 700; }
   .size-picks { margin-top: 12px; }
   .size-btn { display: inline-block; margin: 0 4px 6px; padding: 8px 14px; border: 2px solid #000; border-radius: 6px; color: #000; text-decoration: none; font-weight: 700; font-size: 14px; background: #fff; }
   .size-btn.active { background: #000; color: #fff; }
@@ -166,6 +166,7 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
 <div class="labels">
 
 <div class="toolbar no-print">
+    <div class="size-indicator no-print">المقاس الحالي: <?= $label_w ?> × <?= $label_h ?> مم (<?= $is_landscape ? 'أفقي' : 'عمودي' ?>)</div>
     <button class="btn-print" onclick="window.print()">🖨 طباعة الآن</button>
     <button class="btn-close" onclick="window.close()">إغلاق</button>
     <div class="size-picks">

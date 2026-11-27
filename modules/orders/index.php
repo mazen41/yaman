@@ -507,6 +507,29 @@ include '../../includes/header.php';
         color: #991b1b;
         border: 1px solid #ef4444;
     }
+
+    .label-size-group {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: #fffbeb;
+        padding: 3px 6px;
+        border-radius: 6px;
+        border: 1px solid #f59e0b;
+    }
+
+    .label-size-btn {
+        padding: 5px 10px;
+        font-size: 12px;
+        background: #fff;
+        color: #92400e;
+        border: 1px solid #f59e0b;
+    }
+
+    .label-size-btn.active {
+        background: #f59e0b;
+        color: #fff;
+    }
 </style>
 
 <div dir="rtl">
@@ -557,7 +580,13 @@ include '../../includes/header.php';
                     <div style="display: flex; gap: 10px; margin-bottom: 5px;">
                         <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> بحث</button>
                         <a href="index.php" class="btn btn-secondary"><i class="fas fa-redo"></i> إلغاء</a>
-                        <button type="button" onclick="printSelectedLabels()" class="btn btn-warning" style="background:#f59e0b;color:white;border:none;cursor:pointer;"><i class="fas fa-print"></i> طباعة ملصقات</button>
+                        <div class="label-size-group">
+                            <span style="font-size:12px;font-weight:700;color:#92400e;margin-left:2px;"><i class="fas fa-print"></i> ملصق:</span>
+                            <button type="button" class="btn label-size-btn" data-size="70x50" onclick="printSelectedLabels('70x50')">70x50</button>
+                            <button type="button" class="btn label-size-btn" data-size="75x50" onclick="printSelectedLabels('75x50')">75x50</button>
+                            <button type="button" class="btn label-size-btn" data-size="50x70" onclick="printSelectedLabels('50x70')">50x70</button>
+                            <button type="button" class="btn label-size-btn" data-size="60x40" onclick="printSelectedLabels('60x40')">60x40</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1029,11 +1058,26 @@ include '../../includes/header.php';
         document.getElementById('deleteModal').style.display = 'none';
         orderIdToDelete = null;
     }
-    function printSelectedLabels() {
+    const LABEL_SIZE_STORAGE_KEY = 'yaman_label_size';
+
+    function highlightLabelSize(size) {
+        document.querySelectorAll('.label-size-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.size === size);
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        highlightLabelSize(localStorage.getItem(LABEL_SIZE_STORAGE_KEY) || '50x70');
+    });
+
+    function printSelectedLabels(size) {
+        const chosenSize = size || localStorage.getItem(LABEL_SIZE_STORAGE_KEY) || '50x70';
+        localStorage.setItem(LABEL_SIZE_STORAGE_KEY, chosenSize);
+        highlightLabelSize(chosenSize);
         const checked = document.querySelectorAll('.order-select-cb:checked');
         if (checked.length === 0) { alert('يرجى تحديد طلب واحد على الأقل'); return; }
         const ids = Array.from(checked).map(cb => cb.value).join(',');
-        window.open('print_labels.php?ids=' + ids + '&size=50x70', '_blank');
+        window.open('print_labels.php?ids=' + ids + '&size=' + encodeURIComponent(chosenSize), '_blank');
     }
 
     document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
