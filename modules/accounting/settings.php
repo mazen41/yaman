@@ -47,7 +47,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
 }
 
 // Fetch all accounts for dropdowns
-$accounts_list = $db->query("SELECT id, code, name FROM accounts WHERE is_active = 1 ORDER BY code ASC")->fetchAll(PDO::FETCH_ASSOC);
+require_once '../../includes/account_helpers.php';
+$accounts_list = getAccountsForSelect($db); // every active account, all types (P2)
 
 // Fetch current settings
 $current_settings_raw = $db->query("SELECT setting_key, setting_value FROM accounting_settings")->fetchAll(PDO::FETCH_ASSOC);

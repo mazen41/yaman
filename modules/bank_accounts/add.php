@@ -7,6 +7,7 @@ if (!isset($_SESSION['user_id'])) {
 
 require_once '../../config/database.php';
 require_once '../../includes/check_permissions.php';
+require_once '../../includes/account_helpers.php';
 
 // Check permission (assuming permission name is 'bank_accounts')
 if (!hasPermission($_SESSION['user_id'], 'bank_accounts', 'add')) {
@@ -25,24 +26,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $holder_name = trim($_POST['holder_name'] ?? '');
         $account_number = trim($_POST['account_number'] ?? '');
         $iban = trim($_POST['iban'] ?? '');
-        $currency = $_POST['currency'] ?? 'SAR';
+        $currency = 'YER'; // single-currency system: all bank accounts are YER
         $initial_balance = floatval($_POST['initial_balance'] ?? 0);
         
         if (empty($bank_name)) throw new Exception('اسم البنك مطلوب');
         if (empty($holder_name)) throw new Exception('اسم صاحب الحساب مطلوب');
         if (empty($account_number)) throw new Exception('رقم الحساب مطلوب');
         
-        $stmt = $db->prepare("INSERT INTO bank_accounts (bank_name, account_holder_name, account_number, iban, currency, initial_balance, current_balance, is_active, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)");
-        $stmt->execute([
-            $bank_name,
-            $holder_name,
-            $account_number,
-            $iban,
-            $currency,
-            $initial_balance,
-            $initial_balance, // Current starts equal to initial
-            $_SESSION['user_id']
-        ]);
+        $chart_id = (int)($_POST['chart_account_id'] ?? 0);
+        $columns = 'bank_name, account_holder_name, account_number, iban, currency, initial_balance, current_balance, created_by';
+        $params = [$bank_name, $holder_name, $account_number, $iban, $currency, $initial_balance, $initial_balance, $_SESSION['user_id']];
+        if (bankChartLinkColumnExists($db)) { // chart link only once the P3 migration has been run
+            $columns .= ', chart_account_id';
+            $params[] = $chart_id > 0 ? $chart_id : null;
+        }
+        $placeholders = implode(', ', array_fill(0, count($params), '?'));
+        $stmt = $db->prepare("INSERT INTO bank_accounts ($columns, is_active) VALUES ($placeholders, 1)");
+        $stmt->execute($params);
         
         $success_message = 'تم إضافة الحساب البنكي بنجاح';
         header("refresh:2;url=index.php");
@@ -126,14 +126,24 @@ include '../../includes/header.php';
                     <div>
                         <label class="block text-sm font-bold text-gray-700 mb-2">عملة الحساب <span class="text-red-500">*</span></label>
                         <select name="currency" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white">
-                            <option value="SAR" selected>ريال سعودي (SAR)</option>
-                            <option value="USD">دولار أمريكي (USD)</option>
-                            <option value="YER">ريال يمني (YER)</option>
-                            <option value="EUR">يورو (EUR)</option>
+                            <option value="YER" selected>ريال يمني (YER)</option>
                         </select>
                     </div>
 
-                    <!-- Initial Balance -->
+                    <?php if (bankChartLinkColumnExists($db)): ?>
+                <!-- Linked chart account (P3) -->
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-2">الحساب المحاسبي المرتبط</label>
+                    <select name="chart_account_id" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white">
+                        <option value="">-- بدون ربط (يُستخدم بنك 1202) --</option>
+                        <?php foreach (getAccountsForSelect($db) as $acc): if ($acc['type'] !== 'asset') continue; ?>
+                            <option value="<?php echo (int)$acc['id']; ?>">[<?php echo htmlspecialchars($acc['code']); ?>] <?php echo htmlspecialchars($acc['name']); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <?php endif; ?>
+
+                <!-- Initial Balance -->
                     <div>
                         <label class="block text-sm font-bold text-gray-700 mb-2">الرصيد الافتتاحي</label>
                         <input type="number" name="initial_balance" step="0.01" value="0.00" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">

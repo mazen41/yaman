@@ -8,6 +8,7 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 require_once '../../config/database.php';
+require_once '../../includes/account_helpers.php';
 // require_once '../../includes/check_permissions.php'; // Uncomment if you have this file
 
 $page_title = 'دليل الحسابات';
@@ -18,7 +19,7 @@ $error_message = '';
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
     try {
         $action = $_POST['action'];
-        $code = trim($_POST['code'] ?? '');
+        $code = normalizeArabicDigits(trim($_POST['code'] ?? '')); // store Western digits only
         $name = trim($_POST['name'] ?? '');
         $type = $_POST['type'] ?? '';
         $parent_id = !empty($_POST['parent_id']) ? intval($_POST['parent_id']) : null;
@@ -28,15 +29,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
         }
 
         if ($action == 'add') {
-            $stmt = $db->prepare("INSERT INTO accounts (code, name, type, parent_id, created_by) VALUES (?, ?, ?, ?, ?)");
+            // is_active and currency set explicitly so new accounts always appear in every picker (P2)
+            $stmt = $db->prepare("INSERT INTO accounts (code, name, type, parent_id, is_active, currency, created_by) VALUES (?, ?, ?, ?, 1, 'YER', ?)");
             $stmt->execute([$code, $name, $type, $parent_id, $_SESSION['user_id']]);
             $success_message = 'تم إضافة الحساب بنجاح.';
         } elseif ($action == 'edit') {
             $id = intval($_POST['account_id'] ?? 0);
             if ($id <= 0) throw new Exception('معرف الحساب غير صالح.');
 
-            $stmt = $db->prepare("UPDATE accounts SET code = ?, name = ?, type = ?, parent_id = ? WHERE id = ?");
-            $stmt->execute([$code, $name, $type, $parent_id, $id]);
+            $is_active = isset($_POST['is_active']) ? 1 : 0; // unchecked box = inactive (hidden from pickers)
+            $stmt = $db->prepare("UPDATE accounts SET code = ?, name = ?, type = ?, parent_id = ?, is_active = ? WHERE id = ?");
+            $stmt->execute([$code, $name, $type, $parent_id, $is_active, $id]);
             $success_message = 'تم تحديث الحساب بنجاح.';
         }
     } catch (PDOException $e) {
@@ -247,6 +250,10 @@ include '../../includes/header.php';
                                         <option value="expense">مصروفات (Expenses)</option>
                                     </select>
                                 </div>
+                                <div class="flex items-center gap-2">
+                                    <input type="checkbox" id="is_active" name="is_active" value="1" x-model="formData.is_active" class="h-4 w-4 rounded border-gray-300 text-indigo-600">
+                                    <label for="is_active" class="text-sm font-bold text-gray-700">الحساب نشط (يظهر في القوائم المنسدلة)</label>
+                                </div>
                                 <div>
                                     <label class="block text-sm font-bold text-gray-700 mb-1">الحساب الرئيسي</label>
                                     <select name="parent_id" x-model="formData.parent_id" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white">
@@ -281,7 +288,8 @@ include '../../includes/header.php';
                 code: '',
                 name: '',
                 type: '',
-                parent_id: ''
+                parent_id: '',
+                is_active: true
             },
             openModal(account = null) {
                 if (account) {
@@ -294,14 +302,15 @@ include '../../includes/header.php';
                         code: account.code,
                         name: account.name,
                         type: account.type,
-                        parent_id: account.parent_id || ''
+                        parent_id: account.parent_id || '',
+                        is_active: Number(account.is_active) === 1
                     };
                 } else {
                     // Adding new account
                     this.modalTitle = 'إضافة حساب جديد';
                     this.modalButtonText = 'حفظ الحساب';
                     this.formAction = 'add';
-                    this.formData = { id: null, code: '', name: '', type: '', parent_id: '' };
+                    this.formData = { id: null, code: '', name: '', type: '', parent_id: '', is_active: true };
                 }
                 this.isModalOpen = true;
             }

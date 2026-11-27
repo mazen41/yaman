@@ -32,11 +32,8 @@ if (($_POST['action'] ?? '') === 'toggle_store' && hasPermission($_SESSION['user
 }
 
 // Currency filter
-$selected_currency = $_GET['currency'] ?? 'YER';
-if (!in_array($selected_currency, ['YER', 'SAR'])) {
-    $selected_currency = 'YER';
-}
-$currency_symbol = ($selected_currency == 'SAR') ? 'ر.س' : 'ر.ي';
+$selected_currency = 'YER'; // single-currency system
+$currency_symbol = 'ر.ي';
 
 // Fetch data
 try {
@@ -86,8 +83,7 @@ include '../../includes/header.php';
         <form method="GET" class="flex items-center gap-4">
             <label class="font-semibold text-gray-700">العملة:</label>
             <select name="currency" onchange="this.form.submit()" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                <option value="YER" <?php echo $selected_currency === 'YER' ? 'selected' : ''; ?>>ريال يمني (YER)</option>
-                <option value="SAR" <?php echo $selected_currency === 'SAR' ? 'selected' : ''; ?>>ريال سعودي (SAR)</option>
+                <option value="YER" selected>ريال يمني (YER)</option>
             </select>
         </form>
     </div>

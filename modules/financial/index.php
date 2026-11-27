@@ -8,6 +8,7 @@ if (!isset($_SESSION['user_id'])) {
 
 require_once '../../config/database.php';
 require_once '../../includes/check_permissions.php';
+require_once '../../includes/financial_calc.php';
 
 // Check permission
 if (!hasPermission($_SESSION['user_id'], 'financial', 'view')) {
@@ -32,7 +33,7 @@ $revenue_stmt = $db->prepare("
 ");
 $revenue_stmt->execute([$from_date, $to_date]);
 $revenue_result = $revenue_stmt->fetch(PDO::FETCH_ASSOC);
-$total_revenue = $revenue_result['total_revenue'] ?? 0;
+$total_revenue = calcOrdersRevenue($db, $from_date, $to_date); // P4: shared function (paid amount of all orders, same as P&L)
 
 
 // 2. CORRECTED: Calculate Total Expenses directly from the 'expenses' table with currency conversion.
@@ -69,7 +70,7 @@ $expenses_stmt->execute([
 ]);
 
 $expenses_result = $expenses_stmt->fetch(PDO::FETCH_ASSOC);
-$total_expenses = $expenses_result['total_expenses'] ?? 0;
+$total_expenses = calcApprovedExpenses($db, $from_date, $to_date); // P4: shared function (approved only, same as expenses page)
 
 // ===============================================================================================
 

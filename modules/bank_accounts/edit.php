@@ -7,6 +7,7 @@ if (!isset($_SESSION['user_id'])) {
 
 require_once '../../config/database.php';
 require_once '../../includes/check_permissions.php';
+require_once '../../includes/account_helpers.php';
 
 // Check permission
 if (!hasPermission($_SESSION['user_id'], 'bank_accounts', 'edit')) {
@@ -36,7 +37,12 @@ try {
 }
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    // Add your update logic here
+    // P3: save the linked chart account (currency stays YER)
+    if (bankChartLinkColumnExists($db)) {
+        $chart_id = (int)($_POST['chart_account_id'] ?? 0);
+        $upd = $db->prepare("UPDATE bank_accounts SET chart_account_id = ? WHERE id = ?");
+        $upd->execute([$chart_id > 0 ? $chart_id : null, $id]);
+    }
     $_SESSION['success_message'] = 'تم التعديل بنجاح';
     header('Location: index.php');
     exit();
@@ -57,9 +63,19 @@ include '../../includes/header.php';
                 <label class="block text-sm font-medium text-gray-700 mb-2">العملة</label>
                 <select name="currency" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                     <option value="YER" <?php echo ($item['currency'] ?? '') == 'YER' ? 'selected' : ''; ?>>ريال يمني (YER)</option>
-                    <option value="SAR" <?php echo ($item['currency'] ?? '') == 'SAR' ? 'selected' : ''; ?>>ريال سعودي (SAR)</option>
                 </select>
             </div>
+            <?php if (bankChartLinkColumnExists($db)): ?>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">الحساب المحاسبي المرتبط</label>
+                <select name="chart_account_id" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white">
+                    <option value="">-- بدون ربط (يُستخدم بنك 1202) --</option>
+                    <?php foreach (getAccountsForSelect($db) as $acc): if ($acc['type'] !== 'asset') continue; ?>
+                        <option value="<?php echo (int)$acc['id']; ?>" <?php echo ((int)($item['chart_account_id'] ?? 0) === (int)$acc['id']) ? 'selected' : ''; ?>>[<?php echo htmlspecialchars($acc['code']); ?>] <?php echo htmlspecialchars($acc['name']); ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <?php endif; ?>
             <?php endif; ?>
             
             <div class="flex gap-4">

@@ -8,6 +8,7 @@ if (!isset($_SESSION['user_id'])) {
 require_once '../../config/database.php';
 // --- EDIT: Include the accounting functions file, which contains create_journal_entry() ---
 require_once '../../includes/accounting_functions.php'; 
+require_once '../../includes/account_helpers.php';
 
 $page_title = 'معاملة مالية جديدة';
 $success_message = '';
@@ -15,12 +16,7 @@ $error_message = '';
 
 // Fetch active accounts for the form dropdowns
 try {
-    $accounts = $db->query("
-        SELECT id, code, name 
-        FROM accounts 
-        WHERE is_active = 1 
-        ORDER BY code
-    ")->fetchAll(PDO::FETCH_ASSOC);
+    $accounts = getAccountsForSelect($db); // every active account, all types (P2)
 } catch (Exception $e) {
     $accounts = [];
     $error_message = "خطأ في تحميل الحسابات: " . $e->getMessage();
