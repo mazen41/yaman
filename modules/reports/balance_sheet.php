@@ -455,6 +455,8 @@ include '../../includes/header.php';
             <?php endif; ?>
         </div>
 
+        <p class="text-sm text-gray-600 mt-2">ملاحظة: الفرق = مصروفات لم تُسجَّل كخروج من الحساب البنكي أو النقدي (difference = spending not posted as bank/cash outflows).</p>
+
         <div class="note-box mt-6">
             <p><i class="fas fa-info-circle"></i> <strong>ملاحظات:</strong></p>
             <ul class="list-disc pr-5 mt-2 space-y-3">
