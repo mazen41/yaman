@@ -48,14 +48,13 @@ foreach (['yamman_logo.png', 'logo.png'] as $logo_file) {
     }
 }
 
-// Label sizes (mm). 50x70 is the default for Xprinter XP-365B.
+// Label sizes (mm). 70x50 is the default for Xprinter XP-365B.
 $size_presets = [
     '70x50' => [70, 50],
     '75x50' => [75, 50],
     '50x70' => [50, 70],
-    '60x40' => [60, 40],
 ];
-$size_key = (isset($_GET['size']) && isset($size_presets[$_GET['size']])) ? $_GET['size'] : '50x70';
+$size_key = (isset($_GET['size']) && isset($size_presets[$_GET['size']])) ? $_GET['size'] : '70x50';
 [$label_w, $label_h] = $size_presets[$size_key];
 $is_landscape = $label_w > $label_h;
 $base_query = 'ids=' . urlencode($raw_ids);
@@ -105,6 +104,7 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
     border: 0.5mm solid #000;
     border-radius: 1.5mm;
     padding: <?= $is_landscape ? '0.7mm 1.2mm' : '1.2mm 1.6mm' ?>;
+    overflow: hidden;
   }
 
   /* Header: logo + brand on the left, company phone on the right */
@@ -141,17 +141,17 @@ $fixed_city_line = 'صنعاء - شارع تونس خلف استوديو الق�
   .ltr-val { direction: ltr; unicode-bidi: isolate; font-weight: 700; }
 
   /* Bottom bar */
-  .bottom { margin-top: auto; flex-shrink: 0; display: flex; flex-direction: <?= ($label_h <= 45) ? 'row' : 'column' ?>; gap: <?= $is_landscape ? '0.7mm' : '1.1mm' ?>; align-items: stretch; }
+  .bottom { margin-top: auto; flex-shrink: 0; display: flex; flex-direction: <?= ($label_h <= 45) ? 'row' : 'column' ?>; gap: <?= $is_landscape ? '0.7mm' : '1.1mm' ?>; align-items: stretch; overflow: hidden; }
   .chip {
     border: 0.5mm solid #000; border-radius: 1mm;
     background: #fff; color: #000;
     padding: <?= $is_landscape ? '0.4mm 0.9mm' : '0.7mm 1.2mm' ?>; font-size: <?= $is_landscape ? '7.5pt' : '8pt' ?>; font-weight: 900;
     display: flex; align-items: center; justify-content: center; text-align: center;
-    line-height: 1.15; white-space: nowrap;
+    line-height: 1.15; white-space: nowrap; min-width: 0;
   }
-  .chip.rem { <?= ($label_h <= 45) ? 'flex: 1 1 auto;' : 'width: 100%;' ?> background: #fff; color: #000; border: 0.7mm solid #000; font-size: <?= $is_landscape ? '11pt' : '12pt' ?>; font-weight: 900; padding: <?= $is_landscape ? '0.5mm 1mm' : '0.9mm 1.4mm' ?>; }
-  .chip.ordchip { flex: 1 1 0; font-size: <?= $is_landscape ? '7.5pt' : '8pt' ?>; }
-  .ord-stack { display: flex; flex-direction: <?= ($label_h <= 45) ? 'column' : 'row' ?>; gap: <?= $is_landscape ? '0.6mm' : '1mm' ?>; }
+  .chip.rem { <?= ($label_h <= 45) ? 'flex: 1 1 auto;' : 'width: 100%;' ?> background: #fff; color: #000; border: 0.7mm solid #000; font-size: <?= $is_landscape ? '11pt' : '12pt' ?>; font-weight: 900; padding: <?= $is_landscape ? '0.5mm 1mm' : '0.9mm 1.4mm' ?>; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .chip.ordchip { flex: 1 1 0; font-size: <?= $is_landscape ? '7.5pt' : '8pt' ?>; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .ord-stack { display: flex; flex-direction: <?= ($label_h <= 45) ? 'column' : 'row' ?>; gap: <?= $is_landscape ? '0.6mm' : '1mm' ?>; flex-shrink: 0; min-width: 0; }
   .chip small { font-size: 7.5pt; font-weight: 800; margin-right: 0.5mm; }
 
   /* ===== Print ===== */

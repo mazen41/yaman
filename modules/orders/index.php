@@ -585,7 +585,6 @@ include '../../includes/header.php';
                             <button type="button" class="btn label-size-btn" data-size="70x50" onclick="printSelectedLabels('70x50')">70x50</button>
                             <button type="button" class="btn label-size-btn" data-size="75x50" onclick="printSelectedLabels('75x50')">75x50</button>
                             <button type="button" class="btn label-size-btn" data-size="50x70" onclick="printSelectedLabels('50x70')">50x70</button>
-                            <button type="button" class="btn label-size-btn" data-size="60x40" onclick="printSelectedLabels('60x40')">60x40</button>
                         </div>
                     </div>
                 </div>
@@ -1067,11 +1066,11 @@ include '../../includes/header.php';
     }
 
     document.addEventListener('DOMContentLoaded', function() {
-        highlightLabelSize(localStorage.getItem(LABEL_SIZE_STORAGE_KEY) || '50x70');
+        highlightLabelSize(localStorage.getItem(LABEL_SIZE_STORAGE_KEY) || '70x50');
     });
 
     function printSelectedLabels(size) {
-        const chosenSize = size || localStorage.getItem(LABEL_SIZE_STORAGE_KEY) || '50x70';
+        const chosenSize = size || localStorage.getItem(LABEL_SIZE_STORAGE_KEY) || '70x50';
         localStorage.setItem(LABEL_SIZE_STORAGE_KEY, chosenSize);
         highlightLabelSize(chosenSize);
         const checked = document.querySelectorAll('.order-select-cb:checked');
